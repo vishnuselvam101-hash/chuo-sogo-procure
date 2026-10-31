@@ -1,0 +1,21 @@
+# Chuo-Sogo Procure — project rules
+
+AI industrial procurement platform (Model C: software + managed procurement ops). Japan-first desktop app. Owner: Chuo-Sogo Inc.
+Read `docs/architecture/ARCHITECTURE.md` and `docs/architecture/IMPLEMENTATION_PLAN.md` before changing anything.
+
+## Non-negotiables
+- Rust is authoritative for business, money, permissions, workflow. TypeScript is presentation only.
+- Every customer-owned query is tenant-scoped (`TenantCtx`) and protected by PostgreSQL RLS.
+- Money: `procure_domain::money::Money` (integer minor units). No floats, no implicit FX.
+- AI output goes to `ai_suggestions` only; a human promotes it. AI never approves, never issues POs, never substitutes products.
+- Every workflow transition emits an audit event in the same transaction.
+- No hardcoded UI strings; use `apps/desktop/locales/<lang>/`.
+- Supplier email is test mode unless explicitly configured and approved.
+
+## Commands
+- `scripts/gate.sh quick` during work; `scripts/gate.sh full` at milestones.
+- Rust 1.95 (`rust-toolchain.toml`). `cargo tauri`, `sqlx`, `cargo audit` installed.
+
+## Process
+Agents in `.claude/agents/`, used sparingly: implement in the main session; call code-reviewer, cybersecurity-expert, debugger, qa-engineer at milestone gates.
+Commits: author vishnuselvam101-hash, no AI attribution trailers. Never push, tag, deploy, sign, or email suppliers/customers without founder approval.
