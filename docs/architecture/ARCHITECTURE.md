@@ -1,6 +1,6 @@
 # Architecture proposal — Chuo-Sogo AI Industrial Procurement Platform
 
-Status: **PROPOSED, awaiting founder approval** (2026-10-31). Nothing beyond the sample `procure-domain` crate is implemented.
+Status: **APPROVED** (founder, 2026-10-31: "don't wait for my approval"). Phase 1 implemented; see `IMPLEMENTATION_PLAN.md`.
 
 ## 1. Starting point
 
@@ -69,13 +69,13 @@ Software + managed procurement operations. Chuo-Sogo **coordinates**; the custom
 | D1 | Modular monolith, one binary + worker mode | One deployable for a small team; module boundaries enforced by crate/module visibility. |
 | D2 | Server-side opaque sessions (hashed token in `sessions`), argon2id passwords | Revocable, simple, no JWT key handling on clients. SSO (OIDC/SAML) added later as another login method. |
 | D3 | Tenant isolation in two layers: every repository function takes `TenantCtx`, **and** PostgreSQL RLS keyed on `SET LOCAL app.org_id` | Defence in depth: a missed `WHERE org_id` still returns nothing. |
-| D4 | Internal operators access customer data only through `service_assignments` (org-scoped grant), every access audited | Least privilege for Chuo-Sogo staff. |
+| D4 | All internal staff (admins included) access customer data only through `service_assignments` (org-scoped grant); grants/revocations audited in both orgs. Accounts are permanently `internal` or `customer` (DB-enforced), and every membership starts as an invitation the user accepts | Least privilege; no cross-tenant profile exposure; staff can never hold customer approval roles. |
 | D5 | Money = `i64` minor units + ISO currency; FX only via recorded `fx_rates` (source, date); no implicit conversion | Deterministic, auditable comparisons. |
 | D6 | AI writes only to `ai_suggestions` (pending). A human action promotes it into `product_identities`, `quotations`, etc. | AI can never be the final authority (brief §10). |
 | D7 | Workflow states are Rust enums + DB `CHECK`; transitions only via `domain::workflow` functions that also emit an audit event in the same transaction | No silent status changes. |
 | D8 | Audit log append-only (`audit_events`, no UPDATE/DELETE grant, hash-chained per org) | Tamper evidence. |
 | D9 | Supplier comms: `outbox` table; dispatch is `test` mode by default (writes `.eml` files); real SMTP needs explicit config + per-org enablement | No accidental real emails. |
-| D10 | Desktop keeps token in OS keychain (Rust side); webview never sees it; all API calls go through Rust IPC | Token theft via XSS impossible from webview. |
+| D10 | Desktop keeps the session token in Rust process memory only (not in the webview, not on disk); all API calls go through validated Rust IPC. OS-keychain "stay signed in" deferred | Token theft via webview XSS impossible; nothing to steal from disk. Keychain needs a Secret Service on Linux and is a convenience, not a requirement. |
 | D11 | OpenAPI generated from Rust (utoipa) → TS types (openapi-typescript); contract test fails if the spec changes without regeneration | No type drift across languages. |
 | D12 | Postgres-backed job queue | No Redis to operate. Enough until thousands of jobs/min. |
 | D13 | Localisation: canonical codes in DB (`status = 'awaiting_approval'`), labels only in locale files; DB text is UTF-8; timestamps `timestamptz`, displayed in user TZ (default Asia/Tokyo) | Language never changes data. |

@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1f3a68"/>
+      <stop offset="1" stop-color="#0f1f3d"/>
+    </linearGradient>
+  </defs>
+  <rect x="64" y="64" width="896" height="896" rx="200" fill="url(#g)"/>
+  <!-- Three stacked crates: procurement / supply -->
+  <g fill="none" stroke="#e8eef8" stroke-width="44" stroke-linejoin="round">
+    <rect x="262" y="520" width="220" height="200" rx="18"/>
+    <rect x="542" y="520" width="220" height="200" rx="18"/>
+    <rect x="402" y="280" width="220" height="200" rx="18"/>
+  </g>
+  <path d="M262 800 H762" stroke="#f0a640" stroke-width="44" stroke-linecap="round"/>
+</svg>

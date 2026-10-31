@@ -1,0 +1,14 @@
+{
+  "unauthenticated": "Your session has ended. Please sign in again.",
+  "invalid_credentials": "Email address or password is incorrect.",
+  "account_locked": "Too many attempts. Try again in 15 minutes.",
+  "forbidden": "You do not have permission to do this.",
+  "not_found": "Not found.",
+  "validation_failed": "Please check the information you entered.",
+  "conflict": "This already exists.",
+  "bad_request": "The request was not valid.",
+  "network": "Cannot reach the server.",
+  "insecure_server": "Insecure server address (https required).",
+  "internal_error": "Something went wrong.",
+  "unknown": "An error occurred."
+}

@@ -1,0 +1,45 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Chuo-Sogo Procure",
+  "version": "0.1.0",
+  "identifier": "net.chuo-sogo.procure",
+  "build": {
+    "beforeDevCommand": "pnpm dev",
+    "devUrl": "http://127.0.0.1:1420",
+    "beforeBuildCommand": "pnpm build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Chuo-Sogo Procure",
+        "width": 1320,
+        "height": 840,
+        "minWidth": 1024,
+        "minHeight": 680
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src ipc: http://ipc.localhost; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+      "freezePrototype": true
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["deb", "appimage", "msi", "nsis", "dmg", "app"],
+    "publisher": "Chuo-Sogo Inc.",
+    "copyright": "© 2026 Chuo-Sogo Inc.",
+    "category": "Business",
+    "shortDescription": "AI-assisted industrial procurement",
+    "longDescription": "Chuo-Sogo Procure: procurement requests, product identification, supplier RFQs, quotation comparison, approvals, orders and invoice reconciliation for manufacturers.",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "linux": { "deb": { "section": "office" } }
+  }
+}

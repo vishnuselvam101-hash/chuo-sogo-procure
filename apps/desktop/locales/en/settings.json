@@ -1,0 +1,11 @@
+{
+  "language": {
+    "title": "Display language",
+    "help": "Changing the language never changes amounts or stored records.",
+    "orgDefault": "Organisation default ({{lang}})",
+    "preview": "Preview"
+  },
+  "server": {
+    "title": "Server connection"
+  }
+}

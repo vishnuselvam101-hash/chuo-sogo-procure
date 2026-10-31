@@ -1,0 +1,90 @@
+{
+  "app": {
+    "name": "Chuo-Sogo Procure"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "procurement": "Procurement",
+    "products": "Product Intelligence",
+    "suppliers": "Suppliers",
+    "rfqs": "RFQs",
+    "quotations": "Quotations",
+    "approvals": "Approvals",
+    "orders": "Orders",
+    "invoices": "Invoices",
+    "reports": "Reports",
+    "settings": "Settings",
+    "language": "Language",
+    "members": "Members",
+    "organisations": "Organisations",
+    "audit": "Audit log",
+    "opsQueue": "Operations queue"
+  },
+  "workspace": {
+    "customer": "Customer workspace",
+    "operations": "Procurement operations"
+  },
+  "org": {
+    "switch": "Switch organisation"
+  },
+  "auth": {
+    "signIn": "Sign in",
+    "signOut": "Sign out",
+    "email": "Email address",
+    "password": "Password",
+    "server": "Server",
+    "signingIn": "Signing in…"
+  },
+  "dashboard": {
+    "welcome": "Welcome, {{name}}",
+    "role": "Role: {{role}}",
+    "notYet": "This module arrives in a later phase."
+  },
+  "role": {
+    "platform_super_admin": "Platform super administrator",
+    "procurement_admin": "Procurement administrator (internal)",
+    "procurement_operator": "Procurement operator",
+    "customer_admin": "Organisation administrator",
+    "procurement_manager": "Procurement manager",
+    "requester": "Requester",
+    "finance": "Finance"
+  },
+  "members": {
+    "add": "Add member",
+    "name": "Name",
+    "role": "Role",
+    "status": "Status",
+    "deactivate": "Deactivate",
+    "activate": "Activate"
+  },
+  "status": {
+    "active": "Active",
+    "deactivated": "Deactivated",
+    "pending": "Invited"
+  },
+  "orgs": {
+    "create": "Create customer organisation",
+    "name": "Organisation name",
+    "adminEmail": "Administrator email",
+    "adminName": "Administrator name"
+  },
+  "audit": {
+    "when": "When",
+    "action": "Action",
+    "chainValid": "Tamper check: intact",
+    "chainBroken": "Tamper check: BROKEN at #{{seq}}"
+  },
+  "action": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "refresh": "Refresh"
+  },
+  "state": {
+    "loading": "Loading…",
+    "empty": "Nothing here yet"
+  },
+  "invitation": {
+    "accept": "Accept",
+    "decline": "Decline"
+  }
+}

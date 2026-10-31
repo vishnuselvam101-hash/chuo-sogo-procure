@@ -1,0 +1,50 @@
+import { useTranslation } from "react-i18next";
+import { LANGUAGES, type LanguageCode } from "../i18n";
+import { formatDateTime, formatMoney } from "../lib/format";
+import { PageHeader } from "../components/ui";
+
+interface Props {
+  language: LanguageCode;
+  explicit: boolean;
+  orgDefault: LanguageCode;
+  timezone: string;
+  onLanguage: (code: LanguageCode | null) => void;
+}
+
+// Fixed sample values for the preview; display only.
+const SAMPLE_INSTANT = "2026-04-01T01:30:00Z";
+const SAMPLE_MINOR = 1_280_000;
+
+export function Settings({ language, explicit, orgDefault, timezone, onLanguage }: Props) {
+  const { t } = useTranslation();
+  const orgDefaultName = LANGUAGES.find((l) => l.code === orgDefault)?.nativeName ?? orgDefault;
+  return (
+    <section>
+      <PageHeader title={t("nav.settings")} />
+      <fieldset className="card">
+        <legend>{t("settings:language.title")}</legend>
+        <p className="muted">{t("settings:language.help")}</p>
+        <label className="radio">
+          <input type="radio" name="lang" checked={!explicit} onChange={() => onLanguage(null)} />
+          {t("settings:language.orgDefault", { lang: orgDefaultName })}
+        </label>
+        {LANGUAGES.map((l) => (
+          <label key={l.code} className="radio" lang={l.code}>
+            <input
+              type="radio"
+              name="lang"
+              checked={explicit && language === l.code}
+              onChange={() => onLanguage(l.code)}
+            />
+            {l.nativeName}
+          </label>
+        ))}
+        <div className="preview">
+          <span className="muted">{t("settings:language.preview")}</span>
+          <span data-testid="preview-date">{formatDateTime(SAMPLE_INSTANT, language, timezone)}</span>
+          <span data-testid="preview-money">{formatMoney(SAMPLE_MINOR, "JPY", language)}</span>
+        </div>
+      </fieldset>
+    </section>
+  );
+}

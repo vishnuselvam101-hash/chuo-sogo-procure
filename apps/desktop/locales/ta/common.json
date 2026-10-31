@@ -1,0 +1,90 @@
+{
+  "app": {
+    "name": "Chuo-Sogo Procure"
+  },
+  "nav": {
+    "dashboard": "முகப்புப் பலகை",
+    "procurement": "கொள்முதல்",
+    "products": "தயாரிப்பு நுண்ணறிவு",
+    "suppliers": "விநியோகஸ்தர்கள்",
+    "rfqs": "விலைப்புள்ளி கோரிக்கைகள்",
+    "quotations": "விலைப்புள்ளிகள்",
+    "approvals": "ஒப்புதல்கள்",
+    "orders": "ஆர்டர்கள்",
+    "invoices": "விலைப்பட்டியல்கள்",
+    "reports": "அறிக்கைகள்",
+    "settings": "அமைப்புகள்",
+    "language": "மொழி",
+    "members": "உறுப்பினர்கள்",
+    "organisations": "நிறுவனங்கள்",
+    "audit": "தணிக்கைப் பதிவு",
+    "opsQueue": "செயல்பாட்டு வரிசை"
+  },
+  "workspace": {
+    "customer": "வாடிக்கையாளர் பணியிடம்",
+    "operations": "கொள்முதல் செயல்பாடுகள்"
+  },
+  "org": {
+    "switch": "நிறுவனத்தை மாற்று"
+  },
+  "auth": {
+    "signIn": "உள்நுழை",
+    "signOut": "வெளியேறு",
+    "email": "மின்னஞ்சல் முகவரி",
+    "password": "கடவுச்சொல்",
+    "server": "சேவையகம்",
+    "signingIn": "உள்நுழைகிறது…"
+  },
+  "dashboard": {
+    "welcome": "வணக்கம், {{name}}",
+    "role": "பங்கு: {{role}}",
+    "notYet": "இந்தப் பகுதி அடுத்த கட்டத்தில் வரும்."
+  },
+  "role": {
+    "platform_super_admin": "தள மேலாளர்",
+    "procurement_admin": "கொள்முதல் நிர்வாகி (உள்)",
+    "procurement_operator": "கொள்முதல் இயக்குநர்",
+    "customer_admin": "நிறுவன நிர்வாகி",
+    "procurement_manager": "கொள்முதல் மேலாளர்",
+    "requester": "கோரிக்கையாளர்",
+    "finance": "நிதி"
+  },
+  "members": {
+    "add": "உறுப்பினரைச் சேர்",
+    "name": "பெயர்",
+    "role": "பங்கு",
+    "status": "நிலை",
+    "deactivate": "முடக்கு",
+    "activate": "செயல்படுத்து"
+  },
+  "status": {
+    "active": "செயலில்",
+    "deactivated": "முடக்கப்பட்டது",
+    "pending": "அழைக்கப்பட்டது"
+  },
+  "orgs": {
+    "create": "வாடிக்கையாளர் நிறுவனத்தை உருவாக்கு",
+    "name": "நிறுவனப் பெயர்",
+    "adminEmail": "நிர்வாகி மின்னஞ்சல்",
+    "adminName": "நிர்வாகி பெயர்"
+  },
+  "audit": {
+    "when": "நேரம்",
+    "action": "செயல்",
+    "chainValid": "மாற்றச் சோதனை: சரி",
+    "chainBroken": "மாற்றச் சோதனை: #{{seq}} இல் பிழை"
+  },
+  "action": {
+    "save": "சேமி",
+    "cancel": "ரத்து செய்",
+    "refresh": "புதுப்பி"
+  },
+  "state": {
+    "loading": "ஏற்றுகிறது…",
+    "empty": "இங்கு எதுவும் இல்லை"
+  },
+  "invitation": {
+    "accept": "ஏற்றுக்கொள்",
+    "decline": "மறு"
+  }
+}

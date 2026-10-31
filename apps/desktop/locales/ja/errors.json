@@ -1,0 +1,14 @@
+{
+  "unauthenticated": "セッションの有効期限が切れました。再度サインインしてください。",
+  "invalid_credentials": "メールアドレスまたはパスワードが正しくありません。",
+  "account_locked": "ログイン試行が多すぎます。15分後に再試行してください。",
+  "forbidden": "この操作を行う権限がありません。",
+  "not_found": "見つかりません。",
+  "validation_failed": "入力内容を確認してください。",
+  "conflict": "既に存在します。",
+  "bad_request": "リクエストが不正です。",
+  "network": "サーバーに接続できません。",
+  "insecure_server": "安全でない接続先です（https が必要です）。",
+  "internal_error": "予期しないエラーが発生しました。",
+  "unknown": "エラーが発生しました。"
+}

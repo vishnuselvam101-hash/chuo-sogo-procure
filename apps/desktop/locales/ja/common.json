@@ -1,0 +1,90 @@
+{
+  "app": {
+    "name": "Chuo-Sogo Procure"
+  },
+  "nav": {
+    "dashboard": "ダッシュボード",
+    "procurement": "調達依頼",
+    "products": "製品インテリジェンス",
+    "suppliers": "サプライヤー",
+    "rfqs": "見積依頼 (RFQ)",
+    "quotations": "見積書",
+    "approvals": "承認",
+    "orders": "発注",
+    "invoices": "請求書",
+    "reports": "レポート",
+    "settings": "設定",
+    "language": "言語",
+    "members": "メンバー管理",
+    "organisations": "顧客組織",
+    "audit": "監査ログ",
+    "opsQueue": "業務キュー"
+  },
+  "workspace": {
+    "customer": "顧客ワークスペース",
+    "operations": "調達オペレーション"
+  },
+  "org": {
+    "switch": "組織を切り替え"
+  },
+  "auth": {
+    "signIn": "サインイン",
+    "signOut": "サインアウト",
+    "email": "メールアドレス",
+    "password": "パスワード",
+    "server": "サーバー",
+    "signingIn": "サインイン中…"
+  },
+  "dashboard": {
+    "welcome": "{{name}} さん、ようこそ",
+    "role": "ロール: {{role}}",
+    "notYet": "この機能は今後のフェーズで提供されます。"
+  },
+  "role": {
+    "platform_super_admin": "プラットフォーム管理者",
+    "procurement_admin": "調達管理者（社内）",
+    "procurement_operator": "調達オペレーター",
+    "customer_admin": "組織管理者",
+    "procurement_manager": "調達マネージャー",
+    "requester": "依頼者",
+    "finance": "経理担当"
+  },
+  "members": {
+    "add": "メンバーを追加",
+    "name": "氏名",
+    "role": "ロール",
+    "status": "状態",
+    "deactivate": "無効化",
+    "activate": "有効化"
+  },
+  "status": {
+    "active": "有効",
+    "deactivated": "無効",
+    "pending": "招待中"
+  },
+  "orgs": {
+    "create": "顧客組織を作成",
+    "name": "組織名",
+    "adminEmail": "管理者メール",
+    "adminName": "管理者氏名"
+  },
+  "audit": {
+    "when": "日時",
+    "action": "操作",
+    "chainValid": "改ざん検証: 正常",
+    "chainBroken": "改ざん検証: 異常（#{{seq}}）"
+  },
+  "action": {
+    "save": "保存",
+    "cancel": "キャンセル",
+    "refresh": "再読み込み"
+  },
+  "state": {
+    "loading": "読み込み中…",
+    "empty": "データがありません"
+  },
+  "invitation": {
+    "accept": "参加する",
+    "decline": "辞退する"
+  }
+}

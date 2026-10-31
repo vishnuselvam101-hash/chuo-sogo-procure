@@ -1,0 +1,90 @@
+{
+  "app": {
+    "name": "Chuo-Sogo Procure"
+  },
+  "nav": {
+    "dashboard": "डैशबोर्ड",
+    "procurement": "खरीद",
+    "products": "उत्पाद इंटेलिजेंस",
+    "suppliers": "आपूर्तिकर्ता",
+    "rfqs": "कोटेशन अनुरोध (RFQ)",
+    "quotations": "कोटेशन",
+    "approvals": "अनुमोदन",
+    "orders": "ऑर्डर",
+    "invoices": "चालान",
+    "reports": "रिपोर्ट",
+    "settings": "सेटिंग्स",
+    "language": "भाषा",
+    "members": "सदस्य",
+    "organisations": "संगठन",
+    "audit": "ऑडिट लॉग",
+    "opsQueue": "संचालन कतार"
+  },
+  "workspace": {
+    "customer": "ग्राहक कार्यक्षेत्र",
+    "operations": "खरीद संचालन"
+  },
+  "org": {
+    "switch": "संगठन बदलें"
+  },
+  "auth": {
+    "signIn": "साइन इन करें",
+    "signOut": "साइन आउट करें",
+    "email": "ईमेल पता",
+    "password": "पासवर्ड",
+    "server": "सर्वर",
+    "signingIn": "साइन इन हो रहा है…"
+  },
+  "dashboard": {
+    "welcome": "स्वागत है, {{name}}",
+    "role": "भूमिका: {{role}}",
+    "notYet": "यह मॉड्यूल अगले चरण में आएगा।"
+  },
+  "role": {
+    "platform_super_admin": "प्लेटफ़ॉर्म सुपर एडमिन",
+    "procurement_admin": "खरीद प्रशासक (आंतरिक)",
+    "procurement_operator": "खरीद ऑपरेटर",
+    "customer_admin": "संगठन प्रशासक",
+    "procurement_manager": "खरीद प्रबंधक",
+    "requester": "अनुरोधकर्ता",
+    "finance": "वित्त"
+  },
+  "members": {
+    "add": "सदस्य जोड़ें",
+    "name": "नाम",
+    "role": "भूमिका",
+    "status": "स्थिति",
+    "deactivate": "निष्क्रिय करें",
+    "activate": "सक्रिय करें"
+  },
+  "status": {
+    "active": "सक्रिय",
+    "deactivated": "निष्क्रिय",
+    "pending": "आमंत्रित"
+  },
+  "orgs": {
+    "create": "ग्राहक संगठन बनाएं",
+    "name": "संगठन का नाम",
+    "adminEmail": "प्रशासक ईमेल",
+    "adminName": "प्रशासक का नाम"
+  },
+  "audit": {
+    "when": "समय",
+    "action": "क्रिया",
+    "chainValid": "छेड़छाड़ जांच: सुरक्षित",
+    "chainBroken": "छेड़छाड़ जांच: #{{seq}} पर टूटा"
+  },
+  "action": {
+    "save": "सहेजें",
+    "cancel": "रद्द करें",
+    "refresh": "रीफ़्रेश करें"
+  },
+  "state": {
+    "loading": "लोड हो रहा है…",
+    "empty": "अभी यहाँ कुछ नहीं है"
+  },
+  "invitation": {
+    "accept": "स्वीकार करें",
+    "decline": "अस्वीकार करें"
+  }
+}

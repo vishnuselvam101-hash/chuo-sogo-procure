@@ -1,0 +1,13 @@
+# Default gitleaks rules, minus generated build output (never committed, see .gitignore).
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Build artefacts and dependencies"
+paths = [
+  '''(^|/)target/''',
+  '''(^|/)node_modules/''',
+  '''(^|/)dist/''',
+  '''^reports/''',
+  '''(^|/)src-tauri/gen/''',
+]

@@ -1,0 +1,8 @@
+{
+  "nav": {
+    "dashboard": "대시보드",
+    "procurement": "구매",
+    "settings": "설정",
+    "language": "언어"
+  }
+}

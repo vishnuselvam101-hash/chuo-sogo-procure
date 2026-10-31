@@ -6,17 +6,19 @@ Legend: ☐ not started · ◐ in progress · ☑ done and verified.
 ## Phase 0 — Assessment and environment (this session)
 - ☑ Environment audit, toolchain install, plugins, agents, hooks, gate script, sample test + scan
 - ☑ Architecture proposal, data model, workflow, MVR
-- ☐ **Founder approval of architecture + decisions in §Decisions**
+- ☑ Founder: "don't wait for my approval", GitHub push allowed (2026-10-31)
 
 ## Phase 1 — Foundation (depends on Phase 0 approval)
-1. ☐ Workspace crates `server`, `ai`, `storage`; config loading (env, no secrets in repo); `tracing` JSON logs with request/correlation IDs
-2. ☐ Migrations: orgs, users, memberships, roles/permissions, sessions, audit_events (append-only, hash chain), RLS framework — dep 1
-3. ☐ Auth: argon2id, login throttling, sessions (create/rotate/revoke/expire), password reset tokens (test-mode delivery), activation/deactivation — dep 2
-4. ☐ RBAC permission matrix (7 roles) + `TenantCtx` extractor + RLS `SET LOCAL` per transaction — dep 2,3
-5. ☐ Tenant-isolation + permission test suite (real Postgres, per-test schema) — dep 4
-6. ☐ OpenAPI (utoipa) + generated TS client + contract test — dep 3
-7. ☐ Desktop shell: Tauri 2 app `Chuo-Sogo Procure` (`net.chuo-sogo.procure`), login, keychain token, sidebar, role-based nav, customer vs ops workspaces, i18n ja/en/ta/hi + language menu with persistence — dep 6
-8. ☐ Desktop tests: Vitest, i18n key coverage, WebdriverIO smoke under Xvfb; Linux `.deb`/AppImage build — dep 7
+1. ☑ `crates/server`; env config (`.env.example`, no secrets in repo); `tracing` (JSON via `PROCURE_LOG_FORMAT=json`) with request IDs on every span. `ai`/`storage` crates move to Phase 2/3
+2. ☑ Migrations: orgs, users, memberships, roles/permissions, sessions, audit_events (append-only, hash chain), RLS framework — dep 1
+3. ☑ Auth: argon2id, login throttling, sessions (create/rotate/revoke/expire), password reset tokens (test-mode delivery), activation/deactivation — dep 2
+4. ☑ RBAC permission matrix (7 roles) + `TenantCtx` extractor + RLS `SET LOCAL` per transaction — dep 2,3
+5. ☑ Tenant-isolation + permission test suite (real Postgres, per-test schema) — dep 4
+6. ☐ OpenAPI (utoipa) + generated TS client + contract test — dep 3 (**not done**; UI uses hand-written types in `src/lib/types.ts`)
+7. ☑ Desktop shell: Tauri 2 app `Chuo-Sogo Procure` (`net.chuo-sogo.procure`), login, in-memory session token (Rust side only), sidebar, role-based nav, customer vs ops workspaces, i18n ja/en/ta/hi + language menu with persistence — dep 6
+8. ☑ Desktop tests: Vitest, i18n key coverage, WebdriverIO smoke under Xvfb; Linux `.deb`/AppImage build — dep 7 (Windows/macOS builds configured, not run)
+
+Phase 1 gate: `docs/engineering/gates/phase1.md`.
 
 ## Phase 2 — Core workflow (dep Phase 1)
 Requests + items + attachments → product identities/evidence/verification → suppliers + approvals → RFQ (test-mode dispatch, export) → quotations → deterministic comparison → recommendation → approval policies (thresholds, multi-step, no self-approval) → audit on every transition.

@@ -1,0 +1,16 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Main window: core window/app events plus the app's own commands. No shell, filesystem, HTTP or opener plugins.",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "allow-prefs-get",
+    "allow-prefs-set-language",
+    "allow-prefs-set-server",
+    "allow-auth-login",
+    "allow-auth-logout",
+    "allow-api-request",
+    "allow-client-log"
+  ]
+}

@@ -14,4 +14,4 @@
 | Performance | criterion benches + `scripts/bench.sh` | comparison/matching at 10k quotes, API p95 |
 
 Rules: tests written before the fix/feature; test count may not drop without a recorded reason; a feature is done only when its acceptance criteria pass end-to-end.
-Current state (2026-10-31): 5 unit tests (`procure-domain::money`), all passing.
+Current state (2026-10-31, Phase 1): 37 Rust tests (domain 12, server unit 4, server integration 18 on real PostgreSQL as the runtime role, desktop native 3), 14 Vitest UI tests, 6 desktop E2E checks (`scripts/e2e-desktop.sh`). All passing.

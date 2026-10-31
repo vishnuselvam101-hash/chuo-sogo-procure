@@ -34,21 +34,26 @@ step() {
   echo "|---|---|---|"
 } >"$OUT"
 
+# UI first: the Tauri crate embeds apps/desktop/dist at compile time.
+if [ -f apps/desktop/package.json ]; then
+  step ui-format pnpm -C apps/desktop format:check
+  step ui-typecheck pnpm -C apps/desktop typecheck
+  step ui-lint pnpm -C apps/desktop lint
+  step ui-test pnpm -C apps/desktop test
+  step ui-build pnpm -C apps/desktop build
+fi
+
 step fmt cargo fmt --all --check
 step clippy cargo clippy --workspace --all-targets -- -D warnings
 step test cargo test --workspace
 
-if [ -f apps/desktop/package.json ]; then
-  step ui-typecheck pnpm -C apps/desktop typecheck
-  step ui-lint pnpm -C apps/desktop lint
-  step ui-test pnpm -C apps/desktop test
-fi
 
 if [ "$MODE" = "full" ]; then
   step cargo-audit cargo audit
+  [ -f apps/desktop/package.json ] && step pnpm-audit pnpm -C apps/desktop audit --prod
   # `gitleaks git` only sees commits; `gitleaks dir` also catches uncommitted files.
-  step gitleaks-tree gitleaks dir . --no-banner --redact
-  step gitleaks-history gitleaks git . --no-banner --redact
+  step gitleaks-tree gitleaks dir . --no-banner --redact --config .gitleaks.toml
+  step gitleaks-history gitleaks git . --no-banner --redact --config .gitleaks.toml
   step semgrep semgrep scan --config p/rust --config p/typescript --config p/secrets --error --metrics=off --quiet .
   step trivy-fs trivy fs --scanners vuln,secret,misconfig --exit-code 1 --severity HIGH,CRITICAL --quiet .
 fi
