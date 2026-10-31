@@ -26,6 +26,7 @@ rand = "0.9"
 sha2 = "0.10"
 hex = "0.4"
 thiserror = "2"
+utoipa = { version = "5.5", features = ["uuid", "chrono"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 

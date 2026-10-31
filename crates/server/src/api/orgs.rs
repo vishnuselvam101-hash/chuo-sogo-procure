@@ -14,7 +14,7 @@ use crate::AppState;
 use crate::api::auth::{ACTIVATION_TOKEN_TTL, issue_token};
 use crate::audit::{self, Event};
 use crate::db;
-use crate::error::{ApiError, ApiJson, ApiPath, ApiQuery, ApiResult};
+use crate::error::{ApiError, ApiJson, ApiPath, ApiQuery, ApiResult, ErrorBody};
 use crate::mailer::Mail;
 use crate::principal::Principal;
 
@@ -68,7 +68,7 @@ async fn org_kind(tx: &mut db::Tx, org_id: Uuid) -> ApiResult<OrgKind> {
         .ok_or(ApiError::NotFound)
 }
 
-#[derive(Serialize, sqlx::FromRow)]
+#[derive(Serialize, sqlx::FromRow, utoipa::ToSchema)]
 pub struct MemberView {
     pub user_id: Uuid,
     pub email: String,
@@ -78,6 +78,20 @@ pub struct MemberView {
     pub user_status: String,
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v1/orgs/{org_id}/members",
+    tag = "organisations",
+    params(("org_id" = Uuid, Path)),
+    security(("bearer" = [])),
+    responses(
+        (status = 200, description = "Members and pending invitations", body = [MemberView]),
+        (status = 403, description = "Not permitted", body = ErrorBody),
+        (status = 404, description = "Unknown or unrelated organisation", body = ErrorBody),
+        (status = 400, description = "Malformed request", body = ErrorBody),
+        (status = 401, description = "No valid session", body = ErrorBody),
+    )
+)]
 pub async fn list_members(
     State(state): State<AppState>,
     p: Principal,
@@ -103,7 +117,7 @@ pub async fn list_members(
     Ok(Json(rows))
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::ToSchema)]
 pub struct AddMemberRequest {
     pub email: String,
     pub display_name: String,
@@ -111,7 +125,7 @@ pub struct AddMemberRequest {
 }
 
 /// Identical for new and existing accounts, so it never reveals whether an email is registered.
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 pub struct AddMemberResponse {
     pub status: &'static str,
 }
@@ -223,6 +237,22 @@ async fn invite_member(
     })))
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/v1/orgs/{org_id}/members",
+    tag = "organisations",
+    params(("org_id" = Uuid, Path)), request_body = AddMemberRequest,
+    security(("bearer" = [])),
+    responses(
+        (status = 201, description = "Invitation created (same response for new and existing accounts)", body = AddMemberResponse),
+        (status = 403, description = "Not permitted", body = ErrorBody),
+        (status = 404, description = "Unknown or unrelated organisation", body = ErrorBody),
+        (status = 409, description = "Already a member or invited", body = ErrorBody),
+        (status = 422, description = "Invalid input, role/account kind mismatch", body = ErrorBody),
+        (status = 400, description = "Malformed request", body = ErrorBody),
+        (status = 401, description = "No valid session", body = ErrorBody),
+    )
+)]
 pub async fn add_member(
     State(state): State<AppState>,
     p: Principal,
@@ -250,12 +280,27 @@ pub async fn add_member(
     ))
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::ToSchema)]
 pub struct UpdateMemberRequest {
     pub role: Option<String>,
     pub status: Option<String>,
 }
 
+#[utoipa::path(
+    patch,
+    path = "/api/v1/orgs/{org_id}/members/{user_id}",
+    tag = "organisations",
+    params(("org_id" = Uuid, Path), ("user_id" = Uuid, Path)), request_body = UpdateMemberRequest,
+    security(("bearer" = [])),
+    responses(
+        (status = 204, description = "Updated"),
+        (status = 403, description = "Not permitted", body = ErrorBody),
+        (status = 404, description = "Not found", body = ErrorBody),
+        (status = 422, description = "Self-modification, last admin, pending invitation, invalid role", body = ErrorBody),
+        (status = 400, description = "Malformed request", body = ErrorBody),
+        (status = 401, description = "No valid session", body = ErrorBody),
+    )
+)]
 pub async fn update_member(
     State(state): State<AppState>,
     p: Principal,
@@ -343,11 +388,26 @@ pub async fn update_member(
     Ok(StatusCode::NO_CONTENT)
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::ToSchema)]
 pub struct AssignmentRequest {
     pub user_id: Uuid,
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/v1/orgs/{org_id}/assignments",
+    tag = "organisations",
+    params(("org_id" = Uuid, Path)), request_body = AssignmentRequest,
+    security(("bearer" = [])),
+    responses(
+        (status = 201, description = "Assignment granted"),
+        (status = 403, description = "Not permitted", body = ErrorBody),
+        (status = 409, description = "Already assigned", body = ErrorBody),
+        (status = 422, description = "Not internal staff / not a customer org", body = ErrorBody),
+        (status = 400, description = "Malformed request", body = ErrorBody),
+        (status = 401, description = "No valid session", body = ErrorBody),
+    )
+)]
 pub async fn assign_operator(
     State(state): State<AppState>,
     p: Principal,
@@ -399,6 +459,20 @@ pub async fn assign_operator(
     Ok(StatusCode::CREATED)
 }
 
+#[utoipa::path(
+    delete,
+    path = "/api/v1/orgs/{org_id}/assignments/{user_id}",
+    tag = "organisations",
+    params(("org_id" = Uuid, Path), ("user_id" = Uuid, Path)),
+    security(("bearer" = [])),
+    responses(
+        (status = 204, description = "Assignment revoked"),
+        (status = 403, description = "Not permitted", body = ErrorBody),
+        (status = 404, description = "No active assignment", body = ErrorBody),
+        (status = 400, description = "Malformed request", body = ErrorBody),
+        (status = 401, description = "No valid session", body = ErrorBody),
+    )
+)]
 pub async fn revoke_operator(
     State(state): State<AppState>,
     p: Principal,
@@ -434,31 +508,47 @@ pub async fn revoke_operator(
     Ok(StatusCode::NO_CONTENT)
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::IntoParams)]
+#[into_params(parameter_in = Query)]
 pub struct AuditQuery {
     pub limit: Option<i64>,
     pub before_seq: Option<i64>,
 }
 
-#[derive(Serialize, sqlx::FromRow)]
+#[derive(Serialize, sqlx::FromRow, utoipa::ToSchema)]
 pub struct AuditView {
     pub seq: i64,
     pub actor_user_id: Option<Uuid>,
     pub action: String,
     pub entity_type: String,
     pub entity_id: Option<String>,
+    #[schema(value_type = Object)]
     pub data: serde_json::Value,
     pub request_id: Option<String>,
     pub created_at: DateTime<Utc>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 pub struct AuditResponse {
     pub events: Vec<AuditView>,
     pub chain_valid: bool,
     pub first_broken_seq: Option<i64>,
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v1/orgs/{org_id}/audit",
+    tag = "organisations",
+    params(("org_id" = Uuid, Path), AuditQuery),
+    security(("bearer" = [])),
+    responses(
+        (status = 200, description = "Newest events first, plus chain verification", body = AuditResponse),
+        (status = 403, description = "Not permitted", body = ErrorBody),
+        (status = 404, description = "Unknown or unrelated organisation", body = ErrorBody),
+        (status = 400, description = "Malformed request", body = ErrorBody),
+        (status = 401, description = "No valid session", body = ErrorBody),
+    )
+)]
 pub async fn list_audit(
     State(state): State<AppState>,
     p: Principal,
@@ -487,7 +577,7 @@ pub async fn list_audit(
     }))
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::ToSchema)]
 pub struct CreateOrgRequest {
     pub name: String,
     pub default_locale: Option<String>,
@@ -496,12 +586,26 @@ pub struct CreateOrgRequest {
     pub admin_name: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 pub struct CreateOrgResponse {
     pub org_id: Uuid,
     pub admin: &'static str,
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/v1/platform/organisations",
+    tag = "organisations",
+    request_body = CreateOrgRequest,
+    security(("bearer" = [])),
+    responses(
+        (status = 201, description = "Organisation created; administrator invited", body = CreateOrgResponse),
+        (status = 403, description = "Not permitted", body = ErrorBody),
+        (status = 422, description = "Invalid input or account kind mismatch", body = ErrorBody),
+        (status = 400, description = "Malformed request", body = ErrorBody),
+        (status = 401, description = "No valid session", body = ErrorBody),
+    )
+)]
 pub async fn create_organisation(
     State(state): State<AppState>,
     p: Principal,
@@ -572,7 +676,7 @@ pub async fn create_organisation(
     ))
 }
 
-#[derive(Serialize, sqlx::FromRow)]
+#[derive(Serialize, sqlx::FromRow, utoipa::ToSchema)]
 pub struct OrgView {
     pub id: Uuid,
     pub kind: String,
@@ -582,6 +686,18 @@ pub struct OrgView {
     pub status: String,
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v1/platform/organisations",
+    tag = "organisations",
+    security(("bearer" = [])),
+    responses(
+        (status = 200, description = "All organisations", body = [OrgView]),
+        (status = 403, description = "Not permitted", body = ErrorBody),
+        (status = 400, description = "Malformed request", body = ErrorBody),
+        (status = 401, description = "No valid session", body = ErrorBody),
+    )
+)]
 pub async fn list_organisations(
     State(state): State<AppState>,
     p: Principal,

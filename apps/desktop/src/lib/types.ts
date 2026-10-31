@@ -1,78 +1,27 @@
-// Shapes returned by the procurement API (crates/server/src/api).
-// TODO(phase1-item6): replace with types generated from the OpenAPI document.
+// API shapes come from the backend's OpenAPI document (api/openapi.json → api-schema.ts,
+// regenerate with `pnpm gen:api`). Only the native-layer types below are hand-written.
+import type { components } from "./api-schema";
 
-export type OrgKind = "platform" | "customer";
+type Schemas = components["schemas"];
 
-export interface MembershipView {
-  org_id: string;
-  org_name: string;
-  org_kind: OrgKind;
-  default_locale: string;
-  timezone: string;
-  role: string;
-  permissions: string[];
-}
+export type MembershipView = Schemas["MembershipView"];
+export type InvitationView = Schemas["InvitationView"];
+export type Me = Schemas["MeResponse"];
+export type MemberView = Schemas["MemberView"];
+export type AuditEvent = Schemas["AuditView"];
+export type AuditResponse = Schemas["AuditResponse"];
+export type OrgView = Schemas["OrgView"];
+export type ErrorBody = Schemas["ErrorBody"];
 
-export interface InvitationView {
-  org_id: string;
-  org_name: string;
-  role: string;
-}
-
-export interface Me {
-  user: {
-    id: string;
-    email: string;
-    display_name: string;
-    locale: string | null;
-    account_kind: "internal" | "customer";
-  };
-  memberships: MembershipView[];
-  invitations: InvitationView[];
-}
-
+/** What the Rust layer's `api_request`/`auth_login` commands return. */
 export interface ApiResponse<T = unknown> {
   status: number;
-  body: T | { error?: { code?: string; detail?: string } } | null;
+  body: T | ErrorBody | null;
   request_id: string;
 }
 
+/** Local preferences held by the Rust layer (apps/desktop/src-tauri/src/prefs.rs). */
 export interface Prefs {
   language: string | null;
   server_url: string;
-}
-
-export interface MemberView {
-  user_id: string;
-  email: string;
-  display_name: string;
-  role: string;
-  membership_status: string;
-  user_status: string;
-}
-
-export interface AuditEvent {
-  seq: number;
-  actor_user_id: string | null;
-  action: string;
-  entity_type: string;
-  entity_id: string | null;
-  data: unknown;
-  request_id: string | null;
-  created_at: string;
-}
-
-export interface AuditResponse {
-  events: AuditEvent[];
-  chain_valid: boolean;
-  first_broken_seq: number | null;
-}
-
-export interface OrgView {
-  id: string;
-  kind: OrgKind;
-  name: string;
-  default_locale: string;
-  timezone: string;
-  status: string;
 }

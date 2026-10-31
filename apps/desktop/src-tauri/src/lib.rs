@@ -1,8 +1,9 @@
 //! Native layer of the Chuo-Sogo Procure desktop client.
 //!
-//! The webview never sees the session token: it lives only in this process's memory
-//! and every API call goes through `api_request`, which only reaches the configured
-//! backend under `/api/v1/`. Signing out or closing the app discards the token.
+//! The webview never sees the session token: it lives only in this process's memory,
+//! bound to the server that issued it, and every API call goes through `api_request`,
+//! which only reaches that server under `/api/v1/` and never follows redirects.
+//! Signing out or closing the app discards the token.
 
 mod prefs;
 mod validate;
@@ -15,9 +16,25 @@ use tauri::{Manager, State};
 
 use prefs::Prefs;
 
+/// A session token is only valid for the server that issued it.
+struct BoundToken {
+    server: String,
+    token: String,
+}
+
 struct Session {
-    token: Mutex<Option<String>>,
+    token: Mutex<Option<BoundToken>>,
     http: reqwest::Client,
+}
+
+impl Session {
+    /// The token, but only if it was issued by `server`.
+    fn token_for(&self, server: &str) -> Result<Option<String>, String> {
+        Ok(lock(&self.token)?
+            .as_ref()
+            .filter(|b| b.server == server)
+            .map(|b| b.token.clone()))
+    }
 }
 
 #[derive(Serialize)]
@@ -41,16 +58,15 @@ fn lock<T>(m: &Mutex<T>) -> Result<std::sync::MutexGuard<'_, T>, String> {
 
 async fn send(
     session: &Session,
-    base: &str,
+    url: reqwest::Url,
     method: reqwest::Method,
-    path: &str,
     body: Option<Value>,
     token: Option<String>,
 ) -> ApiResponse {
     let request_id = uuid::Uuid::new_v4().to_string();
     let mut req = session
         .http
-        .request(method, format!("{base}{path}"))
+        .request(method, url)
         .header("x-request-id", &request_id);
     if let Some(t) = token {
         req = req.bearer_auth(t);
@@ -59,6 +75,7 @@ async fn send(
         req = req.json(&b);
     }
     match req.send().await {
+        // Redirects are disabled, so a 3xx arrives here and is reported, never followed.
         Ok(res) => {
             let status = res.status().as_u16();
             let body = res.json::<Value>().await.unwrap_or(Value::Null);
@@ -100,16 +117,13 @@ fn prefs_set_language(
 fn prefs_set_server(
     app: tauri::AppHandle,
     prefs: State<'_, Mutex<Prefs>>,
-    session: State<'_, Session>,
     url: String,
 ) -> Result<(), String> {
     let url = validate::server_url(&url)?;
     let mut p = lock(&prefs)?;
-    if p.server_url != url {
-        // A different backend must never receive the old backend's token.
-        *lock(&session.token)? = None;
-    }
     p.server_url = url;
+    // No need to clear the token: it stays bound to the server that issued it and is
+    // never sent anywhere else.
     prefs::save(&app, &p)
 }
 
@@ -121,44 +135,40 @@ async fn auth_login(
     password: String,
 ) -> Result<ApiResponse, String> {
     let base = lock(&prefs)?.server_url.clone();
-    let mut res = send(
-        &session,
-        &base,
-        reqwest::Method::POST,
-        "/api/v1/auth/login",
-        Some(serde_json::json!({ "email": email, "password": password })),
-        None,
-    )
-    .await;
+    // Signing in again: revoke the previous session on its own server first (best effort).
+    let previous = lock(&session.token)?.take();
+    if let Some(prev) = previous
+        && let Ok(url) = validate::api_url(&prev.server, "/api/v1/auth/logout")
+    {
+        send(&session, url, reqwest::Method::POST, None, Some(prev.token)).await;
+    }
+    let url = validate::api_url(&base, "/api/v1/auth/login")?;
+    let body = serde_json::json!({ "email": email, "password": password });
+    let mut res = send(&session, url, reqwest::Method::POST, Some(body), None).await;
     if res.status == 200 {
         let token = res
             .body
             .as_object_mut()
             .and_then(|o| o.remove("token"))
             .and_then(|t| t.as_str().map(str::to_owned));
-        *lock(&session.token)? = token;
+        if let Some(token) = token {
+            *lock(&session.token)? = Some(BoundToken {
+                server: base,
+                token,
+            });
+        }
     }
     Ok(res)
 }
 
 #[tauri::command]
-async fn auth_logout(
-    prefs: State<'_, Mutex<Prefs>>,
-    session: State<'_, Session>,
-) -> Result<(), String> {
-    let base = lock(&prefs)?.server_url.clone();
-    let token = lock(&session.token)?.take();
-    if token.is_some() {
+async fn auth_logout(session: State<'_, Session>) -> Result<(), String> {
+    let bound = lock(&session.token)?.take();
+    if let Some(b) = bound
+        && let Ok(url) = validate::api_url(&b.server, "/api/v1/auth/logout")
+    {
         // Best effort: the local token is already gone either way.
-        send(
-            &session,
-            &base,
-            reqwest::Method::POST,
-            "/api/v1/auth/logout",
-            None,
-            token,
-        )
-        .await;
+        send(&session, url, reqwest::Method::POST, None, Some(b.token)).await;
     }
     Ok(())
 }
@@ -172,26 +182,33 @@ async fn api_request(
     body: Option<Value>,
 ) -> Result<ApiResponse, String> {
     let method = validate::method(&method)?;
-    validate::api_path(&path)?;
     let base = lock(&prefs)?.server_url.clone();
-    let token = lock(&session.token)?.clone();
-    let res = send(&session, &base, method, &path, body, token).await;
+    let url = validate::api_url(&base, &path)?;
+    let token = session.token_for(&base)?;
+    let res = send(&session, url, method, body, token).await;
     if res.status == 401 {
-        *lock(&session.token)? = None;
+        let mut t = lock(&session.token)?;
+        if t.as_ref().is_some_and(|b| b.server == base) {
+            *t = None;
+        }
     }
     Ok(res)
 }
 
 /// Frontend errors are forwarded here so UI failures reach the same log as native ones.
 #[tauri::command]
-fn client_log(level: String, message: String, request_id: Option<String>) {
-    let message: String = message.chars().take(2000).collect();
-    let request_id = request_id.unwrap_or_default();
+fn client_log(level: String, message: String, request_id: Option<String>) -> Result<(), String> {
+    let message = validate::log_text(&message);
+    let request_id = request_id
+        .filter(|r| uuid::Uuid::parse_str(r).is_ok())
+        .unwrap_or_default();
     match level.as_str() {
         "error" => tracing::error!(target: "procure_ui", %request_id, "{message}"),
         "warn" => tracing::warn!(target: "procure_ui", %request_id, "{message}"),
-        _ => tracing::info!(target: "procure_ui", %request_id, "{message}"),
+        "info" => tracing::info!(target: "procure_ui", %request_id, "{message}"),
+        _ => return Err("invalid_level".into()),
     }
+    Ok(())
 }
 
 pub fn run() {
@@ -206,6 +223,8 @@ pub fn run() {
     let http = match reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(30))
         .user_agent(concat!("ChuoSogoProcure/", env!("CARGO_PKG_VERSION")))
+        // Never follow redirects: they could carry the token or a password elsewhere.
+        .redirect(reqwest::redirect::Policy::none())
         .build()
     {
         Ok(c) => c,

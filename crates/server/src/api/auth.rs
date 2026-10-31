@@ -12,7 +12,7 @@ use uuid::Uuid;
 use crate::AppState;
 use crate::audit::{self, Event};
 use crate::db;
-use crate::error::{ApiError, ApiJson, ApiPath, ApiResult};
+use crate::error::{ApiError, ApiJson, ApiPath, ApiResult, ErrorBody};
 use crate::mailer::Mail;
 use crate::principal::{ClientIp, Membership, Principal, load_memberships};
 use crate::ratelimit;
@@ -27,13 +27,13 @@ pub const RESET_TOKEN_TTL: Duration = Duration::hours(1);
 pub const RESET_COOLDOWN: Duration = Duration::minutes(5);
 pub const ACTIVATION_TOKEN_TTL: Duration = Duration::days(7);
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::ToSchema)]
 pub struct LoginRequest {
     pub email: String,
     pub password: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 pub struct UserView {
     pub id: Uuid,
     pub email: String,
@@ -42,7 +42,7 @@ pub struct UserView {
     pub account_kind: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 pub struct MembershipView {
     pub org_id: Uuid,
     pub org_name: String,
@@ -53,21 +53,21 @@ pub struct MembershipView {
     pub permissions: Vec<&'static str>,
 }
 
-#[derive(Serialize, sqlx::FromRow)]
+#[derive(Serialize, sqlx::FromRow, utoipa::ToSchema)]
 pub struct InvitationView {
     pub org_id: Uuid,
     pub org_name: String,
     pub role: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 pub struct MeResponse {
     pub user: UserView,
     pub memberships: Vec<MembershipView>,
     pub invitations: Vec<InvitationView>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 pub struct LoginResponse {
     pub token: String,
     pub expires_at: DateTime<Utc>,
@@ -132,6 +132,18 @@ async fn me_view(
 /// id, password_hash, status, locked_until
 type LoginRow = (Uuid, Option<String>, String, Option<DateTime<Utc>>);
 
+#[utoipa::path(
+    post,
+    path = "/api/v1/auth/login",
+    tag = "auth",
+    request_body = LoginRequest,
+    responses(
+        (status = 200, description = "Signed in", body = LoginResponse),
+        (status = 401, description = "Invalid credentials (also for unknown, inactive or locked accounts)", body = ErrorBody),
+        (status = 429, description = "Rate limited", body = ErrorBody),
+        (status = 400, description = "Malformed request", body = ErrorBody),
+    )
+)]
 pub async fn login(
     State(state): State<AppState>,
     ClientIp(ip): ClientIp,
@@ -217,6 +229,17 @@ pub async fn login(
     }))
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/v1/auth/logout",
+    tag = "auth",
+    security(("bearer" = [])),
+    responses(
+        (status = 204, description = "Session revoked"),
+        (status = 400, description = "Malformed request", body = ErrorBody),
+        (status = 401, description = "No valid session", body = ErrorBody),
+    )
+)]
 pub async fn logout(State(state): State<AppState>, p: Principal) -> ApiResult<StatusCode> {
     let mut tx = db::user_tx(&state.pool, p.user_id).await?;
     sqlx::query("UPDATE sessions SET revoked_at = now() WHERE id = $1 AND revoked_at IS NULL")
@@ -227,6 +250,17 @@ pub async fn logout(State(state): State<AppState>, p: Principal) -> ApiResult<St
     Ok(StatusCode::NO_CONTENT)
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v1/me",
+    tag = "auth",
+    security(("bearer" = [])),
+    responses(
+        (status = 200, description = "Current user, active memberships and pending invitations", body = MeResponse),
+        (status = 400, description = "Malformed request", body = ErrorBody),
+        (status = 401, description = "No valid session", body = ErrorBody),
+    )
+)]
 pub async fn me(State(state): State<AppState>, p: Principal) -> ApiResult<Json<MeResponse>> {
     let mut tx = db::user_tx(&state.pool, p.user_id).await?;
     let me = me_view(&mut tx, p.user_id, &p.memberships).await?;
@@ -235,6 +269,19 @@ pub async fn me(State(state): State<AppState>, p: Principal) -> ApiResult<Json<M
 }
 
 /// Accept or decline an invitation to an organisation (existing accounts only).
+#[utoipa::path(
+    post,
+    path = "/api/v1/invitations/{org_id}/{answer}",
+    tag = "auth",
+    params(("org_id" = Uuid, Path), ("answer" = String, Path, description = "accept | decline")),
+    security(("bearer" = [])),
+    responses(
+        (status = 204, description = "Answered"),
+        (status = 404, description = "No pending invitation", body = ErrorBody),
+        (status = 400, description = "Malformed request", body = ErrorBody),
+        (status = 401, description = "No valid session", body = ErrorBody),
+    )
+)]
 pub async fn respond_invitation(
     State(state): State<AppState>,
     p: Principal,
@@ -273,12 +320,23 @@ pub async fn respond_invitation(
     Ok(StatusCode::NO_CONTENT)
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::ToSchema)]
 pub struct ResetRequest {
     pub email: String,
 }
 
 /// Always 202 so the response does not reveal whether the email exists.
+#[utoipa::path(
+    post,
+    path = "/api/v1/auth/password-reset",
+    tag = "auth",
+    request_body = ResetRequest,
+    responses(
+        (status = 202, description = "Accepted whether or not the address exists"),
+        (status = 429, description = "Rate limited", body = ErrorBody),
+        (status = 400, description = "Malformed request", body = ErrorBody),
+    )
+)]
 pub async fn request_password_reset(
     State(state): State<AppState>,
     ClientIp(ip): ClientIp,
@@ -353,13 +411,25 @@ pub async fn issue_token(
     Ok(token)
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::ToSchema)]
 pub struct SetPasswordRequest {
     pub token: String,
     pub password: String,
 }
 
 /// Redeems an activation or reset token and sets the password. Revokes all sessions.
+#[utoipa::path(
+    post,
+    path = "/api/v1/auth/set-password",
+    tag = "auth",
+    request_body = SetPasswordRequest,
+    responses(
+        (status = 204, description = "Password set; all sessions revoked"),
+        (status = 422, description = "Weak password or invalid/expired token", body = ErrorBody),
+        (status = 429, description = "Rate limited", body = ErrorBody),
+        (status = 400, description = "Malformed request", body = ErrorBody),
+    )
+)]
 pub async fn set_password(
     State(state): State<AppState>,
     ClientIp(ip): ClientIp,

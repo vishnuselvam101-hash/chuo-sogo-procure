@@ -1,6 +1,7 @@
 //! procure-server
 //!   procure-server serve                       run the API (default)
 //!   procure-server migrate                     apply database migrations
+//!   procure-server openapi                     print the OpenAPI document
 //!   procure-server bootstrap <platform-name> <admin-email> <admin-name>
 //!
 //! Configuration (environment): DATABASE_URL (owner role: migrate/bootstrap),
@@ -41,6 +42,10 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     match args.first().map(String::as_str) {
+        // API contract; needs no database.
+        Some("openapi") => {
+            print!("{}", procure_server::openapi::json()?);
+        }
         // Schema changes run as the owner role (DATABASE_URL) ...
         Some("migrate") => {
             MIGRATOR.run(&connect("DATABASE_URL").await?).await?;

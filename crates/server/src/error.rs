@@ -95,17 +95,18 @@ pub struct ApiJson<T>(pub T);
 #[from_request(via(axum::extract::Query), rejection(ApiError))]
 pub struct ApiQuery<T>(pub T);
 
-#[derive(Serialize)]
-struct ErrorBody {
-    error: ErrorInner,
+/// Every error response. `code` is stable and localised by the client.
+#[derive(Serialize, utoipa::ToSchema)]
+pub struct ErrorBody {
+    pub error: ErrorInner,
 }
 
-#[derive(Serialize)]
-struct ErrorInner {
-    code: &'static str,
+#[derive(Serialize, utoipa::ToSchema)]
+pub struct ErrorInner {
+    pub code: &'static str,
     /// Machine-readable detail (e.g. which field), never internal error text.
     #[serde(skip_serializing_if = "Option::is_none")]
-    detail: Option<&'static str>,
+    pub detail: Option<&'static str>,
 }
 
 impl IntoResponse for ApiError {

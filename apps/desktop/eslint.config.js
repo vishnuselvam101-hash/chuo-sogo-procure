@@ -5,7 +5,7 @@ import i18next from "eslint-plugin-i18next";
 import globals from "globals";
 
 export default tseslint.config(
-  { ignores: ["dist", "node_modules", "src-tauri", "coverage"] },
+  { ignores: ["dist", "node_modules", "src-tauri", "coverage", "src/lib/api-schema.ts"] },
   js.configs.recommended,
   ...tseslint.configs.strict,
   { files: ["e2e/**/*.mjs"], languageOptions: { globals: globals.node } },

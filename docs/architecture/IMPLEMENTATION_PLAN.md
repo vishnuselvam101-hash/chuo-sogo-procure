@@ -14,7 +14,7 @@ Legend: ☐ not started · ◐ in progress · ☑ done and verified.
 3. ☑ Auth: argon2id, login throttling, sessions (create/rotate/revoke/expire), password reset tokens (test-mode delivery), activation/deactivation — dep 2
 4. ☑ RBAC permission matrix (7 roles) + `TenantCtx` extractor + RLS `SET LOCAL` per transaction — dep 2,3
 5. ☑ Tenant-isolation + permission test suite (real Postgres, per-test schema) — dep 4
-6. ☐ OpenAPI (utoipa) + generated TS client + contract test — dep 3 (**not done**; UI uses hand-written types in `src/lib/types.ts`)
+6. ☑ OpenAPI (utoipa 5) → `api/openapi.json` → generated TS types (`openapi-typescript`); drift tests on both sides — dep 3
 7. ☑ Desktop shell: Tauri 2 app `Chuo-Sogo Procure` (`net.chuo-sogo.procure`), login, in-memory session token (Rust side only), sidebar, role-based nav, customer vs ops workspaces, i18n ja/en/ta/hi + language menu with persistence — dep 6
 8. ☑ Desktop tests: Vitest, i18n key coverage, WebdriverIO smoke under Xvfb; Linux `.deb`/AppImage build — dep 7 (Windows/macOS builds configured, not run)
 

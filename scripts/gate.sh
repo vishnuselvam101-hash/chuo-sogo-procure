@@ -37,6 +37,7 @@ step() {
 # UI first: the Tauri crate embeds apps/desktop/dist at compile time.
 if [ -f apps/desktop/package.json ]; then
   step ui-format pnpm -C apps/desktop format:check
+  step ui-api-contract pnpm -C apps/desktop gen:api:check
   step ui-typecheck pnpm -C apps/desktop typecheck
   step ui-lint pnpm -C apps/desktop lint
   step ui-test pnpm -C apps/desktop test

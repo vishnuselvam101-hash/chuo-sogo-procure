@@ -57,9 +57,62 @@ pub fn api_path(p: &str) -> Result<(), String> {
     }
 }
 
+/// Full request URL for `path` on `base`, checked **after** URL normalisation:
+/// same origin as `base` and still under `/api/v1/`. Catches encoded dot-segments
+/// (`%2e%2e`) that a plain string check would miss.
+pub fn api_url(base: &str, path: &str) -> Result<reqwest::Url, String> {
+    api_path(path)?;
+    let base = reqwest::Url::parse(base).map_err(|_| "invalid_url".to_string())?;
+    let url = base.join(path).map_err(|_| "invalid_path".to_string())?;
+    let lower = url.path().to_ascii_lowercase();
+    if url.origin() != base.origin()
+        || !url.path().starts_with("/api/v1/")
+        || lower.contains("%2e")
+        || lower.contains("%2f")
+    {
+        return Err("invalid_path".into());
+    }
+    Ok(url)
+}
+
+/// Log text from the webview: bounded and free of control characters, so it cannot
+/// forge extra log lines or terminal escapes.
+pub fn log_text(raw: &str) -> String {
+    raw.chars()
+        .take(2000)
+        .map(|c| if c.is_control() { ' ' } else { c })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn api_urls_stay_on_origin_and_prefix() {
+        let base = "https://procure.example.jp";
+        assert_eq!(
+            api_url(base, "/api/v1/me").unwrap().as_str(),
+            "https://procure.example.jp/api/v1/me"
+        );
+        for bad in [
+            "/api/v1/%2e%2e/%2e%2e/health",
+            "/api/v1/%2E%2e/x",
+            "/api/v1/.%2e/x",
+            "/api/v1/%2e%2E/admin",
+            "/api/v1/..%2fadmin",
+            "/api/v1/a%2F..%2F..%2Fhealth",
+        ] {
+            assert!(api_url(base, bad).is_err(), "{bad}");
+        }
+    }
+
+    #[test]
+    fn log_text_strips_control_characters() {
+        let cleaned = log_text("ok\n2026-10-31T00:00:00Z ERROR fake line\r\u{1b}[31m");
+        assert!(!cleaned.chars().any(char::is_control), "{cleaned:?}");
+        assert_eq!(log_text(&"x".repeat(5000)).len(), 2000);
+    }
 
     #[test]
     fn server_urls() {

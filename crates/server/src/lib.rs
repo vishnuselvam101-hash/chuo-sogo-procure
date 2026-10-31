@@ -5,6 +5,7 @@ pub mod audit;
 pub mod db;
 pub mod error;
 pub mod mailer;
+pub mod openapi;
 pub mod principal;
 pub mod ratelimit;
 pub mod security;
