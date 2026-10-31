@@ -2,3 +2,4 @@
 //! No I/O, no database, no AI: everything here is testable in isolation.
 
 pub mod money;
+pub mod rbac;

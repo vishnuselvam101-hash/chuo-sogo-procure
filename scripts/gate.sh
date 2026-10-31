@@ -6,6 +6,8 @@
 set -uo pipefail
 cd "$(dirname "$0")/.."
 MODE="${1:-quick}"
+# Local dev settings (DATABASE_URL for DB integration tests). Never printed.
+if [ -f .env ]; then set -a; . ./.env; set +a; fi
 mkdir -p reports
 TS="$(date -u +%Y%m%dT%H%M%SZ)"
 OUT="reports/gate-$TS.md"

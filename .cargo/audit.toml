@@ -1,0 +1,8 @@
+# Each ignore needs a reason and is mirrored in docs/security/SECURITY_FINDINGS.md.
+[advisories]
+ignore = [
+  # RUSTSEC-2023-0071 (rsa Marvin attack): rsa is in Cargo.lock only through sqlx's optional
+  # MySQL driver, which this workspace never enables or compiles (verified with `cargo build -v`
+  # and `cargo tree -i rsa --target all -e all` = empty). Re-check whenever sqlx features change.
+  "RUSTSEC-2023-0071",
+]
