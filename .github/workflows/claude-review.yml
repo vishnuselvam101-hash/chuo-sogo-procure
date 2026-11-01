@@ -1,0 +1,64 @@
+name: claude-review
+
+# Automatic AI review of every pull request (layer 2 of the review process; layer 1 is
+# the local milestone review, see docs/engineering/QUALITY_GATES.md).
+# Auth: CLAUDE_CODE_OAUTH_TOKEN repository secret (from `claude setup-token`, uses the
+# founder's Claude subscription). Without the secret the job is skipped, never failed.
+# The reviewer only reads the diff and comments; it cannot push, merge or approve.
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: claude-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    # Same-repository branches only: forks never get the secret.
+    if: github.event.pull_request.head.repo.full_name == github.repository && !github.event.pull_request.draft
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      HAS_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }}
+    steps:
+      - if: env.HAS_TOKEN != 'true'
+        run: echo "CLAUDE_CODE_OAUTH_TOKEN not configured; skipping AI review."
+      - if: env.HAS_TOKEN == 'true'
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - if: env.HAS_TOKEN == 'true'
+        uses: anthropics/claude-code-action@2dca132ff0e0c4094ce6048b422c6915a071210b # v1.0.247
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          use_sticky_comment: true
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR NUMBER: ${{ github.event.pull_request.number }}
+
+            Review this pull request of Chuo-Sogo Procure (Rust/Axum/SQLx/PostgreSQL backend,
+            Tauri 2 + React desktop client). Read CLAUDE.md and docs/architecture/ARCHITECTURE.md
+            first. Report only real defects with a concrete failure scenario, most severe first:
+            1. Tenant isolation: every org-scoped query under RLS, no cross-org leaks, unrelated
+               orgs answer 404, staff act on customer orgs only through service assignments.
+            2. Authorization and workflow: transitions go through procure_domain::workflow and are
+               audited in the same transaction; staff, AI and requesters never approve; customers
+               never see internal notes or unsent recommendations.
+            3. Money: integer minor units only, no floats, no implicit currency conversion,
+               checked arithmetic.
+            4. Security: input validation, secrets, SQL built from untrusted input, the desktop
+               IPC surface (token stays in Rust, only /api/v1 on the configured server).
+            5. Tests: changed behaviour has tests; no weakened or skipped tests or suppressed lints.
+            6. UI: no hard-coded user-facing strings (locales ja/en/ta/hi stay in parity).
+            Use inline comments for specific lines and one short summary comment. Say plainly
+            when you found nothing significant. Never approve the PR or request changes formally.
+          claude_args: |
+            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"

@@ -13,3 +13,16 @@ Milestone done only when:
 
 ## Gate verification (canary, 2026-10-31)
 A copy of the repo with five planted defects (fmt violation, `unwrap`, failing assertion, fake AWS key in code, fake GitHub token in uncommitted file) → fmt, clippy, test, semgrep, trivy, gitleaks-tree all FAIL. Clean repo → all PASS.
+
+## Code review (two layers, from 2026-11-01)
+1. **Local milestone review** — at every milestone gate, independent review agents (code-reviewer,
+   cybersecurity-expert brief) review the whole phase diff in this environment; findings go to
+   `docs/security/SECURITY_FINDINGS.md` and are fixed with regression tests before the gate report.
+2. **Pull-request review on GitHub** — `.github/workflows/claude-review.yml` (Claude, official
+   `anthropics/claude-code-action`, pinned by SHA) comments on every PR from a branch of this repo.
+   Auth is the `CLAUDE_CODE_OAUTH_TOKEN` secret (founder's Claude subscription); without it the job
+   is skipped. The reviewer comments only: it cannot push, merge or approve.
+
+Workflow: work on a branch → open a PR → CI (`ci`) green and AI review comments addressed or
+answered → squash-merge. Findings that are real defects are fixed before merging; disagreements
+are answered in the PR thread, never silently ignored.

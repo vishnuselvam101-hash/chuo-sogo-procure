@@ -18,6 +18,7 @@ Read `docs/architecture/ARCHITECTURE.md` and `docs/architecture/IMPLEMENTATION_P
 
 ## Process
 Agents in `.claude/agents/`, used sparingly: implement in the main session; call code-reviewer, cybersecurity-expert, debugger, qa-engineer at milestone gates.
+Changes go through pull requests (branch → PR → CI + `claude-review` comments addressed → squash-merge); see `docs/engineering/QUALITY_GATES.md` § Code review.
 Commits: author vishnuselvam101-hash, no AI attribution trailers. Push to the private GitHub repo is allowed (founder, 2026-10-31). Never tag a release, deploy, sign, buy services, or email suppliers/customers without founder approval.
 
 ## Database
