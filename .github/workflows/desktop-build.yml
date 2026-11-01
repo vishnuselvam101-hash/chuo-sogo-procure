@@ -28,8 +28,10 @@ jobs:
             bundles: deb,appimage
           - os: windows-latest
             bundles: msi,nsis
+          # One universal app for Apple-chip and Intel Macs.
           - os: macos-latest
             bundles: dmg,app
+            target: --target universal-apple-darwin
     runs-on: ${{ matrix.os }}
     timeout-minutes: 90
     # Windows would otherwise run steps in PowerShell, where "$BUNDLES" is not the env var.
@@ -43,6 +45,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master
         with:
           toolchain: "1.95"
+          targets: ${{ runner.os == 'macOS' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
       - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
         with:
           version: 12
@@ -61,19 +64,22 @@ jobs:
         if: inputs.app == 'business'
         env:
           BUNDLES: ${{ matrix.bundles }}
+          TARGET: ${{ matrix.target || '' }}
           PROCURE_DEFAULT_SERVER: ${{ inputs.server || null }}
-        run: cargo tauri build --bundles "$BUNDLES"
+        run: cargo tauri build $TARGET --bundles "$BUNDLES"
       - working-directory: apps/desktop
         if: inputs.app == 'admin'
         env:
           BUNDLES: ${{ matrix.bundles }}
-        run: cargo tauri build --config src-tauri/tauri.admin.conf.json --features admin --bundles "$BUNDLES"
+          TARGET: ${{ matrix.target || '' }}
+        run: cargo tauri build $TARGET --config src-tauri/tauri.admin.conf.json --features admin --bundles "$BUNDLES"
       - working-directory: apps/desktop
         if: inputs.app == 'shop'
         env:
           BUNDLES: ${{ matrix.bundles }}
+          TARGET: ${{ matrix.target || '' }}
           PROCURE_DEFAULT_SERVER: ${{ inputs.server || null }}
-        run: cargo tauri build --config src-tauri/tauri.shop.conf.json --bundles "$BUNDLES"
+        run: cargo tauri build $TARGET --config src-tauri/tauri.shop.conf.json --bundles "$BUNDLES"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: chuo-sogo-procure-${{ inputs.app }}-${{ matrix.os }}
@@ -82,5 +88,5 @@ jobs:
             target/release/bundle/**/*.AppImage
             target/release/bundle/**/*.msi
             target/release/bundle/**/*.exe
-            target/release/bundle/**/*.dmg
+            target/*/release/bundle/**/*.dmg
           retention-days: 14
