@@ -32,6 +32,10 @@ jobs:
             bundles: dmg,app
     runs-on: ${{ matrix.os }}
     timeout-minutes: 90
+    # Windows would otherwise run steps in PowerShell, where "$BUNDLES" is not the env var.
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
