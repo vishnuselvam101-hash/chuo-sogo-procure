@@ -18,7 +18,8 @@
     "members": "सदस्य",
     "organisations": "संगठन",
     "audit": "ऑडिट लॉग",
-    "opsQueue": "संचालन कतार"
+    "opsQueue": "संचालन कतार",
+    "billing": "चुओ-सोगो के चालान"
   },
   "workspace": {
     "customer": "ग्राहक कार्यक्षेत्र",

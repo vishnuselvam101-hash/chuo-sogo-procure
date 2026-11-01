@@ -107,6 +107,16 @@ pub fn log_text(raw: &str) -> String {
         .collect()
 }
 
+/// `<number>.pdf` for an issued invoice or credit note (numbers are A–Z, 0–9 and '-').
+pub fn invoice_file_name(number: &str) -> Option<String> {
+    let ok = (1..=40).contains(&number.len())
+        && number
+            .bytes()
+            .all(|b| b.is_ascii_uppercase() || b.is_ascii_digit() || b == b'-')
+        && !number.starts_with('-');
+    ok.then(|| format!("{number}.pdf"))
+}
+
 #[cfg_attr(feature = "admin", allow(dead_code))]
 /// A file name safe to create in the user's Downloads folder: no path components, no
 /// control or reserved characters, not hidden, at most 150 characters. `None` if nothing
@@ -290,6 +300,17 @@ mod tests {
         assert!(api_url_in(V1, base, "/api/admin/v1/orgs").is_err());
         assert!(api_url_in(ADMIN, base, "/api/admin/v1/%2e%2e/%2e%2e/v1/me").is_err());
         assert!(api_url(base, &format!("{API_PREFIX}me")).is_ok());
+    }
+
+    #[test]
+    fn invoice_file_names() {
+        assert_eq!(
+            invoice_file_name("CS-2026-00001").as_deref(),
+            Some("CS-2026-00001.pdf")
+        );
+        for bad in ["", "../x", "CS/1", "cs-1", "-rf", "A.B", &"A".repeat(41)] {
+            assert!(invoice_file_name(bad).is_none(), "{bad}");
+        }
     }
 
     #[test]

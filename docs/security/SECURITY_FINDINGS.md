@@ -45,6 +45,13 @@
 | SF-041 | 2026-11-01 | Finance: same supplier invoice bookable on two orders; PO total not cross-checked with its lines; invoice form pre-filled with PO figures (click-through "match") | Medium | V2 | Fixed | unique (org, supplier, invoice number), recompute on order (`recommendation_inconsistent`), PO figures only as hints |
 | SF-042 | 2026-11-01 | Admin console: if loading the console failed after a correct code, the screen stayed on the code step while a live admin session token remained in the native layer | Low | V3 | Fixed | failed load ends the session (`auth_logout`) and shows the reason; Vitest regression |
 | SF-043 | 2026-11-01 | Admin console: "back to sign-in" left the password step token in native memory until the next sign-in | Low | V3 | Fixed | back clears it (`auth_logout`); capability isolation test for both builds |
+| SF-044 | 2026-11-01 | Billing: credit notes rounded separately could return more consumption tax than the original invoice charged (ceil / half-up rounding) | Medium | V2 | Fixed | `limit_credit` caps tax per rate at the tax still returnable; domain + integration tests |
+| SF-045 | 2026-11-01 | Billing: over-long notes / reason / bank details would be silently cut off on an issued (immutable) PDF | Medium | V3 | Fixed | renderer reserves the full text height and refuses (`text_too_long`) instead of truncating |
+| SF-046 | 2026-11-01 | Billing: draft edit reset a custom recipient; issuer snapshot vs document rounding mismatch; second "paid" overwrote the payment record; issue dates could precede earlier numbers | Low | V3 | Fixed | keep recipient on PUT, issue uses the snapshot's rounding, `already_paid`, dates monotonic per series and year |
+
+## Residual risk (Phase B)
+- Billing numbers are per series and calendar year; a database restore from backup could re-use numbers already sent to customers — restores must be followed by a check of the last issued number.
+- PDFs are stored on the server disk (content-addressed); losing `/var/lib/procure/storage` loses the issued PDFs (the data to re-render them stays in the database). Backups currently cover the database only.
 
 ## Residual risk (Phase A)
 - No re-authentication before dangerous admin actions yet (idle limit 30 min + two-click confirm).

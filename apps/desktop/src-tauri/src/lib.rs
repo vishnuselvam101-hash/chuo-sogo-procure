@@ -227,8 +227,7 @@ async fn api_request(
 /// Uploads and downloads of attachments (up to 10 MB) on slow links.
 const TRANSFER_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(180);
 
-#[cfg(not(feature = "admin"))]
-/// Largest attachment the client will save (server limit is 10 MB).
+/// Largest file (attachment or invoice PDF) the client will save (server limit is 10 MB).
 const MAX_DOWNLOAD_BYTES: usize = 12 * 1024 * 1024;
 
 /// Downloads one request attachment from the configured server and saves it into the
@@ -255,7 +254,41 @@ async fn api_download(
         &base,
         &format!("/api/v1/orgs/{org}/attachments/{attachment}/content"),
     )?;
-    let token = session.token_for(&base)?;
+    save_download(&app, &session, &base, url, &name).await
+}
+
+/// Saves an issued invoice or credit note PDF (`<number>.pdf`) into the Downloads folder.
+/// Business app: the customer's own documents; admin console: any organisation's.
+#[tauri::command]
+async fn invoice_download(
+    app: tauri::AppHandle,
+    prefs: State<'_, Mutex<Prefs>>,
+    session: State<'_, Session>,
+    org_id: String,
+    invoice_id: String,
+    number: String,
+) -> Result<ApiResponse, String> {
+    let org = uuid::Uuid::parse_str(&org_id).map_err(|_| "invalid_id".to_string())?;
+    let invoice = uuid::Uuid::parse_str(&invoice_id).map_err(|_| "invalid_id".to_string())?;
+    let name = validate::invoice_file_name(&number).ok_or("invalid_file_name")?;
+    let base = lock(&prefs)?.server_url.clone();
+    let url = validate::api_url(
+        &base,
+        &endpoint(&format!("orgs/{org}/billing/invoices/{invoice}/pdf")),
+    )?;
+    save_download(&app, &session, &base, url, &name).await
+}
+
+/// GETs `url` with the session for `base` (size-capped) and writes it to the Downloads
+/// folder as `name`, never overwriting.
+async fn save_download(
+    app: &tauri::AppHandle,
+    session: &Session,
+    base: &str,
+    url: reqwest::Url,
+    name: &str,
+) -> Result<ApiResponse, String> {
+    let token = session.token_for(base)?;
     let request_id = uuid::Uuid::new_v4().to_string();
     let mut req = session
         .http
@@ -311,8 +344,8 @@ async fn api_download(
         .or_else(|_| app.path().home_dir().map(|h| h.join("Downloads")))
         .map_err(|_| "no_download_folder".to_string())?;
     std::fs::create_dir_all(&dir).map_err(|_| "no_download_folder".to_string())?;
-    let saved = save_unique(&dir, &name, &bytes)?;
-    tracing::info!(%request_id, "attachment saved");
+    let saved = save_unique(&dir, name, &bytes)?;
+    tracing::info!(%request_id, "file saved");
     Ok(ApiResponse {
         status,
         body: serde_json::json!({ "saved_to": saved.to_string_lossy() }),
@@ -320,7 +353,6 @@ async fn api_download(
     })
 }
 
-#[cfg(not(feature = "admin"))]
 /// Writes `bytes` as `name` in `dir`, never overwriting: "a.pdf", "a (1).pdf", ...
 fn save_unique(
     dir: &std::path::Path,
@@ -385,11 +417,13 @@ fn handlers() -> impl Fn(tauri::ipc::Invoke) -> bool + Send + Sync + 'static {
         auth_logout,
         api_request,
         api_download,
+        invoice_download,
         client_log
     ]
 }
 
-/// Admin console commands: no file access, plus the authenticator sign-in steps.
+/// Admin console commands: the authenticator sign-in steps; the only file it writes is an
+/// issued invoice PDF.
 #[cfg(feature = "admin")]
 fn handlers() -> impl Fn(tauri::ipc::Invoke) -> bool + Send + Sync + 'static {
     tauri::generate_handler![
@@ -401,6 +435,7 @@ fn handlers() -> impl Fn(tauri::ipc::Invoke) -> bool + Send + Sync + 'static {
         api_request,
         admin::auth_enroll,
         admin::auth_code,
+        invoice_download,
         client_log
     ]
 }
@@ -449,7 +484,7 @@ pub fn run() {
     }
 }
 
-#[cfg(all(test, not(feature = "admin")))]
+#[cfg(test)]
 mod tests {
     use super::save_unique;
 
@@ -482,6 +517,9 @@ mod capability_tests {
         }
         assert!(business.contains("allow-api-download"));
         assert!(!admin.contains("allow-api-download"));
+        assert!(
+            business.contains("allow-invoice-download") && admin.contains("allow-invoice-download")
+        );
         let config = include_str!("../tauri.admin.conf.json");
         assert!(config.contains(r#""capabilities": ["admin"]"#));
         assert!(config.contains(r#""identifier": "net.chuo-sogo.procure.admin""#));

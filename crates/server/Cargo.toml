@@ -35,6 +35,8 @@ thiserror = "2"
 utoipa = { version = "5.5", features = ["uuid", "chrono"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+krilla = "0.8.2"
+skrifa = "0.42.1"
 
 [dev-dependencies]
 http-body-util = "0.1"

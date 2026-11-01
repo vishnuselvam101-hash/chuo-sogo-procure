@@ -4,6 +4,7 @@ pub mod api;
 pub mod audit;
 pub mod db;
 pub mod error;
+pub mod invoice_pdf;
 pub mod mailer;
 pub mod mfa;
 pub mod openapi;
@@ -52,6 +53,8 @@ pub struct AppState {
     /// Networks allowed to reach the admin API (`PROCURE_ADMIN_ALLOWED_CIDRS`, default this
     /// machine only). `None` only in in-process tests.
     pub admin_networks: Option<Vec<ipnet::IpNet>>,
+    /// Font for invoice PDFs (`PROCURE_PDF_FONT`); documents cannot be issued without it.
+    pub pdf_font: Option<invoice_pdf::PdfFont>,
 }
 
 impl AppState {
@@ -72,6 +75,7 @@ impl AppState {
                 &std::env::var("PROCURE_ADMIN_ALLOWED_CIDRS")
                     .unwrap_or_else(|_| "127.0.0.1/32,::1/128".into()),
             )),
+            pdf_font: None,
         }
     }
 }
@@ -298,6 +302,18 @@ pub fn router(state: AppState) -> Router {
             post(api::orders::resolve_discrepancy),
         )
         .route(
+            "/orgs/{org_id}/billing/invoices",
+            get(api::billing::customer_list),
+        )
+        .route(
+            "/orgs/{org_id}/billing/invoices/{id}",
+            get(api::billing::customer_get),
+        )
+        .route(
+            "/orgs/{org_id}/billing/invoices/{id}/pdf",
+            get(api::billing::customer_pdf),
+        )
+        .route(
             "/orgs/{org_id}/requests/{request_id}/close",
             post(api::orders::close_request),
         )
@@ -419,6 +435,37 @@ pub fn router(state: AppState) -> Router {
         .route("/orgs/{org_id}/audit", get(api::admin::org_audit))
         .route("/accounts", get(api::admin::list_accounts))
         .route("/accounts/{user_id}", patch(api::admin::update_account))
+        .route(
+            "/billing/issuer",
+            get(api::billing::get_issuer).put(api::billing::put_issuer),
+        )
+        .route("/billing/invoices", get(api::billing::list_invoices))
+        .route(
+            "/orgs/{org_id}/billing/invoices",
+            post(api::billing::create_invoice),
+        )
+        .route(
+            "/orgs/{org_id}/billing/invoices/{id}",
+            get(api::billing::get_invoice)
+                .put(api::billing::update_invoice)
+                .delete(api::billing::delete_invoice),
+        )
+        .route(
+            "/orgs/{org_id}/billing/invoices/{id}/issue",
+            post(api::billing::issue),
+        )
+        .route(
+            "/orgs/{org_id}/billing/invoices/{id}/payment",
+            post(api::billing::record_payment),
+        )
+        .route(
+            "/orgs/{org_id}/billing/invoices/{id}/credit-notes",
+            post(api::billing::create_credit_note),
+        )
+        .route(
+            "/orgs/{org_id}/billing/invoices/{id}/pdf",
+            get(api::billing::admin_pdf),
+        )
         .layer(RequestBodyLimitLayer::new(MAX_JSON_BODY))
         .layer(TimeoutLayer::with_status_code(
             StatusCode::REQUEST_TIMEOUT,

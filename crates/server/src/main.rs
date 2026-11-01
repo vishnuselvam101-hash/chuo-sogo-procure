@@ -88,6 +88,18 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
                     .store(true, std::sync::atomic::Ordering::Relaxed);
                 tracing::info!("trusting X-Forwarded-For from a proxy on this machine");
             }
+            let font_path = std::env::var("PROCURE_PDF_FONT")
+                .unwrap_or_else(|_| procure_server::invoice_pdf::DEFAULT_FONT_PATH.into());
+            let font_index = std::env::var("PROCURE_PDF_FONT_INDEX")
+                .ok()
+                .and_then(|i| i.parse().ok())
+                .unwrap_or(0);
+            match procure_server::invoice_pdf::PdfFont::load(&font_path, font_index) {
+                Ok(f) => state.pdf_font = Some(f),
+                Err(e) => {
+                    tracing::warn!(error = %e, "invoice PDFs unavailable: documents cannot be issued")
+                }
+            }
             match std::env::var("PROCURE_SECRET_KEY") {
                 Ok(key) => {
                     let sb = procure_server::mfa::SecretBox::from_hex(&key)

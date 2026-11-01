@@ -10,6 +10,7 @@ export type PageId =
   | "approvals"
   | "orders"
   | "invoices"
+  | "billing"
   | "reports"
   | "opsQueue"
   | "organisations"
@@ -50,6 +51,8 @@ export function navFor(m: MembershipView): NavItem[] {
     if (has("approve_recommendation") || has("manage_approval_policy")) items.push(item("approvals", true));
     if (has("view_orders")) items.push(item("orders", true));
     if (has("view_finance")) items.push(item("invoices", true));
+    // Chuo-Sogo's own invoices to this customer (customer members only; staff use the console).
+    if (has("view_finance") && m.access !== "assigned") items.push(item("billing", true));
     if (has("view_reports")) items.push(item("reports"));
     if (has("manage_org_users")) items.push(item("members", true));
   }

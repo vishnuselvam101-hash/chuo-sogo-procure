@@ -116,6 +116,38 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/admin/v1/billing/invoices": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["admin_list_invoices"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/admin/v1/billing/issuer": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["admin_get_issuer"];
+    put: operations["admin_put_issuer"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/admin/v1/health": {
     parameters: {
       query?: never;
@@ -220,6 +252,102 @@ export interface paths {
       cookie?: never;
     };
     get: operations["admin_org_audit"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/admin/v1/orgs/{org_id}/billing/invoices": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["admin_create_invoice"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/admin/v1/orgs/{org_id}/billing/invoices/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["admin_get_invoice"];
+    put: operations["admin_update_invoice"];
+    post?: never;
+    delete: operations["admin_delete_invoice"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/admin/v1/orgs/{org_id}/billing/invoices/{id}/credit-notes": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["admin_create_credit_note"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/admin/v1/orgs/{org_id}/billing/invoices/{id}/issue": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["admin_issue_invoice"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/admin/v1/orgs/{org_id}/billing/invoices/{id}/payment": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["admin_record_payment"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/admin/v1/orgs/{org_id}/billing/invoices/{id}/pdf": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["admin_invoice_pdf"];
     put?: never;
     post?: never;
     delete?: never;
@@ -527,6 +655,54 @@ export interface paths {
       cookie?: never;
     };
     get: operations["list_audit"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/orgs/{org_id}/billing/invoices": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["customer_list"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/orgs/{org_id}/billing/invoices/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["customer_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/orgs/{org_id}/billing/invoices/{id}/pdf": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["customer_pdf"];
     put?: never;
     post?: never;
     delete?: never;
@@ -1563,6 +1739,16 @@ export interface components {
       id: string;
       number: string;
     };
+    CreatedInvoice: {
+      /** Format: uuid */
+      id: string;
+    };
+    CreditNoteInput: {
+      lines: components["schemas"]["LineInput"][];
+      notes?: string;
+      /** @description Why the amount is returned (printed on the credit note). */
+      reason: string;
+    };
     DecisionBody: {
       /** @description Required for `reject` and `clarify`. */
       comment?: string;
@@ -1699,6 +1885,28 @@ export interface components {
       org_name: string;
       role: string;
     };
+    InvoiceDetail: components["schemas"]["InvoiceSummary"] & {
+      /** @description Credit notes issued against this invoice (any status, admin only; issued for customers). */
+      credit_notes: components["schemas"]["InvoiceSummary"][];
+      lines: components["schemas"]["LineView"][];
+      notes: string;
+      paid_note: string;
+      /** Format: date */
+      paid_on?: string | null;
+      /** @description SHA-256 of the issued PDF (hex), also recorded in the audit log. */
+      pdf_sha256?: string | null;
+      per_rate: components["schemas"]["RateTotalView"][];
+      reason: string;
+      recipient_address: string;
+      recipient_name: string;
+      /** Format: uuid */
+      request_id?: string | null;
+      /** Format: int64 */
+      subtotal_minor: number;
+      /** Format: int64 */
+      tax_minor: number;
+      tax_rounding: string;
+    };
     InvoiceInput: {
       currency: string;
       /** Format: date */
@@ -1747,6 +1955,31 @@ export interface components {
       /** @description `matched` (request reconciled) or `disputed` (discrepancies to resolve). */
       match_status: string;
     };
+    InvoiceSummary: {
+      /** Format: date-time */
+      created_at: string;
+      currency: string;
+      /** Format: date */
+      due_date?: string | null;
+      /** Format: uuid */
+      id: string;
+      /** Format: date */
+      issue_date?: string | null;
+      /** @description `invoice` or `credit_note`. */
+      kind: string;
+      number?: string | null;
+      /** Format: uuid */
+      org_id: string;
+      org_name: string;
+      /** Format: uuid */
+      original_id?: string | null;
+      /** @description Issued, unpaid and past its due date (Japan time). */
+      overdue: boolean;
+      /** @description `draft`, `issued` or `paid`. */
+      status: string;
+      /** Format: int64 */
+      total_minor: number;
+    };
     InvoiceView: {
       /** Format: date-time */
       created_at: string;
@@ -1771,6 +2004,29 @@ export interface components {
       tax_rounding: string;
       /** Format: int64 */
       total_minor: number;
+    };
+    IssueRequest: {
+      /**
+       * Format: date
+       * @description Default: today (Japan time). Not in the future, not before the original invoice.
+       */
+      issue_date?: string | null;
+    };
+    IssuerProfile: {
+      address: string;
+      /** @description Bank transfer details printed on invoices. */
+      bank_details?: string;
+      email?: string;
+      legal_name: string;
+      /** @description Invoice number prefix (A–Z, 0–9, up to 8). */
+      number_prefix: string;
+      /** Format: int32 */
+      payment_terms_days: number;
+      phone?: string;
+      /** @description `T` + 13 digits (qualified invoice issuer registration number). */
+      registration_number: string;
+      /** @description `floor`, `half_up` or `ceil` (once per rate per invoice). */
+      tax_rounding: string;
     };
     ItemInput: {
       description: string;
@@ -1807,6 +2063,34 @@ export interface components {
       verified_at?: string | null;
       verified_manufacturer?: string | null;
       verified_mpn?: string | null;
+    };
+    LineInput: {
+      description: string;
+      /** Format: int32 */
+      quantity: number;
+      /**
+       * Format: int32
+       * @description 1000 (10 %), 800 (8 % reduced rate) or 0 (exempt).
+       */
+      tax_rate_bps: number;
+      unit?: string;
+      /**
+       * Format: int64
+       * @description Unit price in minor units, tax excluded.
+       */
+      unit_price_minor: number;
+    };
+    LineView: {
+      description: string;
+      /** Format: int32 */
+      position: number;
+      /** Format: int32 */
+      quantity: number;
+      /** Format: int32 */
+      tax_rate_bps: number;
+      unit: string;
+      /** Format: int64 */
+      unit_price_minor: number;
     };
     LoginRequest: {
       email: string;
@@ -1979,6 +2263,13 @@ export interface components {
       supplier_name: string;
       to_address?: string | null;
     };
+    PaymentUpdate: {
+      note?: string;
+      /** @description true: received (needs `paid_on`); false: undo a mistaken payment record. */
+      paid: boolean;
+      /** Format: date */
+      paid_on?: string | null;
+    };
     PolicyInput: {
       allow_self_approval?: boolean;
       tiers: components["schemas"]["TierView"][];
@@ -2109,6 +2400,14 @@ export interface components {
       supplier_reference: string;
       /** Format: date */
       valid_until?: string | null;
+    };
+    RateTotalView: {
+      /** Format: int64 */
+      base_minor: number;
+      /** Format: int32 */
+      rate_bps: number;
+      /** Format: int64 */
+      tax_minor: number;
     };
     ReasonBody: {
       reason?: string;
@@ -2879,6 +3178,145 @@ export interface operations {
       };
     };
   };
+  admin_list_invoices: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Only this organisation. */
+        org_id: string | null;
+        /** @description `draft`, `issued`, `paid` or `overdue`. */
+        status: string | null;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Invoices and credit notes of all organisations (newest first, at most 500) */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InvoiceSummary"][];
+        };
+      };
+      /** @description No valid admin session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  admin_get_issuer: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Issuer details printed on invoices */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["IssuerProfile"];
+        };
+      };
+      /** @description No valid admin session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not set up yet */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  admin_put_issuer: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["IssuerProfile"];
+      };
+    };
+    responses: {
+      /** @description Saved (applies to documents issued from now on) */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description No valid admin session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Invalid input (e.g. registration number check digit) */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
   admin_health: {
     parameters: {
       query?: never;
@@ -3285,6 +3723,516 @@ export interface operations {
       };
       /** @description Not permitted */
       403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  admin_create_invoice: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["InvoiceInput"];
+      };
+    };
+    responses: {
+      /** @description Draft created (totals computed by the server) */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CreatedInvoice"];
+        };
+      };
+      /** @description No valid admin session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown organisation */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Invalid lines, rate, currency or recipient */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  admin_get_invoice: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Document with lines, per-rate totals and credit notes */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InvoiceDetail"];
+        };
+      };
+      /** @description No valid admin session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown document */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  admin_update_invoice: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["InvoiceInput"];
+      };
+    };
+    responses: {
+      /** @description Draft replaced */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description No valid admin session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown document */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Already issued (immutable) */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  admin_delete_invoice: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Draft deleted */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description No valid admin session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown document */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Already issued (never deleted) */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  admin_create_credit_note: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreditNoteInput"];
+      };
+    };
+    responses: {
+      /** @description Draft credit note created */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CreatedInvoice"];
+        };
+      };
+      /** @description No valid admin session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown invoice */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Original not issued, or more than was invoiced at a rate */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  admin_issue_invoice: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["IssueRequest"];
+      };
+    };
+    responses: {
+      /** @description Issued: number assigned, PDF stored, immutable from now on */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InvoiceDetail"];
+        };
+      };
+      /** @description No valid admin session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown document */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Already issued, issuer not set up, PDF font missing, or credit exceeds the original */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Invalid issue date */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  admin_record_payment: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["PaymentUpdate"];
+      };
+    };
+    responses: {
+      /** @description Payment status recorded */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description No valid admin session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown document */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not an issued invoice */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Invalid date */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  admin_invoice_pdf: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The issued PDF (application/pdf) */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description No valid admin session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown document */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Draft (no PDF yet) */
+      409: {
         headers: {
           [name: string]: unknown;
         };
@@ -4369,6 +5317,153 @@ export interface operations {
         };
       };
       /** @description Unknown or unrelated organisation */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  customer_list: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Invoices and credit notes Chuo-Sogo issued to this organisation */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InvoiceSummary"][];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown organisation */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  customer_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Issued document */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InvoiceDetail"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown, draft or not visible */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  customer_pdf: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The issued PDF (application/pdf) */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown, draft or not visible */
       404: {
         headers: {
           [name: string]: unknown;

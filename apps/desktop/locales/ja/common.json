@@ -18,7 +18,8 @@
     "members": "メンバー管理",
     "organisations": "顧客組織",
     "audit": "監査ログ",
-    "opsQueue": "業務キュー"
+    "opsQueue": "業務キュー",
+    "billing": "中央総合からの請求書"
   },
   "workspace": {
     "customer": "顧客ワークスペース",

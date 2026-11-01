@@ -178,7 +178,13 @@ describe("admin console", () => {
   });
 
   it("shows sections by permission", () => {
-    expect(adminNav(SUPER)).toEqual(["overview", "orgs", "accounts", "settings"]);
+    expect(adminNav([...SUPER, "manage_billing"])).toEqual([
+      "overview",
+      "orgs",
+      "accounts",
+      "billing",
+      "settings",
+    ]);
     expect(adminNav(["manage_service_assignments", "view_audit"])).toEqual(["settings"]);
     expect(adminNav(["view_system_health"])).toEqual(["overview", "settings"]);
   });

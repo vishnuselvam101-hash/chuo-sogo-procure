@@ -34,6 +34,8 @@ PROCURE_SECRET_KEY=$(openssl rand -hex 32)
 PROCURE_TRUST_LOCAL_PROXY=1
 PROCURE_ADMIN_ALLOWED_CIDRS=100.64.0.0/10,fd7a:115c:a1e0::/48,127.0.0.1/32,::1/128
 PROCURE_AI_PROVIDER=mock
+# Invoice PDFs need a Japanese font (apt install fonts-noto-cjk); this is the default.
+PROCURE_PDF_FONT=/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc
 PROCURE_LOG_FORMAT=json
 RUST_LOG=info
 ENV

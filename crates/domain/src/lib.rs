@@ -3,6 +3,7 @@
 
 pub mod approval;
 pub mod comparison;
+pub mod invoicing;
 pub mod matching;
 pub mod money;
 pub mod rbac;

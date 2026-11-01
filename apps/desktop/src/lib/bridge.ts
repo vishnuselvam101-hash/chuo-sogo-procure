@@ -24,6 +24,9 @@ export const bridge = {
   /** Saves an attachment into the user's Downloads folder; `body.saved_to` on success. */
   download: (orgId: string, attachmentId: string, fileName: string) =>
     invoke<ApiResponse<{ saved_to: string }>>("api_download", { orgId, attachmentId, fileName }),
+  /** Saves an issued invoice / credit note PDF as `<number>.pdf` in Downloads. */
+  invoicePdf: (orgId: string, invoiceId: string, number: string) =>
+    invoke<ApiResponse<{ saved_to: string }>>("invoice_download", { orgId, invoiceId, number }),
   log: (level: "info" | "warn" | "error", message: string, requestId?: string) =>
     invoke<null>("client_log", { level, message, requestId: requestId ?? null }).catch(() => undefined),
 };

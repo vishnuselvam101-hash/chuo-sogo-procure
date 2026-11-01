@@ -3,6 +3,7 @@ pub mod ai;
 pub mod approvals;
 pub mod attachments;
 pub mod auth;
+pub mod billing;
 pub mod common;
 pub mod ops;
 pub mod orders;

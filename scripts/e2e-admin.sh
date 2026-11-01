@@ -47,5 +47,5 @@ DISPLAY=:97 HOME="$WORK" XDG_CONFIG_HOME="$WORK/.config" WEBKIT_DISABLE_DMABUF_R
 PIDS+=($!)
 for _ in $(seq 30); do curl -fs http://127.0.0.1:4444/status >/dev/null && break; sleep 0.5; done
 
-E2E_APP="$PWD/target/admin/release/procure-desktop" E2E_OUT="$PWD/$OUT" E2E_SEED="$SEED" \
+E2E_APP="$PWD/target/admin/release/procure-desktop" E2E_OUT="$PWD/$OUT" E2E_SEED="$SEED" E2E_HOME="$WORK" \
   node apps/desktop/e2e/admin.mjs | tee "$OUT/result.txt"

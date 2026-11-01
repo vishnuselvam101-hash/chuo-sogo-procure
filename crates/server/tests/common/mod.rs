@@ -18,6 +18,22 @@ use sqlx::PgPool;
 use tower::ServiceExt;
 use uuid::Uuid;
 
+/// The invoice PDF font, read once per test binary (`fonts-noto-cjk` must be installed).
+fn pdf_font() -> Option<procure_server::invoice_pdf::PdfFont> {
+    static FONT: std::sync::OnceLock<procure_server::invoice_pdf::PdfFont> =
+        std::sync::OnceLock::new();
+    Some(
+        FONT.get_or_init(|| {
+            procure_server::invoice_pdf::PdfFont::load(
+                procure_server::invoice_pdf::DEFAULT_FONT_PATH,
+                0,
+            )
+            .unwrap()
+        })
+        .clone(),
+    )
+}
+
 pub const PASSWORD: &str = "correct-horse-battery-staple";
 
 pub struct App {
@@ -71,6 +87,7 @@ impl App {
         // have no peer address); a dedicated test checks the restriction.
         state.secret_box = procure_server::mfa::SecretBox::from_hex(&"42".repeat(32)).map(Arc::new);
         state.admin_networks = None;
+        state.pdf_font = pdf_font();
         configure(&mut state);
         // Content-addressed, so tests running in parallel can share one directory.
         state.storage = Arc::new(procure_server::storage::Storage::new(
@@ -119,6 +136,25 @@ impl App {
             body,
             request_id,
         }
+    }
+
+    /// GET returning the raw body (files): (status, content type, bytes).
+    pub async fn get_raw(&self, uri: &str, token: &str) -> (StatusCode, String, Vec<u8>) {
+        let req = Request::builder()
+            .method(Method::GET)
+            .uri(uri)
+            .header("authorization", format!("Bearer {token}"))
+            .body(Body::empty())
+            .unwrap();
+        let res = self.router.clone().oneshot(req).await.unwrap();
+        let status = res.status();
+        let ct = res
+            .headers()
+            .get("content-type")
+            .map(|v| v.to_str().unwrap().to_string())
+            .unwrap_or_default();
+        let bytes = res.into_body().collect().await.unwrap().to_bytes().to_vec();
+        (status, ct, bytes)
     }
 
     pub async fn get(&self, uri: &str, token: &str) -> Resp {

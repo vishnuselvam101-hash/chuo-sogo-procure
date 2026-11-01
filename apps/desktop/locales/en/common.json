@@ -18,7 +18,8 @@
     "members": "Members",
     "organisations": "Organisations",
     "audit": "Audit log",
-    "opsQueue": "Operations queue"
+    "opsQueue": "Operations queue",
+    "billing": "Chuo-Sogo invoices"
   },
   "workspace": {
     "customer": "Customer workspace",

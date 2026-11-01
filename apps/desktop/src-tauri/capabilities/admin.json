@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "admin",
-  "description": "Admin console window: only the console's own commands. No attachment download, no core:default, no shell, filesystem, HTTP or opener plugins.",
+  "description": "Admin console window: only the console's own commands (the only file it saves is an issued invoice PDF). No core:default, no shell, filesystem, HTTP or opener plugins.",
   "windows": ["main"],
   "permissions": [
     "allow-prefs-get",
@@ -12,6 +12,7 @@
     "allow-api-request",
     "allow-auth-enroll",
     "allow-auth-code",
+    "allow-invoice-download",
     "allow-client-log"
   ]
 }

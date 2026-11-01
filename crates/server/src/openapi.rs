@@ -6,7 +6,8 @@ use utoipa::openapi::security::{HttpAuthScheme, HttpBuilder, SecurityScheme};
 use utoipa::{Modify, OpenApi};
 
 use crate::api::{
-    admin, ai, approvals, attachments, auth, ops, orders, orgs, products, requests, rfqs, suppliers,
+    admin, ai, approvals, attachments, auth, billing, ops, orders, orgs, products, requests, rfqs,
+    suppliers,
 };
 use crate::error::{ErrorBody, ErrorInner};
 
@@ -114,6 +115,20 @@ impl Modify for BearerAuth {
         admin::unassign,
         admin::org_audit,
         admin::health,
+        billing::get_issuer,
+        billing::put_issuer,
+        billing::list_invoices,
+        billing::create_invoice,
+        billing::get_invoice,
+        billing::update_invoice,
+        billing::delete_invoice,
+        billing::issue,
+        billing::record_payment,
+        billing::create_credit_note,
+        billing::admin_pdf,
+        billing::customer_list,
+        billing::customer_get,
+        billing::customer_pdf,
         orders::get_order,
         orders::record_delivery,
         orders::reverse_delivery,

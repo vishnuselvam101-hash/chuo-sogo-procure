@@ -18,7 +18,8 @@
     "overview": "Overview",
     "orgs": "Organisations",
     "accounts": "Accounts",
-    "settings": "Settings"
+    "settings": "Settings",
+    "billing": "Billing"
   },
   "health": {
     "server": "Server version",

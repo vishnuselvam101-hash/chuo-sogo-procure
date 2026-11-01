@@ -95,6 +95,8 @@ pub enum Permission {
     ManageInternalUsers,
     ManageServiceAssignments,
     ViewSystemHealth,
+    /// Issue Chuo-Sogo's own invoices and credit notes, maintain the issuer profile.
+    ManageBilling,
     // Customer-org scope.
     ManageOrgUsers,
     ManageOrgSettings,
@@ -134,6 +136,7 @@ impl Permission {
             Permission::ManageInternalUsers => "manage_internal_users",
             Permission::ManageServiceAssignments => "manage_service_assignments",
             Permission::ViewSystemHealth => "view_system_health",
+            Permission::ManageBilling => "manage_billing",
             Permission::ManageOrgUsers => "manage_org_users",
             Permission::ManageOrgSettings => "manage_org_settings",
             Permission::ManageApprovalPolicy => "manage_approval_policy",
@@ -171,6 +174,7 @@ pub fn home_permissions(role: Role) -> &'static [Permission] {
             ManageInternalUsers,
             ManageServiceAssignments,
             ViewSystemHealth,
+            ManageBilling,
             ViewAudit,
             ViewReports,
         ],
