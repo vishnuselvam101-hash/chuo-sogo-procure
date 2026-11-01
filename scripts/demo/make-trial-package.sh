@@ -3,24 +3,29 @@
 # the Windows, Mac and Android installers of the business (Procure) and Shop apps, downloaded
 # from finished GitHub runs that were dispatched with server=<demo address>.
 #   scripts/demo/make-trial-package.sh <desktop-business> <desktop-shop> <mobile-business> <mobile-shop>
-# (run ids). Output: reports/builds/<version>/trial/ — a one-click Windows setup
+# (run ids), or --from <dir> for local builds (scripts/demo/build-trial-local.sh): a directory
+# with desk-business, desk-shop, mob-business and mob-shop. Output: reports/builds/<version>/trial/ — a one-click Windows setup
 # (trial-installer.nsi), one zip per platform and one with all.
 # Every installer is checked to contain the demo address (DEMO_URL) before it is packaged, and
 # the commit each run was built from is recorded in BUILD-INFO.txt.
 # The guide holds no passwords; the shared demo password is handed over separately.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
-[ $# -eq 4 ] || { sed -n 2,7p "$0" >&2; exit 2; }
+[ $# -eq 4 ] || { [ $# -eq 2 ] && [ "$1" = --from ]; } || { sed -n 2,9p "$0" >&2; exit 2; }
 VERSION="$(sed -n 's/^version = "\(.*\)"/\1/p' apps/desktop/src-tauri/Cargo.toml | head -1)"
 OUT="reports/builds/$VERSION/trial"
 DEMO_URL="${DEMO_URL:-https://vnx-hostinger.taild091df.ts.net:8443}"
 DL="$(mktemp -d)"
 trap 'rm -rf "$DL"' EXIT
 
-gh run download "$1" -D "$DL/desk-business"
-gh run download "$2" -D "$DL/desk-shop"
-gh run download "$3" -D "$DL/mob-business"
-gh run download "$4" -D "$DL/mob-shop"
+if [ "$1" = --from ]; then
+  for d in desk-business desk-shop mob-business mob-shop; do cp -r "$2/$d" "$DL/$d"; done
+else
+  gh run download "$1" -D "$DL/desk-business"
+  gh run download "$2" -D "$DL/desk-shop"
+  gh run download "$3" -D "$DL/mob-business"
+  gh run download "$4" -D "$DL/mob-shop"
+fi
 
 PKG="$OUT/ChuoSogo-Trial-$VERSION"
 rm -rf "$OUT"
@@ -53,10 +58,14 @@ for f in "$PKG"/Windows/*.exe "$PKG"/Mac/*.dmg "$PKG"/Android/*.apk "$PKG"/Linux
   grep -rqaF "$DEMO_URL" "$x" || { echo "no $DEMO_URL inside $f" >&2; exit 1; }
   echo "checked: $(basename "$f") contains $DEMO_URL"
 done
-for id in "$@"; do
-  gh run view "$id" --json databaseId,workflowName,headBranch,headSha,conclusion \
-    -q '"run \(.databaseId) \(.workflowName) \(.headBranch)@\(.headSha[0:7]) \(.conclusion)"'
-done > "$OUT/BUILD-INFO.txt"
+if [ "$1" = --from ]; then
+  echo "built on this server from $(git rev-parse --short HEAD)$(git diff --quiet || echo ' (uncommitted changes)'), $(date -u +%FT%TZ)" > "$OUT/BUILD-INFO.txt"
+else
+  for id in "$@"; do
+    gh run view "$id" --json databaseId,workflowName,headBranch,headSha,conclusion \
+      -q '"run \(.databaseId) \(.workflowName) \(.headBranch)@\(.headSha[0:7]) \(.conclusion)"'
+  done > "$OUT/BUILD-INFO.txt"
+fi
 echo "demo server: $DEMO_URL" >> "$OUT/BUILD-INFO.txt"
 
 python3 - "$OUT" "ChuoSogo-Trial-$VERSION" <<'EOF'
