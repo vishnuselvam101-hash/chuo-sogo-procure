@@ -57,11 +57,28 @@ jobs:
         run: |
           if [ -n "${PROCURE_DEFAULT_SERVER:-}" ]; then printf '%s' "$PROCURE_DEFAULT_SERVER" > src-tauri/default-server.txt; fi
           cargo tauri android init --ci $CONFIG
-          cargo tauri android build --debug --apk --target aarch64 $CONFIG
+          # Optimised build (a debug APK is ~150 MB); release APKs come out unsigned.
+          cargo tauri android build --apk --target aarch64 $CONFIG
+      # Test signature only: a throwaway key made on this runner, the same trust level as a
+      # debug build. Store releases need the founder's real upload key (not provisioned).
+      - name: Sign with a throwaway test key
+        run: |
+          set -euo pipefail
+          BT="$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)"
+          keytool -genkeypair -keystore "$RUNNER_TEMP/test.keystore" -storepass android -keypass android \
+            -alias test -keyalg RSA -keysize 2048 -validity 365 -dname "CN=Chuo-Sogo test build" >/dev/null
+          mapfile -t apks < <(find apps/desktop/src-tauri/gen/android/app/build/outputs/apk -name '*-unsigned.apk')
+          [ "${#apks[@]}" -eq 1 ] || { echo "expected one unsigned APK, found ${#apks[@]}" >&2; exit 1; }
+          mkdir -p "$RUNNER_TEMP/apk"
+          "$BT/zipalign" -f -p 4 "${apks[0]}" "$RUNNER_TEMP/aligned.apk"
+          "$BT/apksigner" sign --ks "$RUNNER_TEMP/test.keystore" --ks-pass pass:android \
+            --out "$RUNNER_TEMP/apk/chuo-sogo-${{ inputs.app }}.apk" "$RUNNER_TEMP/aligned.apk"
+          "$BT/apksigner" verify "$RUNNER_TEMP/apk/chuo-sogo-${{ inputs.app }}.apk"
+          rm -f "$RUNNER_TEMP/test.keystore"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: chuo-sogo-${{ inputs.app }}-android-debug
-          path: apps/desktop/src-tauri/gen/android/app/build/outputs/apk/**/*.apk
+          name: chuo-sogo-${{ inputs.app }}-android
+          path: ${{ runner.temp }}/apk/*.apk
           retention-days: 14
 
   ios-simulator:
