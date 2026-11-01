@@ -7,7 +7,7 @@ use utoipa::{Modify, OpenApi};
 
 use crate::api::{
     admin, ai, approvals, attachments, auth, billing, listing_ai, listings, ops, orders, orgs,
-    products, requests, rfqs, suppliers,
+    products, requests, rfqs, shop, suppliers,
 };
 use crate::error::{ErrorBody, ErrorInner};
 
@@ -153,6 +153,22 @@ impl Modify for BearerAuth {
         listing_ai::from_file,
         listing_ai::translate,
         listing_ai::decide,
+        shop::info,
+        shop::signup,
+        shop::products,
+        shop::product,
+        shop::product_media,
+        shop::place_order,
+        shop::my_orders,
+        shop::my_order,
+        shop::cancel_mine,
+        shop::my_data,
+        shop::close_account,
+        shop::get_settings,
+        shop::put_settings,
+        shop::admin_orders,
+        shop::admin_order,
+        shop::admin_action,
         orders::get_order,
         orders::record_delivery,
         orders::reverse_delivery,

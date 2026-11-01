@@ -22,7 +22,7 @@ fn valid_locale(s: &str) -> bool {
     matches!(s, "ja" | "en" | "ta" | "hi" | "zh-Hans" | "ko")
 }
 
-fn normalise_email(raw: &str) -> Result<String, ApiError> {
+pub(crate) fn normalise_email(raw: &str) -> Result<String, ApiError> {
     let e = raw.trim();
     let ok = e.len() <= 254
         && e.split_once('@')
@@ -35,7 +35,7 @@ fn normalise_email(raw: &str) -> Result<String, ApiError> {
     }
 }
 
-fn clean_name(raw: &str, max: usize) -> Result<String, ApiError> {
+pub(crate) fn clean_name(raw: &str, max: usize) -> Result<String, ApiError> {
     let n = raw.trim();
     if n.is_empty() || n.chars().count() > max || n.chars().any(char::is_control) {
         return Err(ApiError::Validation("invalid_name"));

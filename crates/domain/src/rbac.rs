@@ -10,6 +10,8 @@ pub enum OrgKind {
     Customer,
     /// A company that lists its products in the catalogue (Phase C).
     Supplier,
+    /// One individual shopper's personal account space (Phase E).
+    Consumer,
 }
 
 impl OrgKind {
@@ -18,6 +20,7 @@ impl OrgKind {
             OrgKind::Platform => "platform",
             OrgKind::Customer => "customer",
             OrgKind::Supplier => "supplier",
+            OrgKind::Consumer => "consumer",
         }
     }
 
@@ -26,6 +29,7 @@ impl OrgKind {
             "platform" => Some(OrgKind::Platform),
             "customer" => Some(OrgKind::Customer),
             "supplier" => Some(OrgKind::Supplier),
+            "consumer" => Some(OrgKind::Consumer),
             _ => None,
         }
     }
@@ -42,10 +46,11 @@ pub enum Role {
     Finance,
     SupplierAdmin,
     SupplierStaff,
+    Consumer,
 }
 
 impl Role {
-    pub const ALL: [Role; 9] = [
+    pub const ALL: [Role; 10] = [
         Role::PlatformSuperAdmin,
         Role::ProcurementAdmin,
         Role::ProcurementOperator,
@@ -55,6 +60,7 @@ impl Role {
         Role::Finance,
         Role::SupplierAdmin,
         Role::SupplierStaff,
+        Role::Consumer,
     ];
 
     pub const fn code(self) -> &'static str {
@@ -68,6 +74,7 @@ impl Role {
             Role::Finance => "finance",
             Role::SupplierAdmin => "supplier_admin",
             Role::SupplierStaff => "supplier_staff",
+            Role::Consumer => "consumer",
         }
     }
 
@@ -85,6 +92,7 @@ impl Role {
                 OrgKind::Customer
             }
             Role::SupplierAdmin | Role::SupplierStaff => OrgKind::Supplier,
+            Role::Consumer => OrgKind::Consumer,
         }
     }
 
@@ -144,6 +152,10 @@ pub enum Permission {
     ModerateListings,
     /// Browse published listings.
     ViewCatalogue,
+    /// Consumer: shop and order for oneself.
+    Shop,
+    /// Chuo-Sogo: run the consumer shop (orders, payment, shipping, shop rules).
+    ManageShop,
 }
 
 impl Permission {
@@ -181,6 +193,8 @@ impl Permission {
             Permission::ManageListings => "manage_listings",
             Permission::ModerateListings => "moderate_listings",
             Permission::ViewCatalogue => "view_catalogue",
+            Permission::Shop => "shop",
+            Permission::ManageShop => "manage_shop",
         }
     }
 }
@@ -196,6 +210,7 @@ pub fn home_permissions(role: Role) -> &'static [Permission] {
             ViewSystemHealth,
             ManageBilling,
             ModerateListings,
+            ManageShop,
             ViewCatalogue,
             ViewAudit,
             ViewReports,
@@ -205,6 +220,7 @@ pub fn home_permissions(role: Role) -> &'static [Permission] {
             ManageSuppliers,
             ManageProducts,
             ModerateListings,
+            ManageShop,
             ViewCatalogue,
             ViewReports,
             ViewAudit,
@@ -248,6 +264,7 @@ pub fn home_permissions(role: Role) -> &'static [Permission] {
         ],
         Role::SupplierAdmin => &[ManageOrgUsers, ViewAudit, ManageListings],
         Role::SupplierStaff => &[ManageListings],
+        Role::Consumer => &[Shop],
     }
 }
 
@@ -284,7 +301,8 @@ pub fn service_permissions(role: Role) -> &'static [Permission] {
         | Role::Requester
         | Role::Finance
         | Role::SupplierAdmin
-        | Role::SupplierStaff => &[],
+        | Role::SupplierStaff
+        | Role::Consumer => &[],
     }
 }
 
@@ -463,6 +481,31 @@ mod tests {
         assert!(!allows(
             Access::Member(Role::PlatformSuperAdmin),
             Permission::ManageListings
+        ));
+    }
+
+    #[test]
+    fn consumers_only_shop_for_themselves() {
+        let c = Access::Member(Role::Consumer);
+        assert_eq!(Role::Consumer.org_kind(), OrgKind::Consumer);
+        assert!(allows(c, Permission::Shop));
+        for p in [
+            Permission::ViewCatalogue,
+            Permission::SubmitRequest,
+            Permission::ManageListings,
+            Permission::ManageOrgUsers,
+            Permission::ManageShop,
+            Permission::ViewAudit,
+        ] {
+            assert!(!allows(c, p), "{p:?}");
+        }
+        assert!(allows(
+            Access::Member(Role::PlatformSuperAdmin),
+            Permission::ManageShop
+        ));
+        assert!(!allows(
+            Access::Member(Role::ProcurementOperator),
+            Permission::ManageShop
         ));
     }
 }

@@ -6,8 +6,10 @@
   "scripts": {
     "dev": "vite",
     "dev:admin": "vite --mode admin",
+    "dev:shop": "vite --mode shop",
     "build": "tsc -b && vite build",
     "build:admin": "tsc -b && vite build --mode admin",
+    "build:shop": "tsc -b && vite build --mode shop",
     "typecheck": "tsc -b --noEmit",
     "lint": "eslint . --max-warnings 0",
     "format": "prettier --write .",

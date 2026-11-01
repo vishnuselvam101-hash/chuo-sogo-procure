@@ -2,6 +2,7 @@
 node_modules/
 dist/
 dist-admin/
+dist-shop/
 .env
 .env.*
 !.env.example

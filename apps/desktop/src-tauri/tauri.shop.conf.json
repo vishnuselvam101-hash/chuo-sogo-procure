@@ -1,0 +1,27 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Chuo-Sogo Shop",
+  "identifier": "net.chuo-sogo.shop",
+  "build": {
+    "beforeDevCommand": "pnpm dev:shop",
+    "devUrl": "http://127.0.0.1:1422",
+    "beforeBuildCommand": "pnpm build:shop",
+    "frontendDist": "../dist-shop"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Chuo-Sogo Shop",
+        "width": 1100,
+        "height": 800,
+        "minWidth": 360,
+        "minHeight": 600
+      }
+    ]
+  },
+  "bundle": {
+    "shortDescription": "Industrial parts shop by Chuo-Sogo",
+    "longDescription": "Chuo-Sogo Shop: buy industrial parts reviewed by Chuo-Sogo, pay by bank transfer, track your orders and download invoices."
+  }
+}

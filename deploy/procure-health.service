@@ -1,0 +1,12 @@
+# Health check every 5 minutes (procure-health.timer): the API answers and the database is
+# reachable through it. A failure is recorded in the journal and the unit shows as failed
+# (`systemctl --failed`); the service itself restarts on crash (procure.service).
+[Unit]
+Description=Chuo-Sogo Procure health check
+
+[Service]
+Type=oneshot
+User=procure
+Group=procure
+EnvironmentFile=/etc/procure/procure.env
+ExecStart=/bin/sh -c 'curl -fsS --max-time 10 "http://$${PROCURE_BIND:-127.0.0.1:8089}/health" >/dev/null'

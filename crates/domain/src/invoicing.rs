@@ -141,6 +141,50 @@ pub fn totals(
     })
 }
 
+/// Totals for tax-inclusive prices (consumer sales, 総額表示): lines are summed per rate
+/// including tax, and the tax contained is computed once per rate as
+/// `total × rate / (10 000 + rate)`, rounded with `rounding`; the base is the rest.
+pub fn totals_inclusive(
+    lines: &[Line],
+    currency: Currency,
+    rounding: TaxRounding,
+) -> Result<Totals, InvoiceError> {
+    // Same validation and per-rate grouping as the exclusive case, with tax set below.
+    let gross = totals(lines, currency, rounding)?;
+    let mut per_rate = Vec::with_capacity(gross.per_rate.len());
+    let mut subtotal = Money::zero(currency);
+    let mut total_tax = Money::zero(currency);
+    for r in &gross.per_rate {
+        let incl = i128::from(r.base.minor());
+        let num = incl * i128::from(r.rate_bps);
+        let den = 10_000 + i128::from(r.rate_bps);
+        let (q, rem) = (num / den, num % den);
+        let contained = match rounding {
+            TaxRounding::Floor => q,
+            TaxRounding::Ceil => q + i128::from(rem > 0),
+            TaxRounding::HalfUp => q + i128::from(rem * 2 >= den),
+        };
+        let tax = Money::from_minor(
+            i64::try_from(contained).map_err(|_| MoneyError::Overflow)?,
+            currency,
+        );
+        let base = Money::from_minor(r.base.minor() - tax.minor(), currency);
+        subtotal = subtotal.checked_add(base)?;
+        total_tax = total_tax.checked_add(tax)?;
+        per_rate.push(RateTotal {
+            rate_bps: r.rate_bps,
+            base,
+            tax,
+        });
+    }
+    Ok(Totals {
+        per_rate,
+        subtotal,
+        tax: total_tax,
+        total: gross.subtotal,
+    })
+}
+
 /// A credit note may return at most what the original invoice charged at each rate, minus
 /// what earlier credit notes already returned at that rate — for the base and for the tax.
 /// Returns the credit's per-rate totals with each tax capped at the tax still returnable
@@ -245,6 +289,27 @@ mod tests {
         assert_eq!(t.total, yen(1824));
         let up = totals(&[line(2, 105, 800)], Currency::Jpy, TaxRounding::HalfUp).unwrap();
         assert_eq!(up.tax, yen(17));
+    }
+
+    #[test]
+    fn inclusive_prices_contain_the_tax_once_per_rate() {
+        // ¥1,100 incl. 10 % ×3 = ¥3,300 → tax ¥300; ¥1,080 incl. 8 % → tax ¥80.
+        let t = totals_inclusive(
+            &[line(3, 1100, 1000), line(1, 1080, 800)],
+            Currency::Jpy,
+            TaxRounding::Floor,
+        )
+        .unwrap();
+        assert_eq!(t.total, yen(4380));
+        assert_eq!(t.tax, yen(380));
+        assert_eq!(t.subtotal, yen(4000));
+        assert_eq!(t.per_rate[0].base, yen(3000));
+        // ¥999 incl. 10 %: 90.81… → 90 (floor), base 909.
+        let t = totals_inclusive(&[line(1, 999, 1000)], Currency::Jpy, TaxRounding::Floor).unwrap();
+        assert_eq!((t.tax, t.subtotal, t.total), (yen(90), yen(909), yen(999)));
+        let t =
+            totals_inclusive(&[line(1, 999, 1000)], Currency::Jpy, TaxRounding::HalfUp).unwrap();
+        assert_eq!(t.tax, yen(91));
     }
 
     #[test]

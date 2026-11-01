@@ -1,10 +1,9 @@
 # Expansion plan — admin console, invoice generation, product listings with AI, consumer side
 
-Status (2026-11-01): founder accepted the defaults. **Phases A (admin console), B (invoice
-generation), C (supplier workspace + catalogue) and D (AI listing assistance: text, voice,
-files, translation; photo reading pending [D5]) implemented and tested** — see
-`docs/engineering/gates/phaseA.md` … `phaseD.md`; phases E–F not started. Decisions marked
-**[D#]** use the recommended defaults unless the founder says otherwise.
+Status (2026-11-01): founder accepted the defaults. **Phases A–F implemented and tested**
+(admin console, invoice generation, supplier catalogue, AI listing assistance, consumer shop,
+release preparation) — see `docs/engineering/gates/phaseA.md` … `phaseF.md`. Open founder
+decisions and release steps: `docs/RELEASE.md`.
 
 ## 1. What the founder asked for
 

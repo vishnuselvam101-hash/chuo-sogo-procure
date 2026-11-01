@@ -484,6 +484,70 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/admin/v1/shop/orders": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["admin_shop_orders"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/admin/v1/shop/orders/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["admin_shop_order"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/admin/v1/shop/orders/{id}/action": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["admin_shop_order_action"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/admin/v1/shop/settings": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["admin_get_shop_settings"];
+    put: operations["admin_put_shop_settings"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/auth/login": {
     parameters: {
       query?: never;
@@ -1655,6 +1719,134 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/orgs/{org_id}/shop/close-account": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["shop_close_account"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/orgs/{org_id}/shop/my-data": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["shop_my_data"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/orgs/{org_id}/shop/orders": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["shop_orders"];
+    put?: never;
+    post: operations["shop_place_order"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/orgs/{org_id}/shop/orders/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["shop_order"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/orgs/{org_id}/shop/orders/{id}/cancel": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["shop_cancel_order"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/orgs/{org_id}/shop/products": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["shop_products"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/orgs/{org_id}/shop/products/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["shop_product"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/orgs/{org_id}/shop/products/{id}/media/{media_id}/content": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["shop_product_media"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/orgs/{org_id}/suppliers": {
     parameters: {
       query?: never;
@@ -1815,6 +2007,38 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/shop/info": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["shop_info"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/shop/signup": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["shop_signup"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/suppliers": {
     parameters: {
       query?: never;
@@ -1958,6 +2182,10 @@ export interface components {
     };
     ClarificationBody: {
       question: string;
+    };
+    CloseAccount: {
+      /** @description Must be `DELETE` (a deliberate action). */
+      confirm: string;
     };
     CodeRequest: {
       /** @description 6-digit code from the authenticator app. */
@@ -2599,6 +2827,16 @@ export interface components {
       role: string;
       timezone: string;
     };
+    MyData: {
+      /** Format: date-time */
+      created_at: string;
+      display_name: string;
+      email: string;
+      locale?: string | null;
+      orders: components["schemas"]["ShopOrderDetail"][];
+      /** @description What happens to this data when the account is closed. */
+      retention: string;
+    };
     OrderDetail: {
       deliveries: components["schemas"]["DeliveryView"][];
       discrepancies: components["schemas"]["DiscrepancyView"][];
@@ -2741,6 +2979,16 @@ export interface components {
       paid: boolean;
       /** Format: date */
       paid_on?: string | null;
+    };
+    PlaceOrder: {
+      /**
+       * Format: int64
+       * @description The total the consumer saw (tax included); the order is refused if prices changed.
+       */
+      expected_total_minor: number;
+      lines: components["schemas"]["ShopOrderLineInput"][];
+      note?: string;
+      ship_to: components["schemas"]["ShippingAddress"];
     };
     PolicyInput: {
       allow_self_approval?: boolean;
@@ -3063,6 +3311,140 @@ export interface components {
     SetPasswordRequest: {
       password: string;
       token: string;
+    };
+    ShippingAddress: {
+      address_line: string;
+      name: string;
+      phone: string;
+      /** @description 〒 e.g. 100-0001. */
+      postal_code: string;
+      /** @description 都道府県. */
+      prefecture: string;
+    };
+    ShopCancelBody: {
+      reason?: string;
+    };
+    ShopOrderAction: {
+      /** @description `confirm`, `paid`, `ship`, `complete` or `cancel`. */
+      action: string;
+      carrier?: string;
+      /**
+       * Format: date
+       * @description `paid`: the day the transfer arrived.
+       */
+      paid_on?: string | null;
+      /** @description `cancel`: required. */
+      reason?: string;
+      tracking_number?: string;
+    };
+    ShopOrderDetail: components["schemas"]["ShopOrderSummary"] & {
+      cancel_reason: string;
+      /** Format: date-time */
+      cancelled_at?: string | null;
+      carrier: string;
+      /** Format: date-time */
+      completed_at?: string | null;
+      /** Format: date-time */
+      confirmed_at?: string | null;
+      /** @description Admin console only: the consumer's email address. */
+      contact_email?: string | null;
+      /** Format: uuid */
+      credit_note_id?: string | null;
+      credit_note_number?: string | null;
+      /** Format: date */
+      invoice_due_date?: string | null;
+      /** Format: uuid */
+      invoice_id?: string | null;
+      invoice_number?: string | null;
+      lines: components["schemas"]["ShopOrderLine"][];
+      note: string;
+      /** Format: date-time */
+      paid_at?: string | null;
+      ship_to: components["schemas"]["ShippingAddress"];
+      /** Format: date-time */
+      shipped_at?: string | null;
+      tracking_number: string;
+    };
+    ShopOrderLine: {
+      /** Format: uuid */
+      listing_id: string;
+      model_number: string;
+      /** Format: int32 */
+      position: number;
+      /** Format: int32 */
+      quantity: number;
+      /** Format: int32 */
+      tax_rate_bps: number;
+      title: string;
+      /** Format: int64 */
+      unit_price_minor: number;
+    };
+    ShopOrderLineInput: {
+      /** Format: uuid */
+      listing_id: string;
+      /** Format: int32 */
+      quantity: number;
+    };
+    ShopOrderSummary: {
+      /** Format: uuid */
+      id: string;
+      /** Format: int64 */
+      items_total_minor: number;
+      number: string;
+      /** Format: uuid */
+      org_id: string;
+      /** Format: date-time */
+      placed_at: string;
+      ship_name: string;
+      /** Format: int64 */
+      shipping_minor: number;
+      /** @description `placed`, `confirmed`, `paid`, `shipped`, `completed` or `cancelled`. */
+      status: string;
+      /** Format: int64 */
+      tax_minor: number;
+      /** Format: int64 */
+      total_minor: number;
+      /** Format: date-time */
+      updated_at: string;
+    };
+    ShopSettings: {
+      delivery_info: string;
+      /**
+       * Format: int64
+       * @description Free shipping from this items total (tax included); empty = never free.
+       */
+      free_shipping_over_minor?: number | null;
+      /** @description Orders are accepted only when open (and the notice below is complete). */
+      open: boolean;
+      /**
+       * Format: int32
+       * @description Days to pay after the order is confirmed.
+       */
+      payment_days: number;
+      payment_info: string;
+      price_info: string;
+      privacy_policy: string;
+      responsible_person: string;
+      returns_policy: string;
+      seller_address: string;
+      seller_email: string;
+      seller_name: string;
+      seller_phone: string;
+      /**
+       * Format: int64
+       * @description Shipping per order, tax included.
+       */
+      shipping_fee_minor: number;
+    };
+    SignupBody: {
+      display_name: string;
+      email: string;
+      /** @description `ja` (default), `en`, `ta` or `hi`. */
+      locale?: string | null;
+    };
+    SignupResponse: {
+      /** @description Always `check_email`: the same answer whether or not the address already has an account. */
+      status: string;
     };
     Spec: {
       key: string;
@@ -5197,6 +5579,253 @@ export interface operations {
         };
       };
       /** @description Out of range */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  admin_shop_orders: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        status: string | null;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Orders (oldest open first) */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ShopOrderSummary"][];
+        };
+      };
+      /** @description No valid admin session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  admin_shop_order: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Order with contact email */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ShopOrderDetail"];
+        };
+      };
+      /** @description No valid admin session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  admin_shop_order_action: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ShopOrderAction"];
+      };
+    };
+    responses: {
+      /** @description Done; the order as it is now */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ShopOrderDetail"];
+        };
+      };
+      /** @description No valid admin session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not possible in this state, or billing not set up */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Missing date, tracking number or reason */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  admin_get_shop_settings: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Shop rules and seller notice */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ShopSettings"];
+        };
+      };
+      /** @description No valid admin session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  admin_put_shop_settings: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ShopSettings"];
+      };
+    };
+    responses: {
+      /** @description Saved */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description No valid admin session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Invalid, or opening without a complete seller notice */
       422: {
         headers: {
           [name: string]: unknown;
@@ -10811,6 +11440,423 @@ export interface operations {
       };
     };
   };
+  shop_close_account: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CloseAccount"];
+      };
+    };
+    responses: {
+      /** @description Account closed: personal details removed, signed out everywhere */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not your account */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description An order is still open (wait until it is completed or cancelled) */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Confirmation missing */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  shop_my_data: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Everything the shop holds about you */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["MyData"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not your account */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  shop_orders: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Your orders, newest first */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ShopOrderSummary"][];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not your account */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  shop_place_order: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["PlaceOrder"];
+      };
+    };
+    responses: {
+      /** @description Order placed; Chuo-Sogo confirms it and sends the invoice */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ShopOrderDetail"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not your account, or a product not for sale */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Shop closed, prices changed, or not enough stock */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Invalid lines or address */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  shop_order: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Order with its lines, invoice and shipping */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ShopOrderDetail"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  shop_cancel_order: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ShopCancelBody"];
+      };
+    };
+    responses: {
+      /** @description Cancelled */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Already confirmed (contact Chuo-Sogo) */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  shop_products: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+        q: string | null;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Products for sale to consumers (prices include tax) */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ListingSummary"][];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not your account */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  shop_product: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Product page */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ListingDetail"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not for sale */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  shop_product_media: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+        id: string;
+        media_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Photo or document of a product for sale */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not for sale */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
   list_org_suppliers: {
     parameters: {
       query?: never;
@@ -11598,6 +12644,68 @@ export interface operations {
       };
       /** @description Unknown status */
       422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  shop_info: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Whether the shop is open, shipping rules and the seller notice (特定商取引法に基づく表記). Public. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ShopSettings"];
+        };
+      };
+    };
+  };
+  shop_signup: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["SignupBody"];
+      };
+    };
+    responses: {
+      /** @description If the address is new, an activation email is on its way */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SignupResponse"];
+        };
+      };
+      /** @description Invalid email or name */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Too many sign-ups from this address */
+      429: {
         headers: {
           [name: string]: unknown;
         };

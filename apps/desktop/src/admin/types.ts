@@ -23,6 +23,7 @@ export const PERM = {
   viewAudit: "view_audit",
   manageBilling: "manage_billing",
   moderateListings: "moderate_listings",
+  manageShop: "manage_shop",
 } as const;
 
 /** Chuo-Sogo works in Japan time; staff-wide views use it. */

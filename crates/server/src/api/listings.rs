@@ -121,7 +121,7 @@ pub struct ListingDetail {
     pub duplicates: Vec<ListingSummary>,
 }
 
-const SUMMARY_SELECT: &str = "SELECT l.id, l.org_id, coalesce(o.name, '') AS supplier_name, l.status,
+pub(crate) const SUMMARY_SELECT: &str = "SELECT l.id, l.org_id, coalesce(o.name, '') AS supplier_name, l.status,
         l.title, l.manufacturer, l.model_number, l.condition, l.currency,
         l.business_price_minor, l.consumer_price_minor, l.stock,
         (SELECT m.id FROM listing_media m WHERE m.listing_id = l.id AND m.kind = 'photo'
@@ -141,7 +141,11 @@ struct DetailRow {
     review_note: String,
 }
 
-async fn load_detail(tx: &mut Tx, id: Uuid, moderation: bool) -> ApiResult<ListingDetail> {
+pub(crate) async fn load_detail(
+    tx: &mut Tx,
+    id: Uuid,
+    moderation: bool,
+) -> ApiResult<ListingDetail> {
     let summary = sqlx::query_as::<_, ListingSummary>(&format!("{SUMMARY_SELECT} WHERE l.id = $1"))
         .bind(id)
         .fetch_optional(&mut **tx)
@@ -821,7 +825,7 @@ pub async fn delete_media(
 }
 
 /// The stored file of one listing's media item, visible under the caller's transaction.
-async fn media_response(
+pub(crate) async fn media_response(
     state: &AppState,
     mut tx: Tx,
     id: Uuid,
@@ -1110,7 +1114,7 @@ pub struct CatalogueQuery {
 }
 
 /// A suspended supplier's listings disappear from the catalogue (and come back on reactivation).
-async fn supplier_active(tx: &mut Tx, listing_id: Uuid) -> ApiResult<bool> {
+pub(crate) async fn supplier_active(tx: &mut Tx, listing_id: Uuid) -> ApiResult<bool> {
     Ok(sqlx::query_scalar(
         "SELECT EXISTS (SELECT 1 FROM product_listings l JOIN organisations o ON o.id = l.org_id
                         WHERE l.id = $1 AND o.status = 'active')",

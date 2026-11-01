@@ -67,7 +67,8 @@
     "requester": "Requester",
     "finance": "Finance",
     "supplier_admin": "Supplier administrator",
-    "supplier_staff": "Supplier staff"
+    "supplier_staff": "Supplier staff",
+    "consumer": "Shopper"
   },
   "members": {
     "add": "Add member",

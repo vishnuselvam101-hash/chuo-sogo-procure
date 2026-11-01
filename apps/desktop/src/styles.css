@@ -781,3 +781,102 @@ button.danger {
 .ai-assist {
   border-left: 3px solid var(--accent);
 }
+
+/* ---- Consumer shop ---- */
+.shop-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.shop-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  padding: 10px 16px;
+  background: var(--brand);
+  color: var(--brand-ink);
+}
+
+.shop-brand {
+  font-size: 18px;
+}
+
+.shop-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  flex: 1;
+}
+
+.shop-header .row {
+  margin-left: auto;
+}
+
+.shop-closed {
+  margin: 12px 16px 0;
+}
+
+.cart-count {
+  margin-left: 6px;
+}
+
+.price {
+  font-weight: 600;
+}
+
+.price.big {
+  font-size: 22px;
+}
+
+.buy-box {
+  align-items: end;
+  gap: 16px;
+}
+
+.timeline {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0;
+}
+
+.timeline li {
+  padding: 4px 10px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+
+.timeline li.done {
+  border-color: var(--ok);
+  color: var(--ok);
+}
+
+.badge-order-confirmed {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--accent);
+}
+
+.badge-order-paid,
+.badge-order-shipped,
+.badge-order-completed {
+  background: color-mix(in srgb, var(--ok) 15%, transparent);
+  color: var(--ok);
+}
+
+.badge-order-cancelled {
+  background: color-mix(in srgb, var(--error) 15%, transparent);
+  color: var(--error);
+}
+
+@media (max-width: 640px) {
+  .shop-header .row {
+    margin-left: 0;
+  }
+  .card-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}

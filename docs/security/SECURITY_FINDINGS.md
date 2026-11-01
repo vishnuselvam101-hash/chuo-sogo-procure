@@ -56,6 +56,19 @@
 | SF-052 | 2026-11-01 | Listing AI guard: full-width or other numerals bypassed the "number in source" check; manufacturer matched as substring | Medium | V5 | Fixed | full-width normalised, other numerals untrusted, Latin names as whole words; tests |
 | SF-053 | 2026-11-01 | Translation draft replaced supplier-written text and was recorded as applied before the decision succeeded | Low | V11 | Fixed | fills empty fields only; draft applied only after the decision is recorded |
 | SF-054 | 2026-11-01 | ffmpeg input not restricted (playlist/concat demuxers reachable via crafted audio) | Low | V12 | Fixed | demuxer pinned to the sniffed type, `-protocol_whitelist file`; owner-only work directory instead of shared temp |
+| SF-055 | 2026-11-01 | Shop: product list exposed business (B2B) prices and supplier names to consumers | Medium | V4 | Fixed | list and detail stripped for consumers; regression test |
+| SF-056 | 2026-11-01 | Shop: stock never reserved, confirmed orders could oversell | Medium | V11 | Fixed | reserved under lock at confirmation, returned on cancellation (DB guard allows only staff stock changes); test |
+| SF-057 | 2026-11-01 | Sign-up: response time revealed known addresses; an address could be blocked by signing it up first; no global limit; platform scope wider than needed | Medium | V2 | Fixed | time floor, fresh code for unactivated consumer accounts, global limit, scope ended after the personal space is created |
+| SF-058 | 2026-11-01 | Shop notifications always in Japanese | Low | — | Fixed | customer's own language |
+| SF-059 | 2026-11-01 | ZAP: some responses without `X-Content-Type-Options` / `Cross-Origin-Resource-Policy` | Low | V14 | Fixed | headers on every response (plus `Cache-Control: no-store` unless set); re-scan clean |
+| SF-060 | 2026-11-01 | Backups held only the database (no stored files) and were never verified | Medium | V8 | Fixed | files + checksums in every backup; restore drill + `procure-server verify`; daily integrity timer |
+| SF-061 | 2026-11-01 | Backups could not succeed: row-level security is forced for the table owner, so the nightly `pg_dump` as owner fails (no backup existed) | High | V8 | Fixed (needs install) | dedicated read-only `procure_backup` role with BYPASSRLS for dumps; restore as superuser; drill + verify |
+
+## Residual risk (Phases E–F)
+- Consumer sign-up is open to the internet once the server is public (D8): limits are per address and global; there is no CAPTCHA. Watch sign-up volume in the audit log.
+- Stock is checked at ordering and reserved at confirmation; between the two, several consumers can order the last units (staff see it at confirmation).
+- Backups are on the same disk until an off-site copy exists (D8).
+- No outbound alerting: failures are visible in systemd/journal and the admin console only.
 
 ## Residual risk (Phase D)
 - ffmpeg and whisper.cpp parse untrusted audio natively (no memory/CPU rlimits beyond the timeout); run the service with its systemd limits (MemoryMax=2G).

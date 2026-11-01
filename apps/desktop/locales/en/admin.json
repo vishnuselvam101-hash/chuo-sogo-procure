@@ -20,7 +20,8 @@
     "accounts": "Accounts",
     "settings": "Settings",
     "billing": "Billing",
-    "listings": "Listings"
+    "listings": "Listings",
+    "shop": "Shop"
   },
   "health": {
     "server": "Server version",
@@ -61,7 +62,8 @@
   "kind": {
     "platform": "Chuo-Sogo (platform)",
     "customer": "Customer",
-    "supplier": "Supplier"
+    "supplier": "Supplier",
+    "consumer": "Consumer"
   },
   "status": {
     "active": "Active",

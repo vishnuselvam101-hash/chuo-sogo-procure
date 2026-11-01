@@ -1,5 +1,6 @@
 dist
 dist-admin
+dist-shop
 node_modules
 src-tauri/target
 src-tauri/gen

@@ -17,8 +17,11 @@ async function start() {
   const Root =
     import.meta.env.VITE_APP_KIND === "admin"
       ? (await import("./admin/AdminApp")).AdminApp
-      : (await import("./App")).App;
+      : import.meta.env.VITE_APP_KIND === "shop"
+        ? (await import("./shop/ShopApp")).ShopApp
+        : (await import("./App")).App;
   if (import.meta.env.VITE_APP_KIND === "admin") document.title = "Chuo-Sogo Procure Admin";
+  if (import.meta.env.VITE_APP_KIND === "shop") document.title = "Chuo-Sogo Shop";
   createRoot(root).render(
     <StrictMode>
       <Root />

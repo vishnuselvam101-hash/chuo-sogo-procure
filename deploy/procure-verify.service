@@ -1,0 +1,13 @@
+# Daily integrity check (procure-verify.timer, after the nightly backup): every audit chain is
+# recomputed and every stored file compared with its recorded SHA-256. A failure leaves the
+# unit failed with the report in the journal (`journalctl -u procure-verify`).
+[Unit]
+Description=Chuo-Sogo Procure integrity check
+After=procure-backup.service
+
+[Service]
+Type=oneshot
+User=procure
+Group=procure
+EnvironmentFile=/etc/procure/procure.env
+ExecStart=/opt/procure/bin/procure-server verify

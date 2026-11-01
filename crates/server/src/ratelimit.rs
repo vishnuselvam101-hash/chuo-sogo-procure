@@ -81,6 +81,16 @@ pub const SET_PASSWORD_PER_IP: Limit = Limit {
     max: 20,
     window: Duration::from_secs(600),
 };
+/// Consumer sign-ups over all addresses (each one creates an account and sends mail).
+pub const SIGNUP_GLOBAL: Limit = Limit {
+    max: 300,
+    window: Duration::from_secs(3600),
+};
+/// Consumer sign-ups from one address.
+pub const SIGNUP_PER_IP: Limit = Limit {
+    max: 10,
+    window: Duration::from_secs(3600),
+};
 
 #[cfg(test)]
 mod tests {

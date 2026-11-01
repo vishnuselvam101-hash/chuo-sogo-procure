@@ -67,7 +67,8 @@
     "requester": "अनुरोधकर्ता",
     "finance": "वित्त",
     "supplier_admin": "आपूर्तिकर्ता व्यवस्थापक",
-    "supplier_staff": "आपूर्तिकर्ता कर्मचारी"
+    "supplier_staff": "आपूर्तिकर्ता कर्मचारी",
+    "consumer": "खरीदार"
   },
   "members": {
     "add": "सदस्य जोड़ें",

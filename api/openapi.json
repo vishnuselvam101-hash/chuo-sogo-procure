@@ -2593,6 +2593,330 @@
         ]
       }
     },
+    "/api/admin/v1/shop/orders": {
+      "get": {
+        "tags": [
+          "shop"
+        ],
+        "operationId": "admin_shop_orders",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Orders (oldest open first)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ShopOrderSummary"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid admin session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/admin/v1/shop/orders/{id}": {
+      "get": {
+        "tags": [
+          "shop"
+        ],
+        "operationId": "admin_shop_order",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Order with contact email",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShopOrderDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid admin session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/admin/v1/shop/orders/{id}/action": {
+      "post": {
+        "tags": [
+          "shop"
+        ],
+        "operationId": "admin_shop_order_action",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShopOrderAction"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Done; the order as it is now",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShopOrderDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid admin session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Not possible in this state, or billing not set up",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Missing date, tracking number or reason",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/admin/v1/shop/settings": {
+      "get": {
+        "tags": [
+          "shop"
+        ],
+        "operationId": "admin_get_shop_settings",
+        "responses": {
+          "200": {
+            "description": "Shop rules and seller notice",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShopSettings"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid admin session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "shop"
+        ],
+        "operationId": "admin_put_shop_settings",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShopSettings"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Saved"
+          },
+          "401": {
+            "description": "No valid admin session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid, or opening without a complete seller notice",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/auth/login": {
       "post": {
         "tags": [
@@ -10417,6 +10741,629 @@
         ]
       }
     },
+    "/api/v1/orgs/{org_id}/shop/close-account": {
+      "post": {
+        "tags": [
+          "shop"
+        ],
+        "operationId": "shop_close_account",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CloseAccount"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Account closed: personal details removed, signed out everywhere"
+          },
+          "401": {
+            "description": "No valid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not your account",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "An order is still open (wait until it is completed or cancelled)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Confirmation missing",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/orgs/{org_id}/shop/my-data": {
+      "get": {
+        "tags": [
+          "shop"
+        ],
+        "operationId": "shop_my_data",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Everything the shop holds about you",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyData"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not your account",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/orgs/{org_id}/shop/orders": {
+      "get": {
+        "tags": [
+          "shop"
+        ],
+        "operationId": "shop_orders",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Your orders, newest first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ShopOrderSummary"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not your account",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "shop"
+        ],
+        "operationId": "shop_place_order",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlaceOrder"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Order placed; Chuo-Sogo confirms it and sends the invoice",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShopOrderDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not your account, or a product not for sale",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Shop closed, prices changed, or not enough stock",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid lines or address",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/orgs/{org_id}/shop/orders/{id}": {
+      "get": {
+        "tags": [
+          "shop"
+        ],
+        "operationId": "shop_order",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Order with its lines, invoice and shipping",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShopOrderDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/orgs/{org_id}/shop/orders/{id}/cancel": {
+      "post": {
+        "tags": [
+          "shop"
+        ],
+        "operationId": "shop_cancel_order",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShopCancelBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Cancelled"
+          },
+          "401": {
+            "description": "No valid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Already confirmed (contact Chuo-Sogo)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/orgs/{org_id}/shop/products": {
+      "get": {
+        "tags": [
+          "shop"
+        ],
+        "operationId": "shop_products",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "q",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Products for sale to consumers (prices include tax)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ListingSummary"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not your account",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/orgs/{org_id}/shop/products/{id}": {
+      "get": {
+        "tags": [
+          "shop"
+        ],
+        "operationId": "shop_product",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Product page",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListingDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not for sale",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/orgs/{org_id}/shop/products/{id}/media/{media_id}/content": {
+      "get": {
+        "tags": [
+          "shop"
+        ],
+        "operationId": "shop_product_media",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "media_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Photo or document of a product for sale"
+          },
+          "401": {
+            "description": "No valid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not for sale",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/orgs/{org_id}/suppliers": {
       "get": {
         "tags": [
@@ -11474,6 +12421,76 @@
         ]
       }
     },
+    "/api/v1/shop/info": {
+      "get": {
+        "tags": [
+          "shop"
+        ],
+        "operationId": "shop_info",
+        "responses": {
+          "200": {
+            "description": "Whether the shop is open, shipping rules and the seller notice (特定商取引法に基づく表記). Public.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShopSettings"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/shop/signup": {
+      "post": {
+        "tags": [
+          "shop"
+        ],
+        "operationId": "shop_signup",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignupBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "If the address is new, an activation email is on its way",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignupResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid email or name",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many sign-ups from this address",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/suppliers": {
       "get": {
         "tags": [
@@ -12098,6 +13115,18 @@
         "properties": {
           "question": {
             "type": "string"
+          }
+        }
+      },
+      "CloseAccount": {
+        "type": "object",
+        "required": [
+          "confirm"
+        ],
+        "properties": {
+          "confirm": {
+            "type": "string",
+            "description": "Must be `DELETE` (a deliberate action)."
           }
         }
       },
@@ -14094,6 +15123,44 @@
           }
         }
       },
+      "MyData": {
+        "type": "object",
+        "required": [
+          "email",
+          "display_name",
+          "created_at",
+          "orders",
+          "retention"
+        ],
+        "properties": {
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "locale": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "orders": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ShopOrderDetail"
+            }
+          },
+          "retention": {
+            "type": "string",
+            "description": "What happens to this data when the account is closed."
+          }
+        }
+      },
       "OrderDetail": {
         "type": "object",
         "required": [
@@ -14541,6 +15608,33 @@
               "null"
             ],
             "format": "date"
+          }
+        }
+      },
+      "PlaceOrder": {
+        "type": "object",
+        "required": [
+          "lines",
+          "ship_to",
+          "expected_total_minor"
+        ],
+        "properties": {
+          "expected_total_minor": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The total the consumer saw (tax included); the order is refused if prices changed."
+          },
+          "lines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ShopOrderLineInput"
+            }
+          },
+          "note": {
+            "type": "string"
+          },
+          "ship_to": {
+            "$ref": "#/components/schemas/ShippingAddress"
           }
         }
       },
@@ -15591,6 +16685,413 @@
           },
           "token": {
             "type": "string"
+          }
+        }
+      },
+      "ShippingAddress": {
+        "type": "object",
+        "required": [
+          "name",
+          "postal_code",
+          "prefecture",
+          "address_line",
+          "phone"
+        ],
+        "properties": {
+          "address_line": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "postal_code": {
+            "type": "string",
+            "description": "〒 e.g. 100-0001."
+          },
+          "prefecture": {
+            "type": "string",
+            "description": "都道府県."
+          }
+        }
+      },
+      "ShopCancelBody": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string"
+          }
+        }
+      },
+      "ShopOrderAction": {
+        "type": "object",
+        "required": [
+          "action"
+        ],
+        "properties": {
+          "action": {
+            "type": "string",
+            "description": "`confirm`, `paid`, `ship`, `complete` or `cancel`."
+          },
+          "carrier": {
+            "type": "string"
+          },
+          "paid_on": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date",
+            "description": "`paid`: the day the transfer arrived."
+          },
+          "reason": {
+            "type": "string",
+            "description": "`cancel`: required."
+          },
+          "tracking_number": {
+            "type": "string"
+          }
+        }
+      },
+      "ShopOrderDetail": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ShopOrderSummary"
+          },
+          {
+            "type": "object",
+            "required": [
+              "ship_to",
+              "note",
+              "lines",
+              "carrier",
+              "tracking_number",
+              "cancel_reason"
+            ],
+            "properties": {
+              "cancel_reason": {
+                "type": "string"
+              },
+              "cancelled_at": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time"
+              },
+              "carrier": {
+                "type": "string"
+              },
+              "completed_at": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time"
+              },
+              "confirmed_at": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time"
+              },
+              "contact_email": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Admin console only: the consumer's email address."
+              },
+              "credit_note_id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid"
+              },
+              "credit_note_number": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "invoice_due_date": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date"
+              },
+              "invoice_id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid"
+              },
+              "invoice_number": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "lines": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ShopOrderLine"
+                }
+              },
+              "note": {
+                "type": "string"
+              },
+              "paid_at": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time"
+              },
+              "ship_to": {
+                "$ref": "#/components/schemas/ShippingAddress"
+              },
+              "shipped_at": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time"
+              },
+              "tracking_number": {
+                "type": "string"
+              }
+            }
+          }
+        ]
+      },
+      "ShopOrderLine": {
+        "type": "object",
+        "required": [
+          "position",
+          "listing_id",
+          "title",
+          "model_number",
+          "unit_price_minor",
+          "tax_rate_bps",
+          "quantity"
+        ],
+        "properties": {
+          "listing_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "model_number": {
+            "type": "string"
+          },
+          "position": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "quantity": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "tax_rate_bps": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "title": {
+            "type": "string"
+          },
+          "unit_price_minor": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "ShopOrderLineInput": {
+        "type": "object",
+        "required": [
+          "listing_id",
+          "quantity"
+        ],
+        "properties": {
+          "listing_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "quantity": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          }
+        }
+      },
+      "ShopOrderSummary": {
+        "type": "object",
+        "required": [
+          "id",
+          "org_id",
+          "number",
+          "status",
+          "ship_name",
+          "items_total_minor",
+          "shipping_minor",
+          "total_minor",
+          "tax_minor",
+          "placed_at",
+          "updated_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "items_total_minor": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "number": {
+            "type": "string"
+          },
+          "org_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "placed_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "ship_name": {
+            "type": "string"
+          },
+          "shipping_minor": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "status": {
+            "type": "string",
+            "description": "`placed`, `confirmed`, `paid`, `shipped`, `completed` or `cancelled`."
+          },
+          "tax_minor": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "total_minor": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ShopSettings": {
+        "type": "object",
+        "required": [
+          "open",
+          "shipping_fee_minor",
+          "payment_days",
+          "seller_name",
+          "responsible_person",
+          "seller_address",
+          "seller_phone",
+          "seller_email",
+          "price_info",
+          "payment_info",
+          "delivery_info",
+          "returns_policy",
+          "privacy_policy"
+        ],
+        "properties": {
+          "delivery_info": {
+            "type": "string"
+          },
+          "free_shipping_over_minor": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Free shipping from this items total (tax included); empty = never free."
+          },
+          "open": {
+            "type": "boolean",
+            "description": "Orders are accepted only when open (and the notice below is complete)."
+          },
+          "payment_days": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Days to pay after the order is confirmed."
+          },
+          "payment_info": {
+            "type": "string"
+          },
+          "price_info": {
+            "type": "string"
+          },
+          "privacy_policy": {
+            "type": "string"
+          },
+          "responsible_person": {
+            "type": "string"
+          },
+          "returns_policy": {
+            "type": "string"
+          },
+          "seller_address": {
+            "type": "string"
+          },
+          "seller_email": {
+            "type": "string"
+          },
+          "seller_name": {
+            "type": "string"
+          },
+          "seller_phone": {
+            "type": "string"
+          },
+          "shipping_fee_minor": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Shipping per order, tax included."
+          }
+        }
+      },
+      "SignupBody": {
+        "type": "object",
+        "required": [
+          "email",
+          "display_name"
+        ],
+        "properties": {
+          "display_name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "locale": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`ja` (default), `en`, `ta` or `hi`."
+          }
+        }
+      },
+      "SignupResponse": {
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "description": "Always `check_email`: the same answer whether or not the address already has an account."
           }
         }
       },

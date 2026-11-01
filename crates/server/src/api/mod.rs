@@ -13,4 +13,5 @@ pub mod orgs;
 pub mod products;
 pub mod requests;
 pub mod rfqs;
+pub mod shop;
 pub mod suppliers;

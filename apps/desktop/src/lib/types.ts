@@ -50,3 +50,7 @@ export type ListingSummary = Schemas["ListingSummary"];
 export type ListingDetail = Schemas["ListingDetail"];
 export type ListingInput = Schemas["ListingInput"];
 export type ListingMedia = Schemas["MediaView"];
+export type ShopSettings = Schemas["ShopSettings"];
+export type ShopOrderSummary = Schemas["ShopOrderSummary"];
+export type ShopOrder = Schemas["ShopOrderDetail"];
+export type ShippingAddress = Schemas["ShippingAddress"];

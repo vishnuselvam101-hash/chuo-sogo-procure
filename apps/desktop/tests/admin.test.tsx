@@ -178,10 +178,11 @@ describe("admin console", () => {
   });
 
   it("shows sections by permission", () => {
-    expect(adminNav([...SUPER, "manage_billing"])).toEqual([
+    expect(adminNav([...SUPER, "manage_billing", "manage_shop"])).toEqual([
       "overview",
       "orgs",
       "accounts",
+      "shop",
       "billing",
       "settings",
     ]);

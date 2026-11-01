@@ -67,7 +67,8 @@
     "requester": "கோரிக்கையாளர்",
     "finance": "நிதி",
     "supplier_admin": "விநியோகஸ்தர் நிர்வாகி",
-    "supplier_staff": "விநியோகஸ்தர் ஊழியர்"
+    "supplier_staff": "விநியோகஸ்தர் ஊழியர்",
+    "consumer": "வாடிக்கையாளர்"
   },
   "members": {
     "add": "உறுப்பினரைச் சேர்",

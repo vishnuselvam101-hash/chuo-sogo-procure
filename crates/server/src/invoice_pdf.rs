@@ -94,6 +94,9 @@ pub struct PdfRate {
 
 pub struct PdfDocument {
     pub credit_note: bool,
+    /// Unit prices and line amounts include tax (consumer sales); per-rate totals are shown
+    /// tax-inclusive with the tax contained.
+    pub tax_inclusive: bool,
     pub number: String,
     pub issue_date: String,
     pub due_date: Option<String>,
@@ -419,9 +422,29 @@ pub fn render(font: &PdfFont, doc: &PdfDocument) -> Result<Vec<u8>, RenderError>
         pen.text(&mut s, C_NO, y, 8.5, "No.");
         pen.text(&mut s, C_DESC, y, 8.5, "品目 Description");
         pen.right(&mut s, C_QTY_R, y, 8.5, "数量 Qty");
-        pen.right(&mut s, C_UNIT_R, y, 8.5, "単価 Unit price");
+        pen.right(
+            &mut s,
+            C_UNIT_R,
+            y,
+            8.5,
+            if doc.tax_inclusive {
+                "単価(税込) Unit incl."
+            } else {
+                "単価 Unit price"
+            },
+        );
         pen.right(&mut s, C_RATE_R, y, 8.5, "税率 Tax");
-        pen.right(&mut s, C_AMT_R, y, 8.5, "金額 Amount");
+        pen.right(
+            &mut s,
+            C_AMT_R,
+            y,
+            8.5,
+            if doc.tax_inclusive {
+                "金額(税込) Amount incl."
+            } else {
+                "金額 Amount"
+            },
+        );
         y += ROW_H;
 
         // Rows until the page is full (leave room for the footer).
@@ -463,18 +486,34 @@ pub fn render(font: &PdfFont, doc: &PdfDocument) -> Result<Vec<u8>, RenderError>
                     800 => "8%対象（軽減税率） Reduced 8%".to_string(),
                     b => format!("{}%対象 Standard {}%", b / 100, b / 100),
                 };
-                pen.text(&mut s, lx, y, 8.5, &label);
-                pen.right(&mut s, C_RATE_R + 8.0, y, 8.5, &money(r.base));
-                pen.right(&mut s, C_AMT_R, y, 8.5, &format!("税 {}", money(r.tax)));
+                if doc.tax_inclusive {
+                    let incl = Money::from_minor(r.base.minor() + r.tax.minor(), r.base.currency());
+                    pen.text(&mut s, lx, y, 8.5, &format!("{label}（税込）"));
+                    pen.right(&mut s, C_RATE_R + 8.0, y, 8.5, &money(incl));
+                    pen.right(&mut s, C_AMT_R, y, 8.5, &format!("内税 {}", money(r.tax)));
+                } else {
+                    pen.text(&mut s, lx, y, 8.5, &label);
+                    pen.right(&mut s, C_RATE_R + 8.0, y, 8.5, &money(r.base));
+                    pen.right(&mut s, C_AMT_R, y, 8.5, &format!("税 {}", money(r.tax)));
+                }
                 y += 13.0;
             }
             rule(&mut s, lx, y - 6.0, PAGE_W - MARGIN, 0.5);
             y += 6.0;
-            for (label, amount, size) in [
-                ("小計 Subtotal", doc.subtotal, 9.0),
-                ("消費税 Consumption tax", doc.tax, 9.0),
-                ("合計 Total", doc.total, 11.0),
-            ] {
+            let rows = if doc.tax_inclusive {
+                [
+                    ("税抜金額 Amount excl. tax", doc.subtotal, 9.0),
+                    ("うち消費税 Tax included", doc.tax, 9.0),
+                    ("合計（税込） Total", doc.total, 11.0),
+                ]
+            } else {
+                [
+                    ("小計 Subtotal", doc.subtotal, 9.0),
+                    ("消費税 Consumption tax", doc.tax, 9.0),
+                    ("合計 Total", doc.total, 11.0),
+                ]
+            };
+            for (label, amount, size) in rows {
                 pen.text(&mut s, lx, y, size, label);
                 pen.right(&mut s, C_AMT_R, y, size, &money(amount));
                 y += 15.0;
@@ -549,6 +588,7 @@ pub(crate) mod sample {
         let yen = |m| Money::from_minor(m, Currency::Jpy);
         PdfDocument {
             credit_note: false,
+            tax_inclusive: false,
             number: "CS-2026-00001".into(),
             issue_date: "2026-11-01".into(),
             due_date: Some("2026-12-01".into()),

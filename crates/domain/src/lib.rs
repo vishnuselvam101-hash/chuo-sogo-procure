@@ -8,4 +8,5 @@ pub mod listing;
 pub mod matching;
 pub mod money;
 pub mod rbac;
+pub mod shop;
 pub mod workflow;

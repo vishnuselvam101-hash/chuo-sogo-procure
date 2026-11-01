@@ -67,7 +67,8 @@
     "requester": "依頼者",
     "finance": "経理担当",
     "supplier_admin": "サプライヤー管理者",
-    "supplier_staff": "サプライヤー担当者"
+    "supplier_staff": "サプライヤー担当者",
+    "consumer": "個人のお客様"
   },
   "members": {
     "add": "メンバーを追加",

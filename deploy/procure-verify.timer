@@ -1,0 +1,9 @@
+[Unit]
+Description=Daily Chuo-Sogo Procure integrity check
+
+[Timer]
+OnCalendar=*-*-* 04:15:00 Asia/Tokyo
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -4,6 +4,9 @@
 #   procure_runtime  NOLOGIN group: the only privileges the running server needs (DML, no DDL,
 #                    no UPDATE/DELETE on audit_events). Granted by the migrations.
 #   procure_app      LOGIN member of procure_runtime: what the server connects as.
+#   procure_backup   LOGIN, read-only (pg_read_all_data), BYPASSRLS: only for pg_dump. Row-level
+#                    security is forced even for the table owner, so nothing else can make a
+#                    complete backup. Optional: created when PROCURE_BACKUP_PASSWORD is set.
 # Passwords are read from the environment and never echoed.
 set -euo pipefail
 : "${PROCURE_OWNER_PASSWORD:?set PROCURE_OWNER_PASSWORD}" "${PROCURE_APP_PASSWORD:?set PROCURE_APP_PASSWORD}"
@@ -19,4 +22,11 @@ GRANT procure_runtime TO procure_app;
 GRANT procure_runtime TO procure;
 SELECT 'CREATE DATABASE procure_dev OWNER procure ENCODING ''UTF8'' TEMPLATE template0' WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'procure_dev') \gexec
 SQL
+if [ -n "${PROCURE_BACKUP_PASSWORD:-}" ]; then
+  psql -v ON_ERROR_STOP=1 -q -v backup_pw="$PROCURE_BACKUP_PASSWORD" <<'SQL'
+SELECT 'CREATE ROLE procure_backup LOGIN NOSUPERUSER BYPASSRLS NOCREATEDB NOCREATEROLE' WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'procure_backup') \gexec
+ALTER ROLE procure_backup PASSWORD :'backup_pw';
+GRANT pg_read_all_data TO procure_backup;
+SQL
+fi
 echo "roles ready"

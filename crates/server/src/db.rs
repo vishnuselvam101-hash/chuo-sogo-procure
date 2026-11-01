@@ -58,6 +58,11 @@ pub async fn enable_platform_scope(tx: &mut Tx) -> Result<(), sqlx::Error> {
     set(tx, "app.scope", "platform").await
 }
 
+/// Ends the platform scope inside a transaction as soon as it is no longer needed.
+pub async fn disable_platform_scope(tx: &mut Tx) -> Result<(), sqlx::Error> {
+    set(tx, "app.scope", "").await
+}
+
 /// Only after verifying the caller holds a platform-org role: makes the platform-level
 /// supplier directory visible and writable in this transaction.
 pub async fn enable_staff_scope(tx: &mut Tx) -> Result<(), sqlx::Error> {

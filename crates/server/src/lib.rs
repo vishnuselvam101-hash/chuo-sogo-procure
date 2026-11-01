@@ -14,17 +14,19 @@ pub mod principal;
 pub mod ratelimit;
 pub mod security;
 pub mod storage;
+pub mod verify;
 
 use std::sync::Arc;
 use std::time::Duration;
 
-use axum::http::{HeaderName, StatusCode, header};
+use axum::http::{HeaderName, HeaderValue, StatusCode, header};
 use axum::routing::{get, patch, post, put};
 use axum::{Json, Router};
 use sqlx::PgPool;
 use tower_http::limit::RequestBodyLimitLayer;
 use tower_http::request_id::{MakeRequestUuid, PropagateRequestIdLayer, SetRequestIdLayer};
 use tower_http::sensitive_headers::SetSensitiveRequestHeadersLayer;
+use tower_http::set_header::SetResponseHeaderLayer;
 use tower_http::timeout::TimeoutLayer;
 use tower_http::trace::{DefaultOnResponse, TraceLayer};
 use tracing::Level;
@@ -337,6 +339,28 @@ pub fn router(state: AppState) -> Router {
             "/orgs/{org_id}/listings/{id}/media/{media_id}/content",
             get(api::listings::own_media),
         )
+        .route("/shop/info", get(api::shop::info))
+        .route("/shop/signup", post(api::shop::signup))
+        .route("/orgs/{org_id}/shop/products", get(api::shop::products))
+        .route("/orgs/{org_id}/shop/products/{id}", get(api::shop::product))
+        .route(
+            "/orgs/{org_id}/shop/products/{id}/media/{media_id}/content",
+            get(api::shop::product_media),
+        )
+        .route(
+            "/orgs/{org_id}/shop/orders",
+            get(api::shop::my_orders).post(api::shop::place_order),
+        )
+        .route("/orgs/{org_id}/shop/orders/{id}", get(api::shop::my_order))
+        .route(
+            "/orgs/{org_id}/shop/orders/{id}/cancel",
+            post(api::shop::cancel_mine),
+        )
+        .route("/orgs/{org_id}/shop/my-data", get(api::shop::my_data))
+        .route(
+            "/orgs/{org_id}/shop/close-account",
+            post(api::shop::close_account),
+        )
         .route("/orgs/{org_id}/catalogue", get(api::listings::catalogue))
         .route(
             "/orgs/{org_id}/catalogue/{id}",
@@ -518,6 +542,13 @@ pub fn router(state: AppState) -> Router {
             get(api::billing::get_issuer).put(api::billing::put_issuer),
         )
         .route("/billing/invoices", get(api::billing::list_invoices))
+        .route(
+            "/shop/settings",
+            get(api::shop::get_settings).put(api::shop::put_settings),
+        )
+        .route("/shop/orders", get(api::shop::admin_orders))
+        .route("/shop/orders/{id}", get(api::shop::admin_order))
+        .route("/shop/orders/{id}/action", post(api::shop::admin_action))
         .route("/listings", get(api::listings::moderation_list))
         .route("/listings/{id}", get(api::listings::moderation_get))
         .route("/listings/{id}/approve", post(api::listings::approve))
@@ -582,6 +613,20 @@ pub fn router(state: AppState) -> Router {
                 })
                 .on_response(DefaultOnResponse::new().level(Level::INFO)),
         )
+        // Every response: never sniffed as another type, never embedded by other origins,
+        // never cached (API data is personal; files are served with their own headers).
+        .layer(SetResponseHeaderLayer::if_not_present(
+            header::X_CONTENT_TYPE_OPTIONS,
+            HeaderValue::from_static("nosniff"),
+        ))
+        .layer(SetResponseHeaderLayer::if_not_present(
+            HeaderName::from_static("cross-origin-resource-policy"),
+            HeaderValue::from_static("same-origin"),
+        ))
+        .layer(SetResponseHeaderLayer::if_not_present(
+            header::CACHE_CONTROL,
+            HeaderValue::from_static("no-store"),
+        ))
         .layer(SetSensitiveRequestHeadersLayer::new([
             header::AUTHORIZATION,
             header::COOKIE,

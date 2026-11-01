@@ -64,6 +64,18 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
             // Printed once for the operator; it is stored only as a hash.
             println!("Platform created. Activation token for {email} (valid 7 days):\n{token}");
         }
+        // Integrity check (audit chains, stored files) for operations and restore drills.
+        Some("verify") => {
+            let pool = connect("DATABASE_URL").await?;
+            let files = procure_server::storage::Storage::new(
+                std::env::var("PROCURE_STORAGE_DIR").unwrap_or_else(|_| "./var/storage".into()),
+            );
+            let report = procure_server::verify::run(&pool, &files).await?;
+            println!("{}", serde_json::to_string_pretty(&report)?);
+            if !report.ok() {
+                return Err("integrity check failed".into());
+            }
+        }
         // ... the server itself runs as the restricted runtime role and never migrates.
         None | Some("serve") => {
             let pool = connect("PROCURE_RUNTIME_DATABASE_URL").await?;

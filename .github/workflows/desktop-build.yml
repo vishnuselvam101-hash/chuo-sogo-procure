@@ -10,7 +10,7 @@ on:
       app:
         description: Which app to build
         type: choice
-        options: [business, admin]
+        options: [business, admin, shop]
         default: business
 permissions:
   contents: read
@@ -50,7 +50,7 @@ jobs:
       - run: pnpm -C apps/desktop install --frozen-lockfile
       - run: cargo install tauri-cli --version "=2.12.4" --locked
       - working-directory: apps/desktop
-        if: inputs.app != 'admin'
+        if: inputs.app == 'business'
         env:
           BUNDLES: ${{ matrix.bundles }}
         run: cargo tauri build --bundles "$BUNDLES"
@@ -59,6 +59,11 @@ jobs:
         env:
           BUNDLES: ${{ matrix.bundles }}
         run: cargo tauri build --config src-tauri/tauri.admin.conf.json --features admin --bundles "$BUNDLES"
+      - working-directory: apps/desktop
+        if: inputs.app == 'shop'
+        env:
+          BUNDLES: ${{ matrix.bundles }}
+        run: cargo tauri build --config src-tauri/tauri.shop.conf.json --bundles "$BUNDLES"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: chuo-sogo-procure-${{ inputs.app }}-${{ matrix.os }}

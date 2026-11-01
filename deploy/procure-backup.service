@@ -1,6 +1,7 @@
-# Nightly database backup (custom format, 14 kept). Installed by scripts/install-server.sh.
+# Nightly backup: database + stored files with checksums, 14 kept (scripts/procure-backup.sh).
+# Installed by scripts/install-server.sh.
 [Unit]
-Description=Chuo-Sogo Procure database backup
+Description=Chuo-Sogo Procure backup (database and files)
 
 [Service]
 Type=oneshot
@@ -8,4 +9,4 @@ User=procure
 Group=procure
 EnvironmentFile=/etc/procure/procure.env
 UMask=0077
-ExecStart=/bin/sh -c 'pg_dump --format=custom --file=/var/lib/procure/backups/procure-$(date -u +%%Y%%m%%dT%%H%%M%%SZ).dump "$DATABASE_URL" && ls -1t /var/lib/procure/backups/procure-*.dump | tail -n +15 | xargs -r rm -f'
+ExecStart=/opt/procure/bin/procure-backup

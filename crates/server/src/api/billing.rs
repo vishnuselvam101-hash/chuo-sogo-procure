@@ -15,7 +15,7 @@ use chrono::{DateTime, Datelike, Duration, NaiveDate, Utc};
 use procure_domain::invoicing::{self, InvoiceError, Line, RateTotal};
 use procure_domain::matching::TaxRounding;
 use procure_domain::money::{Currency, Money};
-use procure_domain::rbac::Permission;
+use procure_domain::rbac::{Permission, allows as rbac_allows};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use uuid::Uuid;
@@ -329,13 +329,25 @@ struct Computed {
     per_rate: Vec<RateTotalView>,
 }
 
-fn compute(lines: &[LineInput], currency: Currency, r: TaxRounding) -> ApiResult<Computed> {
+/// `inclusive`: unit prices include tax (consumer sales); the tax contained is computed per
+/// rate. Otherwise prices exclude tax and the tax is added per rate.
+fn compute(
+    lines: &[LineInput],
+    currency: Currency,
+    r: TaxRounding,
+    inclusive: bool,
+) -> ApiResult<Computed> {
     for l in lines {
         common::required(&l.description, 500, false, "description")?;
         common::text(&l.unit, 20, false, "unit")?;
     }
-    let t =
-        invoicing::totals(&domain_lines(lines, currency)?, currency, r).map_err(invoice_error)?;
+    let domain = domain_lines(lines, currency)?;
+    let t = if inclusive {
+        invoicing::totals_inclusive(&domain, currency, r)
+    } else {
+        invoicing::totals(&domain, currency, r)
+    }
+    .map_err(invoice_error)?;
     Ok(Computed {
         subtotal: t.subtotal.minor(),
         tax: t.tax.minor(),
@@ -418,7 +430,7 @@ async fn org_billing_tx(
             .fetch_optional(&mut *tx)
             .await?;
     let (name, kind) = org.ok_or(ApiError::NotFound)?;
-    if kind != "customer" {
+    if kind != "customer" && kind != "consumer" {
         return Err(ApiError::Validation("not_a_customer_org"));
     }
     db::set_org(&mut tx, org_id).await?;
@@ -487,7 +499,7 @@ pub async fn create_invoice(
     let currency = common::currency(body.currency.as_deref().unwrap_or("JPY"))?;
     let (mut tx, platform, issuer, org_name) = org_billing_tx(&state, &p, org_id).await?;
     let rounding_code = issuer.map_or_else(|| "floor".to_string(), |i| i.tax_rounding);
-    let c = compute(&body.lines, currency, rounding(&rounding_code)?)?;
+    let c = compute(&body.lines, currency, rounding(&rounding_code)?, false)?;
     let recipient = common::required(
         body.recipient_name.as_deref().unwrap_or(&org_name),
         200,
@@ -542,11 +554,12 @@ struct DocRow {
     currency: String,
     original_id: Option<Uuid>,
     tax_rounding: String,
+    prices_include_tax: bool,
 }
 
 async fn lock_doc(tx: &mut Tx, id: Uuid) -> ApiResult<DocRow> {
     sqlx::query_as::<_, DocRow>(
-        "SELECT kind, status, currency, original_id, tax_rounding
+        "SELECT kind, status, currency, original_id, tax_rounding, prices_include_tax
          FROM issued_invoices WHERE id = $1 AND org_id = app_org_id() FOR UPDATE",
     )
     .bind(id)
@@ -588,7 +601,12 @@ pub async fn update_invoice(
     }
     let currency = common::currency(body.currency.as_deref().unwrap_or("JPY"))?;
     let rounding_code = issuer.map_or_else(|| "floor".to_string(), |i| i.tax_rounding);
-    let c = compute(&body.lines, currency, rounding(&rounding_code)?)?;
+    let c = compute(
+        &body.lines,
+        currency,
+        rounding(&rounding_code)?,
+        doc.prices_include_tax,
+    )?;
     // Absent: keep the draft's current recipient name (never silently reset it).
     let current: String =
         sqlx::query_scalar("SELECT recipient_name FROM issued_invoices WHERE id = $1")
@@ -741,21 +759,107 @@ pub async fn create_credit_note(
     ApiJson(body): ApiJson<CreditNoteInput>,
 ) -> ApiResult<(StatusCode, Json<CreatedInvoice>)> {
     let (mut tx, platform, _, _) = org_billing_tx(&state, &p, org_id).await?;
-    let original = lock_doc(&mut tx, original_id).await?;
+    let reason = common::required(&body.reason, 2000, true, "reason")?;
+    let notes = common::text(&body.notes, 2000, true, "notes")?;
+    let id = credit_in_tx(
+        &mut tx,
+        &p,
+        platform,
+        org_id,
+        original_id,
+        &reason,
+        &notes,
+        &body.lines,
+    )
+    .await?;
+    tx.commit().await?;
+    Ok((StatusCode::CREATED, Json(CreatedInvoice { id })))
+}
+
+/// A draft tax-inclusive invoice (consumer shop) inside the caller's platform-scoped
+/// transaction for consumer organisation `org_id`. Returns its id.
+#[allow(clippy::too_many_arguments)]
+pub(crate) async fn shop_invoice_in_tx(
+    tx: &mut Tx,
+    p: &Principal,
+    platform: Uuid,
+    org_id: Uuid,
+    recipient_name: &str,
+    recipient_address: &str,
+    due_date: NaiveDate,
+    notes: &str,
+    lines: &[LineInput],
+    rounding_code: &str,
+) -> ApiResult<Uuid> {
+    let currency = Currency::Jpy;
+    let c = compute(lines, currency, rounding(rounding_code)?, true)?;
+    let id = Uuid::now_v7();
+    sqlx::query(
+        "INSERT INTO issued_invoices (id, org_id, kind, currency, recipient_name, recipient_address,
+             due_date, notes, tax_rounding, subtotal_minor, tax_minor, total_minor, per_rate,
+             created_by, prices_include_tax)
+         VALUES ($1, $2, 'invoice', $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, true)",
+    )
+    .bind(id)
+    .bind(org_id)
+    .bind(currency.code())
+    .bind(recipient_name)
+    .bind(recipient_address)
+    .bind(due_date)
+    .bind(notes)
+    .bind(rounding_code)
+    .bind(c.subtotal)
+    .bind(c.tax)
+    .bind(c.total)
+    .bind(serde_json::to_value(&c.per_rate).map_err(ApiError::internal)?)
+    .bind(p.user_id)
+    .execute(&mut **tx)
+    .await?;
+    write_lines(tx, org_id, id, lines).await?;
+    audit_both(
+        tx,
+        p,
+        platform,
+        org_id,
+        "billing.draft_created",
+        id,
+        json!({ "kind": "invoice", "source": "shop", "total_minor": c.total }),
+    )
+    .await?;
+    Ok(id)
+}
+
+/// A draft credit note against `original_id` inside the caller's platform-scoped
+/// transaction (limits per rate checked). Returns its id.
+#[allow(clippy::too_many_arguments)]
+pub(crate) async fn credit_in_tx(
+    tx: &mut Tx,
+    p: &Principal,
+    platform: Uuid,
+    org_id: Uuid,
+    original_id: Uuid,
+    reason: &str,
+    notes: &str,
+    lines: &[LineInput],
+) -> ApiResult<Uuid> {
+    let original = lock_doc(tx, original_id).await?;
     if original.kind != "invoice" || original.status == "draft" {
         return Err(ApiError::Conflict("original_not_issued"));
     }
-    let reason = common::required(&body.reason, 2000, true, "reason")?;
-    let notes = common::text(&body.notes, 2000, true, "notes")?;
     let currency = common::currency(&original.currency)?;
-    let c = compute(&body.lines, currency, rounding(&original.tax_rounding)?)?;
+    let c = compute(
+        lines,
+        currency,
+        rounding(&original.tax_rounding)?,
+        original.prices_include_tax,
+    )?;
     // Checked again at issue (other credit notes may be issued in between).
     let orig_rates: serde_json::Value =
         sqlx::query_scalar("SELECT per_rate FROM issued_invoices WHERE id = $1")
             .bind(original_id)
-            .fetch_one(&mut *tx)
+            .fetch_one(&mut **tx)
             .await?;
-    let already = credited(&mut tx, original_id, None, currency).await?;
+    let already = credited(tx, original_id, None, currency).await?;
     let limited = invoicing::limit_credit(
         &per_rate_of(&orig_rates, currency)?,
         &already,
@@ -770,26 +874,26 @@ pub async fn create_credit_note(
     sqlx::query(
         "INSERT INTO issued_invoices (id, org_id, kind, original_id, currency, recipient_name,
              recipient_address, request_id, notes, reason, tax_rounding, subtotal_minor, tax_minor,
-             total_minor, per_rate, created_by)
+             total_minor, per_rate, created_by, prices_include_tax)
          SELECT $1, org_id, 'credit_note', id, currency, recipient_name, recipient_address,
-                request_id, $3, $4, tax_rounding, $5, $6, $7, $8, $9
+                request_id, $3, $4, tax_rounding, $5, $6, $7, $8, $9, prices_include_tax
          FROM issued_invoices WHERE id = $2",
     )
     .bind(id)
     .bind(original_id)
-    .bind(&notes)
-    .bind(&reason)
+    .bind(notes)
+    .bind(reason)
     .bind(c.subtotal)
     .bind(c.tax)
     .bind(c.total)
     .bind(serde_json::to_value(&c.per_rate).map_err(ApiError::internal)?)
     .bind(p.user_id)
-    .execute(&mut *tx)
+    .execute(&mut **tx)
     .await?;
-    write_lines(&mut tx, org_id, id, &body.lines).await?;
+    write_lines(tx, org_id, id, lines).await?;
     audit_both(
-        &mut tx,
-        &p,
+        tx,
+        p,
         platform,
         org_id,
         "billing.draft_created",
@@ -797,8 +901,7 @@ pub async fn create_credit_note(
         json!({ "kind": "credit_note", "original": original_id, "total_minor": c.total }),
     )
     .await?;
-    tx.commit().await?;
-    Ok((StatusCode::CREATED, Json(CreatedInvoice { id })))
+    Ok(id)
 }
 
 #[derive(Deserialize, utoipa::ToSchema)]
@@ -868,19 +971,47 @@ pub async fn issue(
     ApiPath((org_id, id)): ApiPath<(Uuid, Uuid)>,
     ApiJson(body): ApiJson<IssueRequest>,
 ) -> ApiResult<Json<InvoiceDetail>> {
+    let (mut tx, platform, issuer, _) = org_billing_tx(&state, &p, org_id).await?;
+    let issuer = issuer.ok_or(ApiError::Conflict("issuer_not_configured"))?;
+    let detail = issue_in_tx(
+        &state,
+        &mut tx,
+        &p,
+        platform,
+        org_id,
+        &issuer,
+        id,
+        body.issue_date,
+    )
+    .await?;
+    tx.commit().await?;
+    Ok(Json(detail))
+}
+
+/// Issues draft `id` inside the caller's platform-scoped transaction (app.org_id = `org_id`):
+/// next number, PDF, immutable from then on. Used by the billing screen and by the shop.
+#[allow(clippy::too_many_arguments)]
+pub(crate) async fn issue_in_tx(
+    state: &AppState,
+    tx: &mut Tx,
+    p: &Principal,
+    platform: Uuid,
+    org_id: Uuid,
+    issuer: &IssuerProfile,
+    id: Uuid,
+    issue_date: Option<NaiveDate>,
+) -> ApiResult<InvoiceDetail> {
     let font = state
         .pdf_font
         .clone()
         .ok_or(ApiError::Conflict("pdf_unavailable"))?;
-    let (mut tx, platform, issuer, _) = org_billing_tx(&state, &p, org_id).await?;
-    let issuer = issuer.ok_or(ApiError::Conflict("issuer_not_configured"))?;
-    let doc = lock_doc(&mut tx, id).await?;
+    let doc = lock_doc(tx, id).await?;
     if doc.status != "draft" {
         return Err(ApiError::Conflict("already_issued"));
     }
     let currency = common::currency(&doc.currency)?;
     let today = today_jst();
-    let issue_date = body.issue_date.unwrap_or(today);
+    let issue_date = issue_date.unwrap_or(today);
     if issue_date > today {
         return Err(ApiError::Validation("issue_date"));
     }
@@ -889,9 +1020,9 @@ pub async fn issue(
          FROM issued_invoices WHERE id = $1",
     )
     .bind(id)
-    .fetch_one(&mut *tx)
+    .fetch_one(&mut **tx)
     .await?;
-    let line_rows = load_lines(&mut tx, id).await?;
+    let line_rows = load_lines(tx, id).await?;
     let lines = view_lines(&line_rows, currency)?;
     // Invoices: the issuer's current rounding rule (the one in the printed snapshot); credit
     // notes keep the original invoice's rule. Recomputed from the lines either way.
@@ -900,11 +1031,16 @@ pub async fn issue(
     } else {
         doc.tax_rounding.clone()
     };
-    let mut c = compute(&lines, currency, rounding(&rounding_code)?)?;
+    let mut c = compute(
+        &lines,
+        currency,
+        rounding(&rounding_code)?,
+        doc.prices_include_tax,
+    )?;
 
     let mut original_ref = None;
     if let Some(orig) = doc.original_id {
-        let o = lock_doc(&mut tx, orig).await?;
+        let o = lock_doc(tx, orig).await?;
         if o.status == "draft" {
             return Err(ApiError::Conflict("original_not_issued"));
         }
@@ -912,12 +1048,12 @@ pub async fn issue(
             "SELECT number, issue_date, per_rate FROM issued_invoices WHERE id = $1",
         )
         .bind(orig)
-        .fetch_one(&mut *tx)
+        .fetch_one(&mut **tx)
         .await?;
         if issue_date < date {
             return Err(ApiError::Validation("issue_date"));
         }
-        let already = credited(&mut tx, orig, Some(id), currency).await?;
+        let already = credited(tx, orig, Some(id), currency).await?;
         let limited = invoicing::limit_credit(
             &per_rate_of(&rates, currency)?,
             &already,
@@ -938,7 +1074,7 @@ pub async fn issue(
     )
     .bind(&doc.kind)
     .bind(f64::from(issue_date.year()))
-    .fetch_one(&mut *tx)
+    .fetch_one(&mut **tx)
     .await?;
     if latest.is_some_and(|l| issue_date < l) {
         return Err(ApiError::Validation("issue_date"));
@@ -964,7 +1100,7 @@ pub async fn issue(
     )
     .bind(&doc.kind)
     .bind(issue_date.year())
-    .fetch_one(&mut *tx)
+    .fetch_one(&mut **tx)
     .await?;
     let number = if doc.kind == "invoice" {
         format!("{}-{}-{seq:05}", issuer.number_prefix, issue_date.year())
@@ -974,6 +1110,7 @@ pub async fn issue(
 
     let pdf_doc = invoice_pdf::PdfDocument {
         credit_note: doc.kind == "credit_note",
+        tax_inclusive: doc.prices_include_tax,
         number: number.clone(),
         issue_date: issue_date.to_string(),
         due_date: due_date.map(|d| d.to_string()),
@@ -1027,7 +1164,7 @@ pub async fn issue(
             invoice_pdf::RenderError::Other(e) => ApiError::internal(std::io::Error::other(e)),
         })?;
     let hash = state.storage.put(&pdf).await.map_err(ApiError::internal)?;
-    let issuer_json = serde_json::to_value(&issuer).map_err(ApiError::internal)?;
+    let issuer_json = serde_json::to_value(issuer).map_err(ApiError::internal)?;
     sqlx::query(
         "UPDATE issued_invoices SET status = 'issued', number = $2, issue_date = $3, due_date = $4,
              issuer = $5, pdf_sha256 = $6, issued_by = $7, issued_at = now(), subtotal_minor = $8,
@@ -1047,11 +1184,11 @@ pub async fn issue(
     .bind(c.total)
     .bind(serde_json::to_value(&c.per_rate).map_err(ApiError::internal)?)
     .bind(&rounding_code)
-    .execute(&mut *tx)
+    .execute(&mut **tx)
     .await?;
     audit_both(
-        &mut tx,
-        &p,
+        tx,
+        p,
         platform,
         org_id,
         "billing.issued",
@@ -1060,9 +1197,7 @@ pub async fn issue(
                 "currency": currency.code(), "pdf_sha256": hex(&hash) }),
     )
     .await?;
-    let detail = load_detail(&mut tx, id, true).await?;
-    tx.commit().await?;
-    Ok(Json(detail))
+    load_detail(tx, id, true).await
 }
 
 fn hex(bytes: &[u8]) -> String {
@@ -1294,7 +1429,11 @@ pub async fn get_invoice(
     Ok(Json(detail))
 }
 
-async fn pdf_response(state: &AppState, tx: Tx, id: Uuid) -> ApiResult<impl IntoResponse + use<>> {
+pub(crate) async fn pdf_response(
+    state: &AppState,
+    tx: Tx,
+    id: Uuid,
+) -> ApiResult<impl IntoResponse + use<>> {
     let mut tx = tx;
     let row: Option<(Option<String>, Option<Vec<u8>>)> = sqlx::query_as(
         "SELECT number, pdf_sha256 FROM issued_invoices WHERE id = $1 AND org_id = app_org_id()",
@@ -1364,7 +1503,10 @@ async fn customer_tx(state: &AppState, p: &Principal, org_id: Uuid) -> ApiResult
     if !matches!(access, procure_domain::rbac::Access::Member(r) if !r.is_internal()) {
         return Err(ApiError::NotFound);
     }
-    common::require_perm(access, Permission::ViewFinance)?;
+    // Finance staff of a business customer, or a consumer for their own orders.
+    if !rbac_allows(access, Permission::ViewFinance) && !rbac_allows(access, Permission::Shop) {
+        return Err(ApiError::Forbidden);
+    }
     Ok(db::tenant_tx(&state.pool, p.user_id, org_id).await?)
 }
 

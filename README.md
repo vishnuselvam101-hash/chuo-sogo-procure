@@ -1,12 +1,23 @@
 # Chuo-Sogo Procure
 
-AI-assisted industrial procurement platform for manufacturers (Japan first). Installable desktop client (Tauri 2) + Rust backend + PostgreSQL.
+AI-assisted industrial procurement platform (Japan first) by Chuo-Sogo Inc. One Rust server
+and PostgreSQL database (row-level security for every organisation), three desktop/mobile apps
+built with Tauri 2:
 
-Status: **Phase 1 (foundation) complete**: authentication, organisations, 7 roles, tenant isolation (PostgreSQL RLS), audit chain, desktop shell (ja/en/ta/hi), Linux installers. Procurement workflow modules start in Phase 2.
+| App | For | Build |
+|---|---|---|
+| **Chuo-Sogo Procure** | Business customers (requests, approvals, orders, invoices), suppliers (product listings), Chuo-Sogo operators | `cargo tauri build` |
+| **Chuo-Sogo Procure Admin** | Chuo-Sogo staff only: organisations, accounts, rules, billing, listing review, shop, audit, health (TOTP sign-in, network allow-list) | `cargo tauri build --config src-tauri/tauri.admin.conf.json --features admin` |
+| **Chuo-Sogo Shop** | Individual consumers: catalogue, cart, orders paid by bank transfer, invoices | `cargo tauri build --config src-tauri/tauri.shop.conf.json` |
 
-Quick start: `docs/engineering/DESKTOP.md` (client), `scripts/db-setup.sh` + `procure-server migrate|bootstrap|serve` (backend).
+Status (2026-11-01): Phases 0–5 (procurement), A (admin console), B (invoice generation),
+C (supplier catalogue), D (AI listing assistance), E (consumer shop) and F (release
+preparation) implemented and tested — see `docs/engineering/gates/` and `CHANGELOG.md`.
+Not yet released: signing, store listings and production decisions are listed in
+`docs/RELEASE.md`.
 
-- Architecture: `docs/architecture/ARCHITECTURE.md`
-- Plan: `docs/architecture/IMPLEMENTATION_PLAN.md`
-- Engineering: `docs/engineering/` · Security: `docs/security/`
-- Quality gate: `scripts/gate.sh quick|full`
+- Operations (install, update, backups, restore drill, monitoring): `docs/OPERATIONS.md`
+- Release checklist and open founder decisions: `docs/RELEASE.md`
+- Architecture: `docs/architecture/` · Engineering: `docs/engineering/` · Security: `docs/security/`
+- Quality gate: `scripts/gate.sh quick|full` · End-to-end: `scripts/e2e-{workflow,admin,catalogue,shop}.sh`
+- Security scan of a throwaway local server: `scripts/zap-api-scan.sh`
