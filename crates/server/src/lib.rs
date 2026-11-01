@@ -249,6 +249,30 @@ pub fn router(state: AppState) -> Router {
             "/orgs/{org_id}/products/{product_id}",
             get(api::products::get_org_product),
         )
+        .route(
+            "/orgs/{org_id}/requests/{request_id}/order",
+            get(api::orders::get_order).post(api::orders::record_order),
+        )
+        .route(
+            "/orgs/{org_id}/orders/{order_id}/deliveries",
+            post(api::orders::record_delivery),
+        )
+        .route(
+            "/orgs/{org_id}/deliveries/{delivery_id}/reverse",
+            post(api::orders::reverse_delivery),
+        )
+        .route(
+            "/orgs/{org_id}/orders/{order_id}/invoice",
+            post(api::orders::record_invoice),
+        )
+        .route(
+            "/orgs/{org_id}/discrepancies/{discrepancy_id}/resolve",
+            post(api::orders::resolve_discrepancy),
+        )
+        .route(
+            "/orgs/{org_id}/requests/{request_id}/close",
+            post(api::orders::close_request),
+        )
         .route("/ops/queue", get(api::ops::queue))
         .route("/orgs/{org_id}/tasks", post(api::ops::create_task))
         .route(

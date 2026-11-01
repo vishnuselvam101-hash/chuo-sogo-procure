@@ -4,6 +4,7 @@ pub mod attachments;
 pub mod auth;
 pub mod common;
 pub mod ops;
+pub mod orders;
 pub mod orgs;
 pub mod products;
 pub mod requests;

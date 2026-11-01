@@ -30,17 +30,23 @@ interface Props {
   /** Fixed status filter (e.g. the Approvals page shows only `awaiting_approval`). */
   status?: string;
   title?: string;
+  /** `orders` or `finance`: a group of statuses (orders and invoices pages). */
+  stage?: string;
   /** Open this request immediately (e.g. from the operations queue). */
   initialOpen?: string | null;
 }
 
 /** Request list for customers (own or all, as the backend decides) and assigned operators. */
-export function Requests({ active, selfId, status, title, initialOpen }: Props) {
+export function Requests({ active, selfId, status, title, initialOpen, stage }: Props) {
   const { t, i18n } = useTranslation();
   const [open, setOpen] = useState<string | null>(initialOpen ?? null);
   const [creating, setCreating] = useState(false);
   const [filter, setFilter] = useState(status ?? "");
-  const query = filter ? `?status=${encodeURIComponent(filter)}` : "";
+  const query = filter
+    ? `?status=${encodeURIComponent(filter)}`
+    : stage
+      ? `?stage=${encodeURIComponent(stage)}`
+      : "";
   const base = `/api/v1/orgs/${active.org_id}/requests`;
   const { data, error, reload } = useApi<RequestSummary[]>(`${base}${query}`);
   const canCreate = active.permissions.includes(P.submitRequest);
@@ -73,7 +79,7 @@ export function Requests({ active, selfId, status, title, initialOpen }: Props) 
   return (
     <section>
       <PageHeader title={title ?? t("nav.procurement")}>
-        {!status && (
+        {!status && !stage && (
           <label className="compact">
             <span className="visually-hidden">{t("procurement:list.filter")}</span>
             <select value={filter} onChange={(e) => setFilter(e.target.value)}>
@@ -89,7 +95,7 @@ export function Requests({ active, selfId, status, title, initialOpen }: Props) 
         <button type="button" onClick={reload}>
           {t("action.refresh")}
         </button>
-        {canCreate && !status && (
+        {canCreate && !status && !stage && (
           <button type="button" className="primary" onClick={() => setCreating(true)}>
             {t("procurement:request.new")}
           </button>

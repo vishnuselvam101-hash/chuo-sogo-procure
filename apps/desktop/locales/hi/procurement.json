@@ -265,5 +265,66 @@
     "meeting": "बैठक",
     "chat": "चैट",
     "other": "अन्य"
+  },
+  "order": {
+    "heading": "क्रय आदेश",
+    "explain": "अनुमोदित आपूर्तिकर्ता के लिए अपना क्रय आदेश नंबर दर्ज करें। इस ऐप से आपूर्तिकर्ता को कुछ नहीं भेजा जाता।",
+    "poNumber": "आपका PO नंबर",
+    "record": "क्रय आदेश दर्ज करें",
+    "po": "PO {{number}}",
+    "ordered": "ऑर्डर की गई मात्रा",
+    "received": "प्राप्त",
+    "receiveNow": "अभी प्राप्त",
+    "recordReceipt": "प्राप्ति दर्ज करें",
+    "deliveryLine": "{{when}} को {{who}} ने प्राप्त किया",
+    "close": "अनुरोध बंद करें",
+    "reversed": "उलटा गया: {{reason}}",
+    "reverse": "यह प्राप्ति उलटें",
+    "reverseReason": "प्राप्ति उलटने का कारण"
+  },
+  "invoice": {
+    "record": "आपूर्तिकर्ता का बिल",
+    "number": "बिल नंबर",
+    "date": "बिल तिथि",
+    "due": "भुगतान की अंतिम तिथि",
+    "taxRate": "कर दर (%)",
+    "rounding": "कर पूर्णांकन",
+    "tax": "बिल पर कर",
+    "explain": "बिल की तुलना ऑर्डर और प्राप्त माल से की जाती है। अनुरोध के मिलान से पहले हर अंतर सुलझाना होगा।",
+    "recordAndMatch": "दर्ज करें और मिलान करें",
+    "heading": "बिल {{number}}",
+    "total": "कुल",
+    "difference": "अंतर",
+    "expected": "अपेक्षित",
+    "actual": "बिल",
+    "resolution": "समाधान",
+    "resolutionNote": "कैसे सुलझाया गया",
+    "resolve": "सुलझाएँ",
+    "lineTaxRate": "कर % (यदि अलग हो)"
+  },
+  "rounding": {
+    "floor": "नीचे पूर्णांकन",
+    "half_up": "आधे से ऊपर",
+    "ceil": "ऊपर पूर्णांकन"
+  },
+  "resolution": {
+    "credit_note": "क्रेडिट नोट",
+    "supplier_corrected": "आपूर्तिकर्ता ने बिल सुधारा",
+    "accepted": "बिल के अनुसार स्वीकार",
+    "written_off": "बट्टे खाते में",
+    "other": "अन्य"
+  },
+  "discrepancy": {
+    "currency_mismatch": "अलग मुद्रा",
+    "unknown_item": "ऑर्डर न की गई वस्तु",
+    "duplicate_line": "एक ही वस्तु दो बार",
+    "price_mismatch": "इकाई मूल्य अलग",
+    "quantity_over_ordered": "ऑर्डर से अधिक",
+    "quantity_over_received": "प्राप्त से अधिक",
+    "not_invoiced": "प्राप्त वस्तु का बिल नहीं",
+    "shipping_mismatch": "शिपिंग अलग",
+    "tax_mismatch": "कर राशि अलग",
+    "amount_overflow": "राशि बहुत बड़ी",
+    "quantity_under_received": "प्राप्त से कम"
   }
 }

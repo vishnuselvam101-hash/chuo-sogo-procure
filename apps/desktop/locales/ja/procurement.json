@@ -265,5 +265,66 @@
     "meeting": "打合せ",
     "chat": "チャット",
     "other": "その他"
+  },
+  "order": {
+    "heading": "発注",
+    "explain": "承認されたサプライヤーへの貴社の発注番号を記録します。このアプリからサプライヤーへは何も送信されません。",
+    "poNumber": "貴社の発注番号",
+    "record": "発注を記録",
+    "po": "発注番号 {{number}}",
+    "ordered": "発注数",
+    "received": "受領数",
+    "receiveNow": "今回の受領数",
+    "recordReceipt": "受領を記録",
+    "deliveryLine": "{{when}} {{who}} が受領",
+    "close": "依頼を完了",
+    "reversed": "取消済み：{{reason}}",
+    "reverse": "この受領を取り消す",
+    "reverseReason": "受領を取り消す理由"
+  },
+  "invoice": {
+    "record": "サプライヤーの請求書",
+    "number": "請求書番号",
+    "date": "請求日",
+    "due": "支払期日",
+    "taxRate": "税率（%）",
+    "rounding": "税の端数処理",
+    "tax": "請求書の税額",
+    "explain": "請求書を発注内容と受領数と照合します。依頼を照合済みにするには、すべての差異を解決する必要があります。",
+    "recordAndMatch": "記録して照合",
+    "heading": "請求書 {{number}}",
+    "total": "合計",
+    "difference": "差異",
+    "expected": "想定",
+    "actual": "請求書",
+    "resolution": "解決方法",
+    "resolutionNote": "解決内容",
+    "resolve": "解決",
+    "lineTaxRate": "税率%（異なる場合）"
+  },
+  "rounding": {
+    "floor": "切り捨て",
+    "half_up": "四捨五入",
+    "ceil": "切り上げ"
+  },
+  "resolution": {
+    "credit_note": "クレジットノート",
+    "supplier_corrected": "サプライヤーが請求書を訂正",
+    "accepted": "請求どおり承認",
+    "written_off": "償却",
+    "other": "その他"
+  },
+  "discrepancy": {
+    "currency_mismatch": "通貨が異なる",
+    "unknown_item": "発注していない品目",
+    "duplicate_line": "同じ品目が二重請求",
+    "price_mismatch": "単価が異なる",
+    "quantity_over_ordered": "発注数を超過",
+    "quantity_over_received": "受領数を超過",
+    "not_invoiced": "受領済み品目の請求なし",
+    "shipping_mismatch": "送料が異なる",
+    "tax_mismatch": "税額が異なる",
+    "amount_overflow": "金額が大きすぎます",
+    "quantity_under_received": "受領数より少ない"
   }
 }

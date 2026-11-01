@@ -2351,3 +2351,381 @@ async fn ops_review_regressions(pool: PgPool) {
         .await;
     assert_eq!(take.status, StatusCode::NO_CONTENT);
 }
+
+// ------------------------------------------------------------------------------------
+// Phase 5: orders and finance
+
+/// A request approved by the customer: S1 recommended (1200 × 100, 45,000 × 4, shipping 2,000).
+async fn approved(f: &Flow) -> Uuid {
+    let (request, _, cmp, q1, _) = f.compared(&f.requester).await;
+    let rec = f.recommend_and_send(request, cmp, q1).await;
+    let r = f.decide(&f.manager1, rec, "approve", "").await;
+    assert_eq!(r.body["status"], "approved", "{:?}", r.body);
+    request
+}
+
+#[sqlx::test(migrator = "procure_server::MIGRATOR")]
+async fn order_to_close_with_a_matching_invoice(pool: PgPool) {
+    let f = Flow::new(pool).await;
+    let app = &f.w.app;
+    let finance =
+        f.w.member(f.w.org_a, &f.w.admin_a, "fin@a.test", "finance")
+            .await;
+    let request = approved(&f).await;
+    let order_url = f.url(&format!("requests/{request}/order"));
+    // Ordering is the customer's decision; staff and requesters cannot record it.
+    for who in [&f.operator, &f.requester] {
+        assert_eq!(
+            app.post(&order_url, who, json!({ "po_number": "PO-1" }))
+                .await
+                .status,
+            StatusCode::FORBIDDEN
+        );
+    }
+    let r = app
+        .post(
+            &order_url,
+            &f.manager1,
+            json!({ "po_number": "PO-2026-0042" }),
+        )
+        .await;
+    assert_eq!(r.status, StatusCode::CREATED, "{:?}", r.body);
+    let order = uuid(&r.body["id"]);
+    assert_eq!(
+        app.post(&order_url, &f.manager1, json!({ "po_number": "PO-X" }))
+            .await
+            .status,
+        StatusCode::CONFLICT
+    );
+
+    let d = app.get(&order_url, &f.requester).await;
+    assert_eq!(d.status, StatusCode::OK, "{:?}", d.body);
+    assert_eq!(d.body["order"]["total_minor"], 302_000);
+    assert_eq!(d.body["order"]["shipping_minor"], 2000);
+    let items: Vec<(Uuid, i64)> = d.body["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|i| (uuid(&i["id"]), i["quantity"].as_i64().unwrap()))
+        .collect();
+    assert_eq!(d.body["items"][0]["unit_price_minor"], 1200);
+
+    // Partial delivery keeps it ordered; more than ordered is refused.
+    let deliveries = f.url(&format!("orders/{order}/deliveries"));
+    let r = app
+        .post(
+            &deliveries,
+            &f.requester,
+            json!({ "lines": [{ "order_item_id": items[0].0, "quantity": 60 }] }),
+        )
+        .await;
+    assert_eq!(r.status, StatusCode::CREATED, "{:?}", r.body);
+    assert_eq!(f.status(request).await, "ordered");
+    let r = app
+        .post(
+            &deliveries,
+            &f.requester,
+            json!({ "lines": [{ "order_item_id": items[0].0, "quantity": 41 }] }),
+        )
+        .await;
+    assert_eq!(r.body["error"]["detail"], "over_received");
+    let r = app.post(&deliveries, &f.requester, json!({ "lines": [
+        { "order_item_id": items[0].0, "quantity": 40 }, { "order_item_id": items[1].0, "quantity": 4 } ] })).await;
+    assert_eq!(r.status, StatusCode::CREATED);
+    assert_eq!(f.status(request).await, "delivered");
+
+    // Invoice: 302,000 + 10% tax rounded down = 30,200 → matched → reconciled.
+    let invoice = |tax: i64| {
+        json!({
+        "supplier_invoice_number": "INV-881", "invoice_date": "2026-11-20", "due_date": "2026-12-31",
+        "currency": "JPY", "shipping_minor": 2000, "tax_rate_bps": 1000, "tax_minor": tax,
+        "lines": [ { "order_item_id": items[0].0, "quantity": 100, "unit_price_minor": 1200 },
+                   { "order_item_id": items[1].0, "quantity": 4, "unit_price_minor": 45000 } ] })
+    };
+    let inv_url = f.url(&format!("orders/{order}/invoice"));
+    assert_eq!(
+        app.post(&inv_url, &f.operator, invoice(30_200))
+            .await
+            .status,
+        StatusCode::FORBIDDEN
+    );
+    assert_eq!(
+        app.post(&inv_url, &f.requester, invoice(30_200))
+            .await
+            .status,
+        StatusCode::FORBIDDEN
+    );
+    let r = app.post(&inv_url, &finance, invoice(30_200)).await;
+    assert_eq!(r.status, StatusCode::CREATED, "{:?}", r.body);
+    assert_eq!(r.body["match_status"], "matched");
+    assert_eq!(f.status(request).await, "reconciled");
+    let d = app.get(&order_url, &finance).await;
+    assert_eq!(d.body["invoice"]["total_minor"], 332_200);
+    assert_eq!(d.body["invoice"]["subtotal_minor"], 300_000);
+    assert_eq!(
+        app.post(&inv_url, &finance, invoice(30_200)).await.status,
+        StatusCode::CONFLICT
+    );
+
+    let r = app
+        .post(
+            &f.url(&format!("requests/{request}/close")),
+            &finance,
+            json!({}),
+        )
+        .await;
+    assert_eq!(r.status, StatusCode::NO_CONTENT);
+    assert_eq!(f.status(request).await, "closed");
+    // The orders list shows it; another org sees nothing.
+    let r = app.get(&f.url("requests?stage=orders"), &f.manager1).await;
+    assert_eq!(r.body.as_array().unwrap().len(), 1);
+    let in_b = format!("/api/v1/orgs/{}/requests/{request}/order", f.w.org_b);
+    assert_eq!(
+        app.get(&in_b, &f.w.admin_b).await.status,
+        StatusCode::NOT_FOUND
+    );
+
+    let (actions, chain_valid) = f.audit_actions().await;
+    assert!(chain_valid);
+    for a in [
+        "order.recorded",
+        "delivery.recorded",
+        "request.delivered",
+        "invoice.recorded",
+        "request.invoiced",
+        "request.reconciled",
+        "request.closed",
+    ] {
+        assert!(actions.iter().any(|x| x == a), "{a}");
+    }
+}
+
+#[sqlx::test(migrator = "procure_server::MIGRATOR")]
+async fn mismatched_invoice_is_disputed_until_every_difference_is_resolved(pool: PgPool) {
+    let f = Flow::new(pool).await;
+    let app = &f.w.app;
+    let finance =
+        f.w.member(f.w.org_a, &f.w.admin_a, "fin@a.test", "finance")
+            .await;
+    let request = approved(&f).await;
+    let r = app
+        .post(
+            &f.url(&format!("requests/{request}/order")),
+            &f.manager1,
+            json!({ "po_number": "PO-7" }),
+        )
+        .await;
+    let order = uuid(&r.body["id"]);
+    let d = app
+        .get(&f.url(&format!("requests/{request}/order")), &f.manager1)
+        .await;
+    let items: Vec<Uuid> = d.body["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|i| uuid(&i["id"]))
+        .collect();
+    // Invoicing before delivery is refused.
+    let inv_url = f.url(&format!("orders/{order}/invoice"));
+    let body = json!({
+        "supplier_invoice_number": "INV-9", "invoice_date": "2026-11-20", "currency": "JPY",
+        "shipping_minor": 2000, "tax_rate_bps": 1000, "tax_minor": 1,
+        "lines": [ { "order_item_id": items[0], "quantity": 100, "unit_price_minor": 1250 },
+                   { "order_item_id": items[1], "quantity": 4, "unit_price_minor": 45000 } ] });
+    assert_eq!(
+        app.post(&inv_url, &finance, body.clone()).await.status,
+        StatusCode::CONFLICT
+    );
+    app.post(&f.url(&format!("orders/{order}/deliveries")), &f.manager1, json!({ "lines": [
+        { "order_item_id": items[0], "quantity": 100 }, { "order_item_id": items[1], "quantity": 4 } ] })).await;
+    // Price 1,250 instead of 1,200 and a wrong tax amount.
+    let r = app.post(&inv_url, &finance, body).await;
+    assert_eq!(r.body["match_status"], "disputed", "{:?}", r.body);
+    assert_eq!(r.body["discrepancies"], 2);
+    assert_eq!(f.status(request).await, "disputed");
+    let d = app
+        .get(&f.url(&format!("requests/{request}/order")), &finance)
+        .await;
+    let disc = d.body["discrepancies"].as_array().unwrap().clone();
+    let price = disc.iter().find(|x| x["kind"] == "price_mismatch").unwrap();
+    assert_eq!(
+        (price["expected"].as_i64(), price["actual"].as_i64()),
+        (Some(1200), Some(1250))
+    );
+    let tax = disc.iter().find(|x| x["kind"] == "tax_mismatch").unwrap();
+    // (125,000 + 180,000 + 2,000) × 10% = 30,700 expected.
+    assert_eq!(tax["expected"], 30_700);
+
+    let resolve = |id: &Value| f.url(&format!("discrepancies/{}/resolve", id.as_str().unwrap()));
+    let r = app
+        .post(
+            &resolve(&price["id"]),
+            &finance,
+            json!({ "resolution": "credit_note", "note": " " }),
+        )
+        .await;
+    assert_eq!(r.status, StatusCode::UNPROCESSABLE_ENTITY);
+    let r = app
+        .post(
+            &resolve(&price["id"]),
+            &finance,
+            json!({ "resolution": "credit_note", "note": "CN-12 for ¥5,000" }),
+        )
+        .await;
+    assert_eq!(r.status, StatusCode::NO_CONTENT);
+    assert_eq!(f.status(request).await, "disputed");
+    assert_eq!(
+        app.post(
+            &resolve(&price["id"]),
+            &finance,
+            json!({ "resolution": "accepted", "note": "x" })
+        )
+        .await
+        .status,
+        StatusCode::CONFLICT
+    );
+    let r = app
+        .post(
+            &resolve(&tax["id"]),
+            &finance,
+            json!({ "resolution": "supplier_corrected", "note": "Revised invoice INV-9b" }),
+        )
+        .await;
+    assert_eq!(r.status, StatusCode::NO_CONTENT);
+    assert_eq!(f.status(request).await, "reconciled");
+    let d = app
+        .get(&f.url(&format!("requests/{request}/order")), &finance)
+        .await;
+    assert_eq!(d.body["invoice"]["match_status"], "reconciled");
+}
+
+#[sqlx::test(migrator = "procure_server::MIGRATOR")]
+async fn finance_review_regressions(pool: PgPool) {
+    let f = Flow::new(pool).await;
+    let app = &f.w.app;
+    let finance =
+        f.w.member(f.w.org_a, &f.w.admin_a, "fin@a.test", "finance")
+            .await;
+    let mut orders = vec![];
+    for po in ["PO-A", "PO-B"] {
+        let request = approved(&f).await;
+        let r = app
+            .post(
+                &f.url(&format!("requests/{request}/order")),
+                &f.manager1,
+                json!({ "po_number": po }),
+            )
+            .await;
+        let order = uuid(&r.body["id"]);
+        let d = app
+            .get(&f.url(&format!("requests/{request}/order")), &f.manager1)
+            .await;
+        let items: Vec<Uuid> = d.body["items"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|i| uuid(&i["id"]))
+            .collect();
+        orders.push((request, order, items));
+    }
+    let (request, order, items) = orders[0].clone();
+    let deliveries = f.url(&format!("orders/{order}/deliveries"));
+    // A mistaken receipt (typed 100 instead of 10) is reversed and booked again.
+    let r = app.post(&deliveries, &f.requester, json!({ "lines": [
+        { "order_item_id": items[0], "quantity": 100 }, { "order_item_id": items[1], "quantity": 4 } ] })).await;
+    let wrong = uuid(&r.body["id"]);
+    assert_eq!(f.status(request).await, "delivered");
+    let reverse = f.url(&format!("deliveries/{wrong}/reverse"));
+    assert_eq!(
+        app.post(&reverse, &f.requester, json!({ "reason": " " }))
+            .await
+            .status,
+        StatusCode::UNPROCESSABLE_ENTITY
+    );
+    assert_eq!(
+        app.post(
+            &reverse,
+            &f.requester,
+            json!({ "reason": "Typed the wrong quantity" })
+        )
+        .await
+        .status,
+        StatusCode::NO_CONTENT
+    );
+    assert_eq!(f.status(request).await, "ordered");
+    assert_eq!(
+        app.post(&reverse, &f.requester, json!({ "reason": "again" }))
+            .await
+            .status,
+        StatusCode::CONFLICT
+    );
+    let d = app
+        .get(&f.url(&format!("requests/{request}/order")), &f.requester)
+        .await;
+    assert_eq!(d.body["items"][0]["received"], 0);
+    assert!(d.body["deliveries"][0]["reversed_at"].is_string());
+    app.post(&deliveries, &f.requester, json!({ "lines": [
+        { "order_item_id": items[0], "quantity": 100 }, { "order_item_id": items[1], "quantity": 4 } ] })).await;
+    assert_eq!(f.status(request).await, "delivered");
+
+    // Under-invoicing, an extra billed item, and mixed tax rates.
+    // Billed: 50 × 1,200 at 8% (60,000 → 4,800), 4 × 45,000 + shipping 2,000 + extra 1,000 at 10%
+    // (183,000 → 18,300) = tax 23,100.
+    let invoice = json!({
+        "supplier_invoice_number": "INV-1", "invoice_date": "2026-11-20", "currency": "JPY",
+        "shipping_minor": 2000, "tax_rate_bps": 1000, "tax_minor": 23100,
+        "lines": [ { "order_item_id": items[0], "quantity": 50, "unit_price_minor": 1200, "tax_rate_bps": 800 },
+                   { "order_item_id": items[1], "quantity": 4, "unit_price_minor": 45000 },
+                   { "description": "Handling fee", "quantity": 1, "unit_price_minor": 1000 } ] });
+    let r = app
+        .post(
+            &f.url(&format!("orders/{order}/invoice")),
+            &finance,
+            invoice,
+        )
+        .await;
+    assert_eq!(r.status, StatusCode::CREATED, "{:?}", r.body);
+    assert_eq!(r.body["match_status"], "disputed");
+    let d = app
+        .get(&f.url(&format!("requests/{request}/order")), &finance)
+        .await;
+    let kinds: Vec<_> = d.body["discrepancies"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|x| x["kind"].as_str().unwrap().to_string())
+        .collect();
+    assert!(
+        kinds.contains(&"quantity_under_received".to_string()),
+        "{kinds:?}"
+    );
+    assert!(kinds.contains(&"unknown_item".to_string()), "{kinds:?}");
+    assert!(
+        !kinds.contains(&"tax_mismatch".to_string()),
+        "per-rate tax is computed correctly: {kinds:?}"
+    );
+    // Receipts can no longer be reversed once invoiced.
+    let first = uuid(&d.body["deliveries"][1]["id"]);
+    let r = app
+        .post(
+            &f.url(&format!("deliveries/{first}/reverse")),
+            &f.requester,
+            json!({ "reason": "x" }),
+        )
+        .await;
+    assert_eq!(r.body["error"]["detail"], "already_invoiced");
+
+    // The same supplier invoice number cannot be booked twice.
+    let (_, order_b, items_b) = orders[1].clone();
+    app.post(&f.url(&format!("orders/{order_b}/deliveries")), &f.manager1, json!({ "lines": [
+        { "order_item_id": items_b[0], "quantity": 100 }, { "order_item_id": items_b[1], "quantity": 4 } ] })).await;
+    let dup = json!({
+        "supplier_invoice_number": "INV-1", "invoice_date": "2026-11-21", "currency": "JPY",
+        "shipping_minor": 2000, "tax_rate_bps": 1000, "tax_minor": 30200,
+        "lines": [ { "order_item_id": items_b[0], "quantity": 100, "unit_price_minor": 1200 },
+                   { "order_item_id": items_b[1], "quantity": 4, "unit_price_minor": 45000 } ] });
+    let r = app
+        .post(&f.url(&format!("orders/{order_b}/invoice")), &finance, dup)
+        .await;
+    assert_eq!(r.body["error"]["detail"], "invoice_already_recorded");
+}

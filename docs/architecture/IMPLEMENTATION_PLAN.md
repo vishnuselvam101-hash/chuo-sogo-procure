@@ -48,6 +48,8 @@ Status (2026-11-01): ☑ migration `0006`; API `ops` — staff work queue across
 ## Phase 5 — Orders and finance (dep Phase 2)
 PO reference, order items, deliveries/receiving, invoice entry (+ extraction via Phase 3), 3-way match, discrepancies, resolution.
 
+Status (2026-11-01): ☑ migration `0007`; `procure_domain::matching` (three-way match, tax per rate with one rounding per rate); API `orders` — customer records its own PO from the approved recommendation (cross-checked), receipts with reversal, supplier invoice entry (lines per order item or off-order, per-line tax rate) matched exactly → reconciled or disputed with itemised discrepancies, resolution with note, close. Orders and Invoices pages; order panel on requests (ja/en/ta/hi). ◐ Invoice AI extraction, partial invoicing and tolerances later.
+
 ## Phase 6 — Enterprise readiness (dep 2–5)
 Full ja translation review, reports, security hardening pass (ZAP vs local server, ASVS L2 checklist), backup/restore drill, deployment + install/update/troubleshooting docs, CI matrix builds (Win/macOS/Linux), updater, benchmarks.
 

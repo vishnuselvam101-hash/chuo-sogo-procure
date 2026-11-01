@@ -278,6 +278,38 @@ try {
   await click("Approve");
   check("customer approves; request approved", await headerStatus("Approved"));
   await shot("05-approved");
+
+  // --- Order to cash ---------------------------------------------------------------------
+  await (await field("Your PO number")).setValue("PO-E2E-0001");
+  await click("Record purchase order");
+  check("manager records the customer's own PO", await headerStatus("Ordered"));
+  const receiveInputs = await b.$$("input[aria-label='Receive now']");
+  for (const [i, qty] of ["100", "4"].entries()) await receiveInputs[i].setValue(qty);
+  await click("Record receipt");
+  check("goods received in full", await headerStatus("Delivered"));
+  await signOut();
+
+  await signIn("finance@customer.e2e");
+  await nav("Invoices");
+  await click(number);
+  await (await field("Invoice number")).setValue("INV-E2E-77");
+  // Lines are typed from the supplier's invoice (the order's figures are only hints).
+  const qtyInputs = await b.$$("input[aria-label='Quantity']");
+  const priceInputs2 = await b.$$("input[aria-label='Unit price']");
+  for (const [i, [qty, price]] of [
+    ["100", "1200"],
+    ["4", "45000"],
+  ].entries()) {
+    await qtyInputs[i].setValue(qty);
+    await priceInputs2[i].setValue(price);
+  }
+  // ¥300,000 × 10%, rounded down.
+  await (await field("Tax on the invoice")).setValue("30000");
+  await click("Record and match");
+  check("matching invoice reconciles the request", await headerStatus("Reconciled"));
+  await shot("06-reconciled");
+  await click("Close request");
+  check("finance closes the request", await headerStatus("Closed"));
   await signOut();
 } catch (e) {
   console.log(`FAIL unexpected error: ${e.message}`);

@@ -14,6 +14,7 @@ import { VerifyItem } from "./VerifyItem";
 import { AiItems } from "./AiItems";
 import { Comments } from "./Comments";
 import { StaffPanel } from "./StaffPanel";
+import { OrderPanel } from "./OrderPanel";
 import { P } from "../lib/perm";
 
 const EDITABLE = ["draft", "needs_clarification"];
@@ -249,6 +250,8 @@ export function RequestDetail({ active, selfId, requestId, onBack }: Props) {
           </div>
         ),
       )}
+
+      <OrderPanel active={active} requestId={r.id} status={r.status} onChanged={reload} />
 
       {data.recommendation && (
         <RecommendationPanel

@@ -48,8 +48,8 @@ export function navFor(m: MembershipView): NavItem[] {
     if (m.access === "assigned" && has("operate_requests")) items.push(item("opsQueue", true));
     if (m.access !== "assigned") items.push(item("products"));
     if (has("approve_recommendation") || has("manage_approval_policy")) items.push(item("approvals", true));
-    if (has("view_orders")) items.push(item("orders"));
-    if (has("view_finance")) items.push(item("invoices"));
+    if (has("view_orders")) items.push(item("orders", true));
+    if (has("view_finance")) items.push(item("invoices", true));
     if (has("view_reports")) items.push(item("reports"));
     if (has("manage_org_users")) items.push(item("members", true));
   }

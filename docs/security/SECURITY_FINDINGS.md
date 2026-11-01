@@ -40,6 +40,15 @@
 | SF-036 | 2026-11-01 | Ops queue readable by assigned staff without OperateRequests (platform super admin) | Low | V8 (authorization) | Fixed | queue requires a role that may operate requests; 403 test |
 | SF-037 | 2026-11-01 | Operators could take or drop a colleague's task without AssignWork | Low | V8 | Fixed | changing an active holder's task needs AssignWork; regression test |
 | SF-038 | 2026-11-01 | Automatic tasks: not closed on cancel/clarification/reject; one chase task per request instead of per RFQ (closing the wrong one); due dates in UTC; tasks of revoked staff invisible | Low | — (operations correctness) | Fixed | cancellation on leaving Chuo-Sogo's hands, per-RFQ chase tasks, end of day in the customer's timezone, orphaned tasks shown as unassigned |
+| SF-039 | 2026-11-01 | Finance: invoicing less than received reconciled silently (the rest never billed) | High | V2 (business logic) | Fixed | `quantity_under_received` discrepancy; regression test |
+| SF-040 | 2026-11-01 | Finance: a mistaken receipt could not be undone; items billed but not ordered could not be recorded; single tax rate per invoice (false tax mismatches on 8%/10% invoices) | Medium | V2 | Fixed | receipt reversal (before invoicing), off-order invoice lines → `unknown_item`, per-rate tax computed and rounded once per rate |
+| SF-041 | 2026-11-01 | Finance: same supplier invoice bookable on two orders; PO total not cross-checked with its lines; invoice form pre-filled with PO figures (click-through "match") | Medium | V2 | Fixed | unique (org, supplier, invoice number), recompute on order (`recommendation_inconsistent`), PO figures only as hints |
+
+## Residual risk (Phase 5)
+- One invoice per order (no partial invoicing / multiple invoices yet); a short invoice becomes a discrepancy instead.
+- Over-delivery by a supplier cannot be booked (refused); excess goods are handled outside the app.
+- Matching is exact (no price/quantity tolerance setting yet).
+- Invoice entry is manual; AI extraction of supplier invoices is not implemented yet.
 
 ## Residual risk (Phase 4)
 - Automatic task opening/closing is not audited separately (the workflow transition that causes it is).

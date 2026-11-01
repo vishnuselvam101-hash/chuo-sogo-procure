@@ -238,6 +238,8 @@ pub struct RequestSummary {
 pub struct ListQuery {
     /// Filter by workflow status code.
     pub status: Option<String>,
+    /// `orders` (approved to closed) or `finance` (delivered to reconciled).
+    pub stage: Option<String>,
     pub limit: Option<i64>,
 }
 
@@ -268,6 +270,20 @@ pub async fn list_requests(
     {
         return Err(ApiError::Validation("status"));
     }
+    let stage: Option<Vec<&str>> = match q.stage.as_deref() {
+        None => None,
+        Some("orders") => Some(vec![
+            "approved",
+            "ordered",
+            "delivered",
+            "invoiced",
+            "disputed",
+            "reconciled",
+            "closed",
+        ]),
+        Some("finance") => Some(vec!["delivered", "invoiced", "disputed", "reconciled"]),
+        Some(_) => return Err(ApiError::Validation("stage")),
+    };
     let limit = q.limit.unwrap_or(100).clamp(1, 500);
     let mut tx = db::tenant_tx(&state.pool, p.user_id, org_id).await?;
     let rows = sqlx::query_as::<_, RequestSummary>(
@@ -277,11 +293,13 @@ pub async fn list_requests(
                 r.created_at, r.updated_at
          FROM procurement_requests r LEFT JOIN users u ON u.id = r.requested_by
          WHERE ($1::uuid IS NULL OR r.requested_by = $1) AND ($2::text IS NULL OR r.status = $2)
+           AND ($4::text[] IS NULL OR r.status = ANY($4))
          ORDER BY r.created_at DESC, r.id DESC LIMIT $3",
     )
     .bind(view.owner_filter())
     .bind(q.status)
     .bind(limit)
+    .bind(stage)
     .fetch_all(&mut *tx)
     .await?;
     tx.commit().await?;

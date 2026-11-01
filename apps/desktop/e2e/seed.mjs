@@ -62,6 +62,7 @@ const operatorId = (await call("GET", "/me", operator)).user.id;
 await call("POST", `/orgs/${org}/assignments`, root, { user_id: operatorId });
 await member(org, admin, "requester@customer.e2e", "requester");
 const manager = await member(org, admin, "manager@customer.e2e", "procurement_manager");
+await member(org, admin, "finance@customer.e2e", "finance");
 
 for (const [name, email] of [
   ["Tokyo Bearings KK", "rfq@tokyo-bearings.e2e"],

@@ -129,11 +129,15 @@ const TRANSITIONS: &[(RequestStatus, RequestStatus, Side)] = {
         (AwaitingApproval, NeedsClarification, Side::Customer),
         (Approved, Ordered, Side::Customer),
         (Ordered, Delivered, Side::Customer),
-        (Delivered, Invoiced, Side::Operator),
-        (Invoiced, Reconciled, Side::Operator),
-        (Invoiced, Disputed, Side::Operator),
-        (Disputed, Reconciled, Side::Operator),
-        (Reconciled, Closed, Side::Operator),
+        // A mistaken receipt is reversed before invoicing.
+        (Delivered, Ordered, Side::Customer),
+        // Invoices go to the customer (the PO is theirs): their finance team records and
+        // reconciles them.
+        (Delivered, Invoiced, Side::Customer),
+        (Invoiced, Reconciled, Side::Customer),
+        (Invoiced, Disputed, Side::Customer),
+        (Disputed, Reconciled, Side::Customer),
+        (Reconciled, Closed, Side::Customer),
     ]
 };
 

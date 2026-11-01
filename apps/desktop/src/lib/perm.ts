@@ -13,6 +13,9 @@ export const P = {
   manageSuppliers: "manage_suppliers",
   manageProducts: "manage_products",
   viewInternalNotes: "view_internal_notes",
+  recordOrders: "record_orders",
+  receiveGoods: "receive_goods",
+  manageInvoices: "manage_invoices",
 } as const;
 
 export const AWAITING_APPROVAL = "awaiting_approval";

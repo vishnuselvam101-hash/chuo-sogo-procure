@@ -295,6 +295,38 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/orgs/{org_id}/deliveries/{delivery_id}/reverse": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["reverse_delivery"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/orgs/{org_id}/discrepancies/{discrepancy_id}/resolve": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["resolve_discrepancy"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/orgs/{org_id}/members": {
     parameters: {
       query?: never;
@@ -325,6 +357,38 @@ export interface paths {
     options?: never;
     head?: never;
     patch: operations["update_member"];
+    trace?: never;
+  };
+  "/api/v1/orgs/{org_id}/orders/{order_id}/deliveries": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["record_delivery"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/orgs/{org_id}/orders/{order_id}/invoice": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["record_invoice"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
     trace?: never;
   };
   "/api/v1/orgs/{org_id}/products/{product_id}": {
@@ -503,6 +567,22 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/orgs/{org_id}/requests/{request_id}/close": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["close_request"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/orgs/{org_id}/requests/{request_id}/comments": {
     parameters: {
       query?: never;
@@ -577,6 +657,22 @@ export interface paths {
     get?: never;
     put?: never;
     post: operations["verify_item"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/orgs/{org_id}/requests/{request_id}/order": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["get_order"];
+    put?: never;
+    post: operations["record_order"];
     delete?: never;
     options?: never;
     head?: never;
@@ -1177,6 +1273,47 @@ export interface components {
       /** @description `approve`, `reject` or `clarify`. */
       decision: string;
     };
+    DeliveryInput: {
+      lines: components["schemas"]["DeliveryLineInput"][];
+      note?: string;
+      /** Format: date-time */
+      received_at?: string | null;
+    };
+    DeliveryLineInput: {
+      /** Format: uuid */
+      order_item_id: string;
+      /** Format: int32 */
+      quantity: number;
+    };
+    DeliveryView: {
+      /** Format: uuid */
+      id: string;
+      note: string;
+      /** Format: date-time */
+      received_at: string;
+      received_by_name?: string | null;
+      reversal_reason?: string | null;
+      /** Format: date-time */
+      reversed_at?: string | null;
+    };
+    DiscrepancyView: {
+      /** Format: int64 */
+      actual?: number | null;
+      /** Format: int64 */
+      expected?: number | null;
+      /** Format: uuid */
+      id: string;
+      kind: string;
+      /** Format: int32 */
+      line_no?: number | null;
+      /** Format: uuid */
+      order_item_id?: string | null;
+      resolution?: string | null;
+      resolution_note: string;
+      /** Format: date-time */
+      resolved_at?: string | null;
+      status: string;
+    };
     DispatchResponse: {
       /** @description Always `test`: messages are recorded for manual export, nothing is sent. */
       channel: string;
@@ -1240,6 +1377,79 @@ export interface components {
       org_id: string;
       org_name: string;
       role: string;
+    };
+    InvoiceInput: {
+      currency: string;
+      /** Format: date */
+      due_date?: string | null;
+      /** Format: date */
+      invoice_date: string;
+      lines: components["schemas"]["InvoiceLineInput"][];
+      /** Format: int64 */
+      shipping_minor?: number;
+      supplier_invoice_number: string;
+      /**
+       * Format: int64
+       * @description Tax as printed on the invoice.
+       */
+      tax_minor: number;
+      /**
+       * Format: int32
+       * @description Tax rate in basis points (1000 = 10%).
+       */
+      tax_rate_bps: number;
+      /** @description `floor` (default), `half_up` or `ceil`. */
+      tax_rounding?: string;
+    };
+    InvoiceLineInput: {
+      description?: string;
+      /**
+       * Format: uuid
+       * @description Omit for something the supplier billed that is not on the order (then `description`
+       *     is required); it becomes a discrepancy.
+       */
+      order_item_id?: string | null;
+      /** Format: int32 */
+      quantity: number;
+      /**
+       * Format: int32
+       * @description Defaults to the invoice's rate.
+       */
+      tax_rate_bps?: number | null;
+      /** Format: int64 */
+      unit_price_minor: number;
+    };
+    InvoiceResult: {
+      discrepancies: number;
+      /** Format: uuid */
+      id: string;
+      /** @description `matched` (request reconciled) or `disputed` (discrepancies to resolve). */
+      match_status: string;
+    };
+    InvoiceView: {
+      /** Format: date-time */
+      created_at: string;
+      currency: string;
+      /** Format: date */
+      due_date?: string | null;
+      /** Format: uuid */
+      id: string;
+      /** Format: date */
+      invoice_date: string;
+      /** @description `matched`, `disputed` or `reconciled`. */
+      match_status: string;
+      /** Format: int64 */
+      shipping_minor: number;
+      /** Format: int64 */
+      subtotal_minor: number;
+      supplier_invoice_number: string;
+      /** Format: int64 */
+      tax_minor: number;
+      /** Format: int32 */
+      tax_rate_bps: number;
+      tax_rounding: string;
+      /** Format: int64 */
+      total_minor: number;
     };
     ItemInput: {
       description: string;
@@ -1311,6 +1521,47 @@ export interface components {
       permissions: string[];
       role: string;
       timezone: string;
+    };
+    OrderDetail: {
+      deliveries: components["schemas"]["DeliveryView"][];
+      discrepancies: components["schemas"]["DiscrepancyView"][];
+      invoice?: null | components["schemas"]["InvoiceView"];
+      items: components["schemas"]["OrderItemView"][];
+      order: components["schemas"]["OrderHeader"];
+    };
+    OrderHeader: {
+      currency: string;
+      /** Format: uuid */
+      id: string;
+      notes: string;
+      /** Format: date-time */
+      ordered_at: string;
+      po_number: string;
+      /** Format: uuid */
+      request_id: string;
+      /** Format: int64 */
+      shipping_minor: number;
+      /** Format: uuid */
+      supplier_id: string;
+      supplier_name?: string | null;
+      /** Format: int64 */
+      total_minor: number;
+    };
+    OrderItemView: {
+      alternative: boolean;
+      description: string;
+      /** Format: uuid */
+      id: string;
+      /** Format: int32 */
+      line_no: number;
+      offered_mpn: string;
+      /** Format: int32 */
+      quantity: number;
+      /** Format: int64 */
+      received: number;
+      unit: string;
+      /** Format: int64 */
+      unit_price_minor: number;
     };
     OrgSupplierView: {
       categories: string[];
@@ -1553,6 +1804,11 @@ export interface components {
       /** Format: int64 */
       total_minor: number;
     };
+    RecordOrderBody: {
+      notes?: string;
+      /** @description The customer's own purchase order number. */
+      po_number: string;
+    };
     RequestDetail: {
       items: components["schemas"]["ItemView"][];
       recommendation?: null | components["schemas"]["RecommendationSummary"];
@@ -1603,6 +1859,14 @@ export interface components {
     };
     ResetRequest: {
       email: string;
+    };
+    ResolveBody: {
+      note: string;
+      /** @description `accepted`, `credit_note`, `supplier_corrected`, `written_off` or `other`. */
+      resolution: string;
+    };
+    ReverseBody: {
+      reason: string;
     };
     RfqDetail: {
       /**
@@ -2847,6 +3111,164 @@ export interface operations {
       };
     };
   };
+  reverse_delivery: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+        delivery_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ReverseBody"];
+      };
+    };
+    responses: {
+      /** @description Receipt reversed (kept on record, no longer counted) */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown or not visible */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Already reversed, or already invoiced */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Missing reason */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  resolve_discrepancy: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+        discrepancy_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ResolveBody"];
+      };
+    };
+    responses: {
+      /** @description Resolved; the request is reconciled when none remain open */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown discrepancy */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Already resolved */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown resolution or missing note */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
   list_members: {
     parameters: {
       query?: never;
@@ -3045,6 +3467,168 @@ export interface operations {
         };
       };
       /** @description Self-modification, last admin, pending invitation, invalid role */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  record_delivery: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+        order_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["DeliveryInput"];
+      };
+    };
+    responses: {
+      /** @description Receipt recorded; the request becomes delivered once everything has arrived */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["IdResponse"];
+        };
+      };
+      /** @description Malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown or not visible */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Order is not open for receiving */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown line or more than ordered */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  record_invoice: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+        order_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["InvoiceInput"];
+      };
+    };
+    responses: {
+      /** @description Invoice recorded and matched */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InvoiceResult"];
+        };
+      };
+      /** @description Malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown or not visible */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not delivered yet, or already invoiced */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Invalid invoice */
       422: {
         headers: {
           [name: string]: unknown;
@@ -3407,6 +3991,8 @@ export interface operations {
         org_id: string;
         /** @description Filter by workflow status code. */
         status: string | null;
+        /** @description `orders` (approved to closed) or `finance` (delivered to reconciled). */
+        stage: string | null;
         limit: number | null;
       };
       cookie?: never;
@@ -4073,6 +4659,72 @@ export interface operations {
       };
     };
   };
+  close_request: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+        request_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Closed */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown request */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not reconciled */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
   list_comments: {
     parameters: {
       query?: never;
@@ -4633,6 +5285,146 @@ export interface operations {
         };
       };
       /** @description Invalid note */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  get_order: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+        request_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Order with items, deliveries, invoice and discrepancies */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["OrderDetail"];
+        };
+      };
+      /** @description Malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description No order, or not visible */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  record_order: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+        request_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["RecordOrderBody"];
+      };
+    };
+    responses: {
+      /** @description Purchase order recorded from the approved recommendation */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["IdResponse"];
+        };
+      };
+      /** @description Malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted (customer decision) */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown or not visible */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not approved, or PO number already used */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Invalid PO number */
       422: {
         headers: {
           [name: string]: unknown;

@@ -108,7 +108,9 @@
     "low": "Low",
     "normal": "Normal",
     "high": "High",
-    "urgent": "Urgent"
+    "urgent": "Urgent",
+    "matched": "Matched",
+    "resolved": "Resolved"
   },
   "orgs": {
     "create": "Create customer organisation",

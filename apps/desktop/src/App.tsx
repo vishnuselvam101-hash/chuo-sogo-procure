@@ -21,6 +21,8 @@ import { OpsQueue } from "./pages/OpsQueue";
 
 const HOME: PageId = "dashboard";
 const PROCUREMENT: PageId = "procurement";
+const ORDERS_STAGE = "orders";
+const FINANCE_STAGE = "finance";
 const HOME_LABEL = "nav.dashboard";
 
 /** Stand-in context while the user only has pending invitations. */
@@ -51,7 +53,7 @@ export function resolveLanguage(
 }
 
 export function App() {
-  const { i18n } = useTranslation();
+  const { i18n, t } = useTranslation();
   const bridge = useBridge();
   const [prefs, setPrefs] = useState<Prefs | null>(null);
   const [me, setMe] = useState<Me | null>(null);
@@ -127,6 +129,18 @@ export function App() {
       break;
     case "suppliers":
       body = <Suppliers key={active.org_id} active={active} />;
+      break;
+    case "orders":
+    case "invoices":
+      body = (
+        <Requests
+          key={`${active.org_id}-${current?.id ?? ""}`}
+          active={active}
+          selfId={me.user.id}
+          stage={current?.id === "orders" ? ORDERS_STAGE : FINANCE_STAGE}
+          title={t(current?.labelKey ?? HOME_LABEL)}
+        />
+      );
       break;
     case "opsQueue":
       body = (

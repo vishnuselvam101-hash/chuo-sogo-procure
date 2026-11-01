@@ -108,7 +108,9 @@
     "low": "低",
     "normal": "通常",
     "high": "高",
-    "urgent": "緊急"
+    "urgent": "緊急",
+    "matched": "一致",
+    "resolved": "解決済み"
   },
   "orgs": {
     "create": "顧客組織を作成",

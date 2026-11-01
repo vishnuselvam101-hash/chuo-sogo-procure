@@ -265,5 +265,66 @@
     "meeting": "Meeting",
     "chat": "Chat",
     "other": "Other"
+  },
+  "order": {
+    "heading": "Purchase order",
+    "explain": "Record your own purchase order number for the approved supplier. Nothing is sent to the supplier from this app.",
+    "poNumber": "Your PO number",
+    "record": "Record purchase order",
+    "po": "PO {{number}}",
+    "ordered": "Ordered",
+    "received": "Received",
+    "receiveNow": "Receive now",
+    "recordReceipt": "Record receipt",
+    "deliveryLine": "Received {{when}} by {{who}}",
+    "close": "Close request",
+    "reversed": "Reversed: {{reason}}",
+    "reverse": "Reverse this receipt",
+    "reverseReason": "Reason for reversing a receipt"
+  },
+  "invoice": {
+    "record": "Supplier invoice",
+    "number": "Invoice number",
+    "date": "Invoice date",
+    "due": "Due date",
+    "taxRate": "Tax rate (%)",
+    "rounding": "Tax rounding",
+    "tax": "Tax on the invoice",
+    "explain": "The invoice is compared with the order and the goods received. Every difference must be resolved before the request is reconciled.",
+    "recordAndMatch": "Record and match",
+    "heading": "Invoice {{number}}",
+    "total": "Total",
+    "difference": "Difference",
+    "expected": "Expected",
+    "actual": "Invoice",
+    "resolution": "Resolution",
+    "resolutionNote": "How it was resolved",
+    "resolve": "Resolve",
+    "lineTaxRate": "Tax % (if different)"
+  },
+  "rounding": {
+    "floor": "Round down",
+    "half_up": "Round half up",
+    "ceil": "Round up"
+  },
+  "resolution": {
+    "credit_note": "Credit note",
+    "supplier_corrected": "Supplier corrected the invoice",
+    "accepted": "Accepted as invoiced",
+    "written_off": "Written off",
+    "other": "Other"
+  },
+  "discrepancy": {
+    "currency_mismatch": "Different currency",
+    "unknown_item": "Item not ordered",
+    "duplicate_line": "Item invoiced twice",
+    "price_mismatch": "Unit price differs",
+    "quantity_over_ordered": "More than ordered",
+    "quantity_over_received": "More than received",
+    "not_invoiced": "Received item not invoiced",
+    "shipping_mismatch": "Shipping differs",
+    "tax_mismatch": "Tax amount differs",
+    "amount_overflow": "Amount too large",
+    "quantity_under_received": "Less than received"
   }
 }

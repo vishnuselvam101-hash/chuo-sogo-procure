@@ -107,6 +107,10 @@ pub enum Permission {
     ApproveRecommendation,
     /// Customer decision that a directory supplier may be recommended for this org.
     ApproveSuppliers,
+    /// Record the customer's own purchase order for an approved recommendation.
+    RecordOrders,
+    /// Confirm goods received.
+    ReceiveGoods,
     ViewOrders,
     ViewFinance,
     ManageInvoices,
@@ -140,6 +144,8 @@ impl Permission {
             Permission::ReviewQuotations => "review_quotations",
             Permission::ApproveRecommendation => "approve_recommendation",
             Permission::ApproveSuppliers => "approve_suppliers",
+            Permission::RecordOrders => "record_orders",
+            Permission::ReceiveGoods => "receive_goods",
             Permission::ViewOrders => "view_orders",
             Permission::ViewFinance => "view_finance",
             Permission::ManageInvoices => "manage_invoices",
@@ -185,6 +191,8 @@ pub fn home_permissions(role: Role) -> &'static [Permission] {
             SubmitRequest,
             ViewOwnRequests,
             ViewAllRequests,
+            RecordOrders,
+            ReceiveGoods,
             ViewOrders,
             ViewReports,
         ],
@@ -195,10 +203,12 @@ pub fn home_permissions(role: Role) -> &'static [Permission] {
             ReviewQuotations,
             ApproveRecommendation,
             ApproveSuppliers,
+            RecordOrders,
+            ReceiveGoods,
             ViewOrders,
             ViewReports,
         ],
-        Role::Requester => &[SubmitRequest, ViewOwnRequests],
+        Role::Requester => &[SubmitRequest, ViewOwnRequests, ReceiveGoods],
         Role::Finance => &[
             ViewAllRequests,
             ViewOrders,
@@ -349,6 +359,32 @@ mod tests {
                 "{r}"
             );
         }
+    }
+
+    #[test]
+    fn orders_are_customer_decisions() {
+        for r in Role::ALL {
+            assert!(
+                !allows(Access::Assigned(r), Permission::RecordOrders),
+                "{r}"
+            );
+            assert!(
+                !allows(Access::Assigned(r), Permission::ManageInvoices),
+                "{r}"
+            );
+        }
+        assert!(allows(
+            Access::Member(Role::Requester),
+            Permission::ReceiveGoods
+        ));
+        assert!(!allows(
+            Access::Member(Role::Requester),
+            Permission::RecordOrders
+        ));
+        assert!(allows(
+            Access::Member(Role::Finance),
+            Permission::ManageInvoices
+        ));
     }
 
     #[test]
