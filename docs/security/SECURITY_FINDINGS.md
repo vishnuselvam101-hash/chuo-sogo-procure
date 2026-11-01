@@ -21,6 +21,18 @@
 | SF-017 | 2026-10-31 | Desktop: `core:default` granted unused webview permissions (native menus, events, path resolution) | Low | V50 | Fixed | capability lists only the 7 app commands; E2E 6/6 with reduced set |
 | SF-018 | 2026-10-31 | CI: installer workflow used a floating tauri-cli version and a shared build cache | Low | V15 | Fixed | `tauri-cli =2.12.4 --locked`, no cache in `desktop-build` |
 | SF-019 | 2026-10-31 | Desktop: re-login replaced a token without revoking it server-side; CSP keeps `style-src 'unsafe-inline'` | Info | — | Fixed / Accepted | previous session revoked before new login; inline styles accepted (no inline script allowed) |
+| SF-020 | 2026-11-01 | Workflow: a recommended/approved quotation could be superseded by a revision; send/decide never re-checked it | Medium | V2 (business logic) | Fixed | quotations frozen after recommendation (`quotations_frozen`), withdraw endpoint, `ensure_still_valid` on send + approve; `review_findings_regressions` |
+| SF-021 | 2026-11-01 | RFQs could be sent to suppliers the customer rejected; customer supplier approval checked only at recommendation | Medium | V2 / V8 | Fixed | `supplier_rejected_by_customer` on RFQ creation; supplier approval + verification re-checked on send and approve |
+| SF-022 | 2026-11-01 | Customers could read an unsent (internal) recommendation via request detail or recommendation endpoint | Medium | V8 (authorization) | Fixed | customer views require `sent_at IS NOT NULL`; test asserts 404 / null until sent |
+| SF-023 | 2026-11-01 | Stale-comparison detection relied on transaction-start timestamps (race window) | Low | V2 | Fixed | comparison stores the exact quotation id set; stale = set differs or run not from today |
+| SF-024 | 2026-11-01 | Internal supplier notes protected only by API column lists (row-level policy exposed the column to customer transactions) | Low | V8 | Fixed | notes moved to `supplier_notes` with staff-only RLS; raw-SQL test from customer context sees 0 rows |
+| SF-025 | 2026-11-01 | Audit "from" value of supplier status/decision could be pre-wait under concurrent writers | Info | V16 (logging) | Fixed | `SELECT … FOR UPDATE` then `UPDATE` |
+
+## Residual risk (Phase 2a)
+- Zero-price quotation lines are accepted and can rank first (legitimate for samples; operator reviews before recommending).
+- A quotation line above the requested quantity (MOQ) is compliant and its total uses the quoted quantity (real cost); not flagged separately yet.
+- Self-approval mapped to 403 without a specific code; the UI cannot yet explain why.
+- Phase 2a review was static (code reviewer agent) plus the regression tests above; no dynamic testing (ZAP) of the new endpoints yet.
 
 ## Residual risk (Phase 1)
 - Audit hash chain is unkeyed SHA-256; an attacker with DB owner access could rewrite it. Runtime role cannot. External anchoring (periodic head export / HMAC) planned for Phase 6.

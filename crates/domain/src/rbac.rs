@@ -105,6 +105,8 @@ pub enum Permission {
     ViewAllRequests,
     ReviewQuotations,
     ApproveRecommendation,
+    /// Customer decision that a directory supplier may be recommended for this org.
+    ApproveSuppliers,
     ViewOrders,
     ViewFinance,
     ManageInvoices,
@@ -135,6 +137,7 @@ impl Permission {
             Permission::ViewAllRequests => "view_all_requests",
             Permission::ReviewQuotations => "review_quotations",
             Permission::ApproveRecommendation => "approve_recommendation",
+            Permission::ApproveSuppliers => "approve_suppliers",
             Permission::ViewOrders => "view_orders",
             Permission::ViewFinance => "view_finance",
             Permission::ManageInvoices => "manage_invoices",
@@ -173,6 +176,7 @@ pub fn home_permissions(role: Role) -> &'static [Permission] {
             ManageOrgUsers,
             ManageOrgSettings,
             ManageApprovalPolicy,
+            ApproveSuppliers,
             ViewAudit,
             SubmitRequest,
             ViewOwnRequests,
@@ -186,6 +190,7 @@ pub fn home_permissions(role: Role) -> &'static [Permission] {
             ViewAllRequests,
             ReviewQuotations,
             ApproveRecommendation,
+            ApproveSuppliers,
             ViewOrders,
             ViewReports,
         ],
@@ -308,6 +313,22 @@ mod tests {
     #[test]
     fn no_access_means_nothing() {
         assert!(!allows(Access::None, Permission::ViewOwnRequests));
+    }
+
+    #[test]
+    fn supplier_approval_is_a_customer_decision() {
+        for r in Role::ALL {
+            assert!(
+                !allows(Access::Assigned(r), Permission::ApproveSuppliers),
+                "{r}"
+            );
+            let expected = matches!(r, Role::CustomerAdmin | Role::ProcurementManager);
+            assert_eq!(
+                allows(Access::Member(r), Permission::ApproveSuppliers),
+                expected,
+                "{r}"
+            );
+        }
     }
 
     #[test]

@@ -57,3 +57,9 @@ pub async fn auth_lookup(tx: &mut Tx, on: bool) -> Result<(), sqlx::Error> {
 pub async fn enable_platform_scope(tx: &mut Tx) -> Result<(), sqlx::Error> {
     set(tx, "app.scope", "platform").await
 }
+
+/// Only after verifying the caller holds a platform-org role: makes the platform-level
+/// supplier directory visible and writable in this transaction.
+pub async fn enable_staff_scope(tx: &mut Tx) -> Result<(), sqlx::Error> {
+    set(tx, "app.staff", "on").await
+}

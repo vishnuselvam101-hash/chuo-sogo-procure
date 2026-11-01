@@ -113,6 +113,14 @@ impl App {
         self.call(Method::PATCH, uri, Some(token), Some(body)).await
     }
 
+    pub async fn put(&self, uri: &str, token: &str, body: Value) -> Resp {
+        self.call(Method::PUT, uri, Some(token), Some(body)).await
+    }
+
+    pub async fn delete(&self, uri: &str, token: &str) -> Resp {
+        self.call(Method::DELETE, uri, Some(token), None).await
+    }
+
     /// Latest token mailed to `email` (test-mode mailer).
     pub fn has_mail(&self, email: &str) -> bool {
         self.mailer

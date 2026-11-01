@@ -23,6 +23,18 @@ Phase 1 gate: `docs/engineering/gates/phase1.md`.
 ## Phase 2 — Core workflow (dep Phase 1)
 Requests + items + attachments → product identities/evidence/verification → suppliers + approvals → RFQ (test-mode dispatch, export) → quotations → deterministic comparison → recommendation → approval policies (thresholds, multi-step, no self-approval) → audit on every transition.
 
+2a — backend (migration `0002_core_workflow.sql`, `procure_domain::{workflow, approval, comparison}`, `api/{requests,suppliers,rfqs,approvals}.rs`, `tests/phase2.rs`):
+1. ☑ Request lifecycle state machine (domain table, side-checked: customer vs operator), PR/RFQ numbering per org/year, audit on every transition
+2. ☑ Requests + items: draft editing by the requester only, submit/cancel, clarification round trip (question → answer required), item edits clear verification
+3. ◐ Product verification: operator confirms manufacturer + MPN + evidence per item; sourcing only when all items verified. Full `product_identities`/evidence tables and AI extraction → 2b/Phase 3
+4. ☑ Supplier directory (platform-level, staff only, internal notes never shown to customers); staff propose a supplier to a customer, the customer approves/rejects (new permission `ApproveSuppliers`)
+5. ☑ RFQs to verified suppliers; dispatch = **test channel only** (outbox rows, export endpoint; nothing is sent; supplier text names Chuo-Sogo's RFQ number, never the customer)
+6. ☑ Quotations (revisions supersede), deterministic comparison runs stored as snapshots (compliance, reasons, totals in minor units, stable ranking; no FX)
+7. ☑ Recommendation: latest comparison only (stale check), compliant quotations only, customer-approved supplier only, reason required if not rank 1
+8. ☑ Approval policies per currency (versioned tiers, default 1 approval, no self-approval), snapshot at send; decisions by customer users with ApproveRecommendation only; approve/reject/clarify; append-only approval records
+9. ☐ Attachments (local storage) — 2b
+10. ☐ Desktop screens for requests, RFQs/quotations, comparison, approvals — 2b
+
 ## Phase 3 — AI layer (dep Phase 2)
 Provider trait + mock + local adapter; schemas per capability; validation + retries + timeouts; `ai_suggestions` with provenance; confidence → review queue; prompt-injection test corpus.
 

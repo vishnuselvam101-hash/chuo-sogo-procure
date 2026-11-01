@@ -14,7 +14,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use axum::http::{HeaderName, StatusCode, header};
-use axum::routing::{get, patch, post};
+use axum::routing::{get, patch, post, put};
 use axum::{Json, Router};
 use sqlx::PgPool;
 use tower_http::limit::RequestBodyLimitLayer;
@@ -103,7 +103,120 @@ pub fn router(state: AppState) -> Router {
             "/orgs/{org_id}/assignments/{user_id}",
             axum::routing::delete(api::orgs::revoke_operator),
         )
-        .route("/orgs/{org_id}/audit", get(api::orgs::list_audit));
+        .route("/orgs/{org_id}/audit", get(api::orgs::list_audit))
+        .route(
+            "/orgs/{org_id}/requests",
+            get(api::requests::list_requests).post(api::requests::create_request),
+        )
+        .route(
+            "/orgs/{org_id}/requests/{request_id}",
+            get(api::requests::get_request).patch(api::requests::update_request),
+        )
+        .route(
+            "/orgs/{org_id}/requests/{request_id}/items",
+            post(api::requests::add_item),
+        )
+        .route(
+            "/orgs/{org_id}/requests/{request_id}/items/{item_id}",
+            put(api::requests::replace_item).delete(api::requests::delete_item),
+        )
+        .route(
+            "/orgs/{org_id}/requests/{request_id}/items/{item_id}/verification",
+            post(api::requests::verify_item),
+        )
+        .route(
+            "/orgs/{org_id}/requests/{request_id}/submit",
+            post(api::requests::submit),
+        )
+        .route(
+            "/orgs/{org_id}/requests/{request_id}/cancel",
+            post(api::requests::cancel),
+        )
+        .route(
+            "/orgs/{org_id}/requests/{request_id}/pick-up",
+            post(api::requests::pick_up),
+        )
+        .route(
+            "/orgs/{org_id}/requests/{request_id}/clarification",
+            post(api::requests::request_clarification),
+        )
+        .route(
+            "/orgs/{org_id}/requests/{request_id}/start-sourcing",
+            post(api::requests::start_sourcing),
+        )
+        .route(
+            "/orgs/{org_id}/requests/{request_id}/rfqs",
+            post(api::rfqs::create_rfq),
+        )
+        .route(
+            "/orgs/{org_id}/requests/{request_id}/recommendations",
+            post(api::approvals::recommend),
+        )
+        .route("/orgs/{org_id}/rfqs/{rfq_id}", get(api::rfqs::get_rfq))
+        .route(
+            "/orgs/{org_id}/rfqs/{rfq_id}/dispatch",
+            post(api::rfqs::dispatch_rfq),
+        )
+        .route(
+            "/orgs/{org_id}/rfqs/{rfq_id}/outbox",
+            get(api::rfqs::rfq_outbox),
+        )
+        .route(
+            "/orgs/{org_id}/rfqs/{rfq_id}/quotations",
+            post(api::rfqs::record_quotation),
+        )
+        .route(
+            "/orgs/{org_id}/rfqs/{rfq_id}/comparisons",
+            post(api::rfqs::run_comparison),
+        )
+        .route(
+            "/orgs/{org_id}/comparisons/{comparison_id}",
+            get(api::rfqs::get_comparison),
+        )
+        .route(
+            "/orgs/{org_id}/recommendations/{recommendation_id}",
+            get(api::approvals::get_recommendation),
+        )
+        .route(
+            "/orgs/{org_id}/recommendations/{recommendation_id}/send",
+            post(api::approvals::send_recommendation),
+        )
+        .route(
+            "/orgs/{org_id}/recommendations/{recommendation_id}/decisions",
+            post(api::approvals::decide),
+        )
+        .route(
+            "/orgs/{org_id}/recommendations/{recommendation_id}/withdraw",
+            post(api::approvals::withdraw_recommendation),
+        )
+        .route(
+            "/orgs/{org_id}/approval-policies",
+            get(api::approvals::list_policies),
+        )
+        .route(
+            "/orgs/{org_id}/approval-policies/{currency}",
+            put(api::approvals::put_policy),
+        )
+        .route(
+            "/orgs/{org_id}/suppliers",
+            get(api::suppliers::list_org_suppliers),
+        )
+        .route(
+            "/orgs/{org_id}/suppliers/{supplier_id}/proposal",
+            post(api::suppliers::propose_supplier),
+        )
+        .route(
+            "/orgs/{org_id}/suppliers/{supplier_id}/decision",
+            put(api::suppliers::decide_supplier),
+        )
+        .route(
+            "/suppliers",
+            get(api::suppliers::list_suppliers).post(api::suppliers::create_supplier),
+        )
+        .route(
+            "/suppliers/{supplier_id}/status",
+            post(api::suppliers::set_supplier_status),
+        );
 
     Router::new()
         .route(

@@ -5,7 +5,7 @@
 use utoipa::openapi::security::{HttpAuthScheme, HttpBuilder, SecurityScheme};
 use utoipa::{Modify, OpenApi};
 
-use crate::api::{auth, orgs};
+use crate::api::{approvals, auth, orgs, requests, rfqs, suppliers};
 use crate::error::{ErrorBody, ErrorInner};
 
 struct BearerAuth;
@@ -43,6 +43,39 @@ impl Modify for BearerAuth {
         orgs::list_audit,
         orgs::create_organisation,
         orgs::list_organisations,
+        requests::create_request,
+        requests::list_requests,
+        requests::get_request,
+        requests::update_request,
+        requests::add_item,
+        requests::replace_item,
+        requests::delete_item,
+        requests::submit,
+        requests::cancel,
+        requests::pick_up,
+        requests::request_clarification,
+        requests::verify_item,
+        requests::start_sourcing,
+        suppliers::create_supplier,
+        suppliers::list_suppliers,
+        suppliers::set_supplier_status,
+        suppliers::list_org_suppliers,
+        suppliers::propose_supplier,
+        suppliers::decide_supplier,
+        rfqs::create_rfq,
+        rfqs::dispatch_rfq,
+        rfqs::rfq_outbox,
+        rfqs::get_rfq,
+        rfqs::record_quotation,
+        rfqs::run_comparison,
+        rfqs::get_comparison,
+        approvals::list_policies,
+        approvals::put_policy,
+        approvals::recommend,
+        approvals::send_recommendation,
+        approvals::get_recommendation,
+        approvals::decide,
+        approvals::withdraw_recommendation,
     ),
     components(schemas(ErrorBody, ErrorInner)),
     modifiers(&BearerAuth)
