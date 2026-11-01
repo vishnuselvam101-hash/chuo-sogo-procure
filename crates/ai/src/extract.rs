@@ -205,6 +205,97 @@ async fn run<T>(
     })
 }
 
+/// Checked and fenced input for capabilities in other modules.
+pub(crate) fn fence_text(text: &str) -> Result<String, AiError> {
+    check_input(text)?;
+    Ok(fence(text))
+}
+
+pub(crate) async fn run_capability<T>(
+    provider: &dyn Provider,
+    call: ModelCall,
+    prompt_version: &'static str,
+    input: &str,
+    parse: impl Fn(&str) -> Result<T, AiError>,
+) -> Result<Outcome<T>, AiError> {
+    run(provider, call, prompt_version, input, parse).await
+}
+
+/// A part / model number is present in the source as whole word(s). Japanese text has no
+/// spaces, so non-ASCII characters count as separators ("型番6204-2RSです" contains 6204-2RS).
+pub(crate) fn mpn_present(source: &str, mpn: &str) -> bool {
+    if !mpn_checkable(mpn) {
+        return false;
+    }
+    let ascii: String = source
+        .chars()
+        .map(|c| if c.is_ascii() { c } else { ' ' })
+        .collect();
+    mpn_in_source(&ascii, mpn)
+}
+
+/// Runs of digits (with decimal point / thousands commas) in `s`, normalised: "1,200" → "1200".
+fn number_runs(s: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut cur = String::new();
+    for c in s.chars().chain(std::iter::once(' ')) {
+        if c.is_ascii_digit() || ((c == '.' || c == ',') && !cur.is_empty()) {
+            cur.push(c);
+        } else if !cur.is_empty() {
+            let n = cur.trim_end_matches(['.', ',']).replace(',', "");
+            let n = match n.split_once('.') {
+                Some((w, f)) if f.trim_end_matches('0').is_empty() => w.to_string(),
+                _ => n,
+            };
+            out.push(n);
+            cur.clear();
+        }
+    }
+    out
+}
+
+/// Full-width digits and separators (common in Japanese catalogues) as ASCII.
+fn ascii_digits(s: &str) -> String {
+    s.chars()
+        .map(|c| match c {
+            '０'..='９' => char::from(b'0' + (c as u32 - '０' as u32) as u8),
+            '．' => '.',
+            '，' => ',',
+            _ => c,
+        })
+        .collect()
+}
+
+/// Every number stated in `value` also appears in `source` (units, spacing and full-width
+/// digits may differ). Numbers written in other numeral systems (e.g. circled or Roman
+/// numerals) cannot be checked and count as not present.
+pub(crate) fn numbers_present(source: &str, value: &str) -> bool {
+    let value = ascii_digits(value);
+    if value.chars().any(|c| c.is_numeric() && !c.is_ascii_digit()) {
+        return false;
+    }
+    let have = number_runs(&ascii_digits(source));
+    number_runs(&value).iter().all(|n| have.contains(n))
+}
+
+/// A manufacturer name appears in the source: whole word(s) for Latin names ("NSK" is not
+/// found inside "NSKA"), plain containment for Japanese names.
+pub(crate) fn name_present(source: &str, name: &str) -> bool {
+    if name.is_ascii() {
+        let target = normalise(name);
+        let ascii: String = source
+            .chars()
+            .map(|c| if c.is_ascii() { c } else { ' ' })
+            .collect();
+        let ws: Vec<String> = words(&ascii).into_iter().map(normalise).collect();
+        !target.is_empty()
+            && (0..ws.len())
+                .any(|i| (1..=3).any(|n| i + n <= ws.len() && ws[i..i + n].concat() == target))
+    } else {
+        source.contains(name.trim())
+    }
+}
+
 // ---------------------------------------------------------------------------------------
 // Item extraction from a customer's free text (email, chat, list).
 

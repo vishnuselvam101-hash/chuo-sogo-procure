@@ -52,6 +52,14 @@
 | SF-048 | 2026-11-01 | Catalogue: listings of a suspended supplier stayed visible | Medium | V2 | Fixed | catalogue list, item and media require an active supplier; test suspends and reactivates |
 | SF-049 | 2026-11-01 | Photo metadata removal: JPEG data after EOI kept, Adobe colour segment dropped, PNG private chunks kept / CRC unchecked, no pixel cap | Medium | V5 | Fixed | scan to real markers, keep APP14 Adobe, PNG allowlist + CRC, ≤ 50 MP |
 | SF-050 | 2026-11-01 | Listing workflow enforced only in the API (owner could set `approved` in its own transaction) | Low | V2 | Fixed | `product_listing_guard` trigger; tested directly against the database |
+| SF-051 | 2026-11-01 | Listing AI: spreadsheet zip bomb / huge declared sheet could exhaust memory; tool output unbounded | Medium | V12 | Fixed | real decompressed size ≤ 40 MB, ≤ 2 M declared cells, parse off the async runtime; stdout capped, timeouts |
+| SF-052 | 2026-11-01 | Listing AI guard: full-width or other numerals bypassed the "number in source" check; manufacturer matched as substring | Medium | V5 | Fixed | full-width normalised, other numerals untrusted, Latin names as whole words; tests |
+| SF-053 | 2026-11-01 | Translation draft replaced supplier-written text and was recorded as applied before the decision succeeded | Low | V11 | Fixed | fills empty fields only; draft applied only after the decision is recorded |
+| SF-054 | 2026-11-01 | ffmpeg input not restricted (playlist/concat demuxers reachable via crafted audio) | Low | V12 | Fixed | demuxer pinned to the sniffed type, `-protocol_whitelist file`; owner-only work directory instead of shared temp |
+
+## Residual risk (Phase D)
+- ffmpeg and whisper.cpp parse untrusted audio natively (no memory/CPU rlimits beyond the timeout); run the service with its systemd limits (MemoryMax=2G).
+- AI quality depends on the configured model; the mock provider only parses "key: value" text. Every suggestion is reviewed by the supplier and every listing by Chuo-Sogo.
 
 ## Residual risk (Phase C)
 - Photos are displayed by the desktop webview's image decoders (WebKit/WebView2); malformed images are refused by structure checks, not fully decoded on the server.

@@ -15,7 +15,7 @@ RUNTIME_URL="${PROCURE_RUNTIME_DATABASE_URL%/*}/$DB"
 
 id procure >/dev/null 2>&1 || useradd --system --home-dir /var/lib/procure --shell /usr/sbin/nologin procure
 install -d -m 0755 /opt/procure/bin
-install -d -o procure -g procure -m 0700 /var/lib/procure /var/lib/procure/storage /var/lib/procure/outbox /var/lib/procure/backups
+install -d -o procure -g procure -m 0700 /var/lib/procure /var/lib/procure/storage /var/lib/procure/outbox /var/lib/procure/backups /var/lib/procure/work
 install -m 0755 target/release/procure-server /opt/procure/bin/procure-server
 
 psql "$DATABASE_URL" -tAc "SELECT 1 FROM pg_database WHERE datname = '$DB'" | grep -q 1 \
@@ -36,11 +36,19 @@ PROCURE_ADMIN_ALLOWED_CIDRS=100.64.0.0/10,fd7a:115c:a1e0::/48,127.0.0.1/32,::1/1
 PROCURE_AI_PROVIDER=mock
 # Invoice PDFs need a Japanese font (apt install fonts-noto-cjk); this is the default.
 PROCURE_PDF_FONT=/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc
+# Private scratch space for voice notes and catalogue files (deleted after each use).
+PROCURE_WORK_DIR=/var/lib/procure/work
+# Voice notes for the listing assistant need a local whisper.cpp build and model, e.g.
+# PROCURE_STT_COMMAND=/opt/whisper.cpp/build/bin/whisper-cli
+# PROCURE_STT_MODEL=/opt/whisper.cpp/models/ggml-small.bin
 PROCURE_LOG_FORMAT=json
 RUST_LOG=info
 ENV
   chmod 0600 /etc/procure/procure.env
 fi
+# Settings added in later versions, for installs whose env file already exists.
+grep -q '^PROCURE_WORK_DIR=' /etc/procure/procure.env \
+  || echo 'PROCURE_WORK_DIR=/var/lib/procure/work' >> /etc/procure/procure.env
 
 install -m 0644 deploy/procure.service deploy/procure-backup.service deploy/procure-backup.timer /etc/systemd/system/
 systemctl daemon-reload

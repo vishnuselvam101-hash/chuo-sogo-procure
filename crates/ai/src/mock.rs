@@ -5,6 +5,7 @@
 use serde_json::{Value, json};
 
 use crate::extract::{EXTRACT_ITEMS, EXTRACT_QUOTATION};
+use crate::listing::{EXTRACT_LISTING, TRANSLATE_LISTING};
 use crate::provider::{AiError, BoxFuture, ModelCall, Provider};
 
 pub struct MockProvider;
@@ -155,6 +156,93 @@ fn quotation(text: &str) -> Value {
             "supplier_reference": reference, "lines": lines })
 }
 
+/// "Key: value" lines (メーカー / 型番 / 品名 / 状態 or maker / model / name / condition are
+/// fields, other keys become specifications); otherwise the first part-number-like word is
+/// the model and the first line the title.
+fn listing(text: &str) -> Value {
+    let mut manufacturer = String::new();
+    let mut model = String::new();
+    let mut title = String::new();
+    let mut condition = String::new();
+    let mut specs = Vec::new();
+    for line in text.lines().map(str::trim).filter(|l| !l.is_empty()) {
+        let Some((k, v)) = line.split_once([':', '：']) else {
+            continue;
+        };
+        let (k, v) = (k.trim(), v.trim());
+        match k.to_lowercase().as_str() {
+            "メーカー" | "maker" | "manufacturer" => manufacturer = v.to_string(),
+            "型番" | "品番" | "model" | "part" | "part number" => model = v.to_string(),
+            "品名" | "name" | "product" | "title" => title = v.to_string(),
+            "状態" | "condition" => {
+                condition = match v {
+                    "新品" | "new" | "New" => "new",
+                    "中古" | "used" | "Used" => "used",
+                    "再生品" | "refurbished" => "refurbished",
+                    _ => "",
+                }
+                .to_string()
+            }
+            _ if !v.is_empty() && specs.len() < 50 => {
+                specs.push(json!({ "key": k, "value": v }));
+            }
+            _ => {}
+        }
+    }
+    if model.is_empty() {
+        let ascii: String = text
+            .chars()
+            .map(|c| if c.is_ascii() { c } else { ' ' })
+            .collect();
+        model = ascii
+            .split_whitespace()
+            .find(|t| is_part_number(t))
+            .map(|t| {
+                t.trim_matches(|c: char| !c.is_ascii_alphanumeric())
+                    .to_string()
+            })
+            .unwrap_or_default();
+    }
+    if title.is_empty() {
+        // The first plain line (a "key: value" line is a field, not a product name).
+        title = text
+            .lines()
+            .map(str::trim)
+            .find(|l| !l.is_empty() && !l.contains([':', '：']))
+            .unwrap_or("")
+            .chars()
+            .take(80)
+            .collect();
+    }
+    let japanese = title
+        .chars()
+        .any(|c| matches!(c as u32, 0x3040..=0x30FF | 0x4E00..=0x9FFF));
+    let description: String = text.trim().chars().take(500).collect();
+    let (title_ja, title_en, desc_ja, desc_en) = if japanese {
+        (title, String::new(), description, String::new())
+    } else {
+        (String::new(), title, String::new(), description)
+    };
+    json!({ "manufacturer": manufacturer, "model_number": model, "condition": condition,
+            "title": title_ja, "title_en": title_en, "description": desc_ja,
+            "description_en": desc_en, "specs": specs, "confidence": 60 })
+}
+
+/// The mock cannot translate: it returns the text unchanged (still flagged as a draft).
+fn translation(text: &str) -> Value {
+    let title = text
+        .lines()
+        .find_map(|l| l.strip_prefix("TITLE: "))
+        .unwrap_or("")
+        .to_string();
+    let description = text
+        .split_once("DESCRIPTION: ")
+        .map_or("", |(_, d)| d)
+        .trim()
+        .to_string();
+    json!({ "title": title, "description": description })
+}
+
 impl Provider for MockProvider {
     fn name(&self) -> &str {
         "mock"
@@ -170,6 +258,8 @@ impl Provider for MockProvider {
             let value = match call.capability {
                 EXTRACT_ITEMS => items(text),
                 EXTRACT_QUOTATION => quotation(text),
+                EXTRACT_LISTING => listing(text),
+                TRANSLATE_LISTING => translation(text),
                 _ => return Err(AiError::Unavailable),
             };
             Ok(value.to_string())

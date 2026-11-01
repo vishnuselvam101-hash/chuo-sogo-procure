@@ -31,6 +31,15 @@ fi
 psql "$DATABASE_URL" -qc "CREATE DATABASE $DB"
 ROOT_TOKEN="$(DATABASE_URL="$OWNER_URL" target/release/procure-server bootstrap "Chuo-Sogo Inc." root@chuo-sogo.e2e "Root Admin" | tail -1)"
 
+# Speech-to-text stand-in (whisper.cpp is not installed here): real ffmpeg conversion, then a
+# script that checks it received a 16 kHz WAV and prints a fixed Japanese narration.
+cat > "$WORK/fake-whisper.sh" <<'SH'
+#!/bin/sh
+head -c 4 "$4" | grep -q RIFF || exit 1
+printf 'メーカー: NSK\n型番: 6204-2RS\n品名: 深溝玉軸受 6204-2RS\n状態: 新品\n内径: 20 mm\n'
+SH
+chmod 700 "$WORK/fake-whisper.sh"
+export PROCURE_STT_COMMAND="$WORK/fake-whisper.sh" PROCURE_STT_MODEL="$WORK/model.bin"
 # Throwaway key for this run only (encrypts authenticator secrets in the test database).
 DATABASE_URL="$OWNER_URL" PROCURE_RUNTIME_DATABASE_URL="$RUNTIME_URL" PROCURE_OUTBOX_DIR="$WORK/outbox" \
   PROCURE_SECRET_KEY="$(openssl rand -hex 32)" PROCURE_BIND=127.0.0.1:8088 \
@@ -53,6 +62,9 @@ mkdir -p "$WORK/photos"
 magick -size 1600x1200 gradient:'#1f3a68-#c97a12' -fill white -pointsize 120 -gravity center \
   -annotate 0 '6204-2RS' "$WORK/photos/front.jpg"
 magick -size 1200x1600 plasma:fractal -seed 7 "$WORK/photos/side.jpg"
+# A 3-second voice note (Opus in Ogg, as phones record) and a catalogue CSV in Shift_JIS.
+ffmpeg -nostdin -loglevel error -f lavfi -i "sine=frequency=300:duration=3" -c:a libopus "$WORK/photos/memo.ogg"
+printf '外径: 47 mm\n幅: 14 mm\n' | iconv -f UTF-8 -t SHIFT_JIS > "$WORK/photos/catalogue.csv"
 E2E_BUSINESS_APP="$PWD/target/release/procure-desktop" E2E_ADMIN_APP="$PWD/target/admin/release/procure-desktop" \
   E2E_OUT="$PWD/$OUT" E2E_SEED="$SEED" E2E_PHOTOS="$WORK/photos" \
   node apps/desktop/e2e/catalogue.mjs | tee "$OUT/result.txt"

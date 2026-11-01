@@ -54,11 +54,11 @@ pub struct SuggestionView {
     pub decided_at: Option<DateTime<Utc>>,
 }
 
-const SUGGESTION_COLUMNS: &str =
+pub(crate) const SUGGESTION_COLUMNS: &str =
     "id, capability, subject_id, supplier_id, status, output, error_code,
     provider, model, prompt_version, created_at, decided_at";
 
-fn check_text(text: &str) -> ApiResult<String> {
+pub(crate) fn check_text(text: &str) -> ApiResult<String> {
     let t = text.trim();
     if t.is_empty() {
         return Err(ApiError::Validation("text"));
@@ -73,7 +73,7 @@ fn check_text(text: &str) -> ApiResult<String> {
 }
 
 /// Chuo-Sogo can switch AI off per customer organisation (admin console rules).
-async fn ai_allowed(state: &AppState, p: &Principal, org_id: Uuid) -> ApiResult<()> {
+pub(crate) async fn ai_allowed(state: &AppState, p: &Principal, org_id: Uuid) -> ApiResult<()> {
     let mut tx = db::tenant_tx(&state.pool, p.user_id, org_id).await?;
     let enabled = crate::api::admin::load_settings(&mut tx, org_id)
         .await?
@@ -86,7 +86,7 @@ async fn ai_allowed(state: &AppState, p: &Principal, org_id: Uuid) -> ApiResult<
     }
 }
 
-fn rate_limit(state: &AppState, p: &Principal) -> ApiResult<()> {
+pub(crate) fn rate_limit(state: &AppState, p: &Principal) -> ApiResult<()> {
     if state
         .limiter
         .check(&format!("ai:{}", p.user_id), &ratelimit::AI_PER_USER)
@@ -97,17 +97,19 @@ fn rate_limit(state: &AppState, p: &Principal) -> ApiResult<()> {
     }
 }
 
-struct NewSuggestion<'a> {
-    org_id: Uuid,
-    capability: &'static str,
-    subject_type: &'static str,
-    subject_id: Uuid,
-    supplier_id: Option<Uuid>,
-    text: &'a str,
+pub(crate) struct NewSuggestion<'a> {
+    pub org_id: Uuid,
+    pub capability: &'static str,
+    pub subject_type: &'static str,
+    pub subject_id: Uuid,
+    pub supplier_id: Option<Uuid>,
+    pub text: &'a str,
+    /// `typed`, `voice` or `file`.
+    pub source: &'static str,
 }
 
 /// Stores the outcome (success or failure) and audits it. Returns the stored view.
-async fn store<T: Serialize>(
+pub(crate) async fn store<T: Serialize>(
     state: &AppState,
     p: &Principal,
     s: NewSuggestion<'_>,
@@ -130,8 +132,9 @@ async fn store<T: Serialize>(
     let view = sqlx::query_as::<_, SuggestionView>(&format!(
         "INSERT INTO ai_suggestions (id, org_id, capability, subject_type, subject_id, supplier_id,
                                      status, input_text, input_sha256, output, error_code, provider,
-                                     model, prompt_version, prompt_sha256, latency_ms, requested_by)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+                                     model, prompt_version, prompt_sha256, latency_ms, requested_by,
+                                     input_source)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
          RETURNING {SUGGESTION_COLUMNS}"
     ))
     .bind(id)
@@ -151,6 +154,7 @@ async fn store<T: Serialize>(
     .bind(provenance.map(|p| p.prompt_sha256.clone()))
     .bind(provenance.and_then(|p| i64::try_from(p.latency_ms).ok()))
     .bind(p.user_id)
+    .bind(s.source)
     .fetch_one(&mut *tx)
     .await?;
     Audit {
@@ -163,6 +167,7 @@ async fn store<T: Serialize>(
         "ai_suggestion",
         id,
         json!({ "capability": s.capability, "subject": s.subject_id, "status": status,
+                "source": s.source,
                 "error": error_code, "provider": state.ai.name(), "model": state.ai.model(),
                 "prompt_version": provenance.map(|p| p.prompt_version),
                 "input_sha256": input_sha256 }),
@@ -229,6 +234,7 @@ pub async fn extract_items(
             subject_id: request_id,
             supplier_id: None,
             text: &text,
+            source: "typed",
         },
         &result,
     )
@@ -332,6 +338,7 @@ pub async fn extract_quotation(
             subject_id: rfq_id,
             supplier_id: Some(body.supplier_id),
             text: &text,
+            source: "typed",
         },
         &result,
     )

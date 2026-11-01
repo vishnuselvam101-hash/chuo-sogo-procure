@@ -100,6 +100,10 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
                     tracing::warn!(error = %e, "invoice PDFs unavailable: documents cannot be issued")
                 }
             }
+            match procure_server::intake::CommandTranscriber::from_env() {
+                Some(t) => state.transcriber = Some(Arc::new(t)),
+                None => tracing::info!("speech-to-text not configured: voice notes unavailable"),
+            }
             match std::env::var("PROCURE_SECRET_KEY") {
                 Ok(key) => {
                     let sb = procure_server::mfa::SecretBox::from_hex(&key)

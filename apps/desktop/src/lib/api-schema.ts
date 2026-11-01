@@ -919,6 +919,70 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/orgs/{org_id}/listings/ai/from-file": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["listing_ai_from_file"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/orgs/{org_id}/listings/ai/from-text": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["listing_ai_from_text"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/orgs/{org_id}/listings/ai/from-voice": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["listing_ai_from_voice"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/orgs/{org_id}/listings/ai/suggestions/{suggestion_id}/decision": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["listing_ai_decide"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/orgs/{org_id}/listings/{id}": {
     parameters: {
       query?: never;
@@ -930,6 +994,22 @@ export interface paths {
     put: operations["listing_update"];
     post?: never;
     delete: operations["listing_delete_draft"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/orgs/{org_id}/listings/{id}/ai/translate": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["listing_ai_translate"];
+    delete?: never;
     options?: never;
     head?: never;
     patch?: never;
@@ -2012,10 +2092,9 @@ export interface components {
       reason: string;
     };
     DecisionBody: {
-      /** @description Required for `reject` and `clarify`. */
-      comment?: string;
-      /** @description `approve`, `reject` or `clarify`. */
-      decision: string;
+      /** @description true: applied to the editor; false: discarded. */
+      accepted: boolean;
+      note?: string;
     };
     DecisionResponse: {
       /** Format: int32 */
@@ -2122,6 +2201,15 @@ export interface components {
       supplier_id: string;
       text: string;
     };
+    FileBody: {
+      /** @description File content, standard base64. */
+      data_base64: string;
+      file_name: string;
+      /** @description Voice notes: `ja`, `en`, `ta` or `hi`; empty = detect. */
+      language?: string | null;
+      /** Format: uuid */
+      listing_id?: string | null;
+    };
     FollowUp: {
       /** Format: uuid */
       org_id: string;
@@ -2136,6 +2224,14 @@ export interface components {
       rfq_number: string;
       /** @description Suppliers that have not answered yet. */
       waiting_on: string[];
+    };
+    FromTextBody: {
+      /**
+       * Format: uuid
+       * @description The listing being edited (none: a new listing).
+       */
+      listing_id?: string | null;
+      text: string;
     };
     IdResponse: {
       /** Format: uuid */
@@ -2404,6 +2500,15 @@ export interface components {
       tax_rate_bps: number;
       title?: string;
       title_en?: string;
+    };
+    ListingSuggestionView: components["schemas"]["SuggestionView"] & {
+      /** @description `typed`, `voice` or `file`. */
+      input_source: string;
+      /**
+       * @description The text the suggestion was made from (typed, transcribed or read from the file), so
+       *     the supplier can check what was heard or read.
+       */
+      input_text: string;
     };
     ListingSummary: {
       /** Format: int64 */
@@ -6672,6 +6777,323 @@ export interface operations {
       };
     };
   };
+  listing_ai_from_file: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["FileBody"];
+      };
+    };
+    responses: {
+      /** @description Text read from the file; suggestion recorded */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ListingSuggestionView"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown organisation or listing */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description AI switched off, or the file could not be read */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Larger than 10 MB */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Not a PDF/Excel/CSV/text file, or no text in it (scanned PDF) */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Too many AI requests */
+      429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  listing_ai_from_text: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["FromTextBody"];
+      };
+    };
+    responses: {
+      /** @description Suggestion (or a failed attempt) recorded */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ListingSuggestionView"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown organisation or listing */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description AI switched off for this organisation */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Empty or too long */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Too many AI requests */
+      429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  listing_ai_from_voice: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["FileBody"];
+      };
+    };
+    responses: {
+      /** @description Transcribed on this server; suggestion recorded (the audio itself is not kept) */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ListingSuggestionView"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown organisation or listing */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Speech-to-text not available on this server, or AI switched off */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Larger than 10 MB */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Not audio, longer than 5 minutes, or nothing heard */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Too many AI requests */
+      429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  listing_ai_decide: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+        suggestion_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["DecisionBody"];
+      };
+    };
+    responses: {
+      /** @description Decision recorded (the supplier still saves the listing itself) */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SuggestionView"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown suggestion */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Already decided or failed */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
   listing_get_own: {
     parameters: {
       query?: never;
@@ -6840,6 +7262,83 @@ export interface operations {
       };
       /** @description Not a draft */
       409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  listing_ai_translate: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Draft of title and description in the other language */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ListingSuggestionView"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown listing */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description AI switched off */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Nothing to translate */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Too many AI requests */
+      429: {
         headers: {
           [name: string]: unknown;
         };

@@ -7,6 +7,7 @@ import { MAX_UPLOAD_BYTES, readAsBase64 } from "../lib/files";
 import type { ListingDetail, ListingInput, ListingSummary, MembershipView } from "../lib/types";
 import { ErrorText, Loading, PageHeader } from "../components/ui";
 import { ListingPhoto, ListingStatusBadge, ListingView, Price } from "../catalogue/ListingView";
+import { AiAssist, TranslateButton, applySuggestion, applyTranslation } from "../catalogue/AiAssist";
 
 const CONDITIONS = ["new", "used", "refurbished"] as const;
 const RATES = [1000, 800, 0] as const;
@@ -93,6 +94,7 @@ function Editor({
   const { t } = useTranslation();
   const { run, busy, error, setError } = useAction();
   const [f, setF] = useState<Form>(() => formFrom(initial));
+  const [translated, setTranslated] = useState(false);
   const set = (k: keyof Form) => (e: { target: { value: string } }) =>
     setF((x) => ({ ...x, [k]: e.target.value }));
 
@@ -109,139 +111,159 @@ function Editor({
   }
 
   return (
-    <form className="card stack" onSubmit={submit} data-testid="listing-editor">
-      <h2>{initial ? t("catalogue:editListing") : t("catalogue:newListing")}</h2>
-      {initial?.status === "approved" && <p className="warn-text">{t("catalogue:editUnpublishes")}</p>}
-      <div className="form-grid">
-        <label>
-          {t("catalogue:manufacturer")}
-          <input maxLength={200} value={f.manufacturer} onChange={set("manufacturer")} />
-        </label>
-        <label>
-          {t("catalogue:model")}
-          <input maxLength={100} value={f.model_number} onChange={set("model_number")} />
-        </label>
-        <label>
-          {t("catalogue:condition")}
-          <select value={f.condition} onChange={set("condition")}>
-            {CONDITIONS.map((c) => (
-              <option key={c} value={c}>
-                {t(`catalogue:conditions.${c}`)}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          {t("catalogue:serial")}
-          <input maxLength={100} value={f.serial_number} onChange={set("serial_number")} />
-        </label>
-        <p className="muted small">{t("catalogue:serialHint")}</p>
-        <label>
-          {t("catalogue:titleJa")}
-          <input maxLength={200} value={f.title} onChange={set("title")} />
-        </label>
-        <label>
-          {t("catalogue:titleEn")}
-          <input maxLength={200} value={f.title_en} onChange={set("title_en")} />
-        </label>
-      </div>
-      <label>
-        {t("catalogue:descriptionJa")}
-        <textarea maxLength={5000} rows={4} value={f.description} onChange={set("description")} />
-      </label>
-      <label>
-        {t("catalogue:descriptionEn")}
-        <textarea maxLength={5000} rows={3} value={f.description_en} onChange={set("description_en")} />
-      </label>
-      <fieldset className="stack">
-        <legend>{t("catalogue:specs")}</legend>
-        {f.specs.map((s, i) => (
-          <div className="row" key={i}>
-            <input
-              aria-label={t("catalogue:specKey")}
-              placeholder={t("catalogue:specKey")}
-              maxLength={100}
-              value={s.key}
-              onChange={(e) =>
-                setF((x) => ({
-                  ...x,
-                  specs: x.specs.map((y, j) => (j === i ? { ...y, key: e.target.value } : y)),
-                }))
-              }
+    <>
+      <AiAssist
+        orgBase={base}
+        listingId={initial?.id ?? null}
+        onApply={(sug) => setF((x) => applySuggestion(x, sug))}
+      />
+      <form className="card stack" onSubmit={submit} data-testid="listing-editor">
+        <h2>{initial ? t("catalogue:editListing") : t("catalogue:newListing")}</h2>
+        {initial?.status === "approved" && <p className="warn-text">{t("catalogue:editUnpublishes")}</p>}
+        {initial && (
+          <div className="row">
+            <TranslateButton
+              orgBase={base}
+              listingId={initial.id}
+              onDraft={(d) => {
+                setTranslated(true);
+                setF((x) => applyTranslation(x, d));
+              }}
             />
-            <input
-              aria-label={t("catalogue:specValue")}
-              placeholder={t("catalogue:specValue")}
-              maxLength={500}
-              value={s.value}
-              onChange={(e) =>
-                setF((x) => ({
-                  ...x,
-                  specs: x.specs.map((y, j) => (j === i ? { ...y, value: e.target.value } : y)),
-                }))
-              }
-            />
+            {translated && <span className="warn-text small">{t("catalogue:ai.translatedCheck")}</span>}
+          </div>
+        )}
+        <div className="form-grid">
+          <label>
+            {t("catalogue:manufacturer")}
+            <input maxLength={200} value={f.manufacturer} onChange={set("manufacturer")} />
+          </label>
+          <label>
+            {t("catalogue:model")}
+            <input maxLength={100} value={f.model_number} onChange={set("model_number")} />
+          </label>
+          <label>
+            {t("catalogue:condition")}
+            <select value={f.condition} onChange={set("condition")}>
+              {CONDITIONS.map((c) => (
+                <option key={c} value={c}>
+                  {t(`catalogue:conditions.${c}`)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            {t("catalogue:serial")}
+            <input maxLength={100} value={f.serial_number} onChange={set("serial_number")} />
+          </label>
+          <p className="muted small">{t("catalogue:serialHint")}</p>
+          <label>
+            {t("catalogue:titleJa")}
+            <input maxLength={200} value={f.title} onChange={set("title")} />
+          </label>
+          <label>
+            {t("catalogue:titleEn")}
+            <input maxLength={200} value={f.title_en} onChange={set("title_en")} />
+          </label>
+        </div>
+        <label>
+          {t("catalogue:descriptionJa")}
+          <textarea maxLength={5000} rows={4} value={f.description} onChange={set("description")} />
+        </label>
+        <label>
+          {t("catalogue:descriptionEn")}
+          <textarea maxLength={5000} rows={3} value={f.description_en} onChange={set("description_en")} />
+        </label>
+        <fieldset className="stack">
+          <legend>{t("catalogue:specs")}</legend>
+          {f.specs.map((s, i) => (
+            <div className="row" key={i}>
+              <input
+                aria-label={t("catalogue:specKey")}
+                placeholder={t("catalogue:specKey")}
+                maxLength={100}
+                value={s.key}
+                onChange={(e) =>
+                  setF((x) => ({
+                    ...x,
+                    specs: x.specs.map((y, j) => (j === i ? { ...y, key: e.target.value } : y)),
+                  }))
+                }
+              />
+              <input
+                aria-label={t("catalogue:specValue")}
+                placeholder={t("catalogue:specValue")}
+                maxLength={500}
+                value={s.value}
+                onChange={(e) =>
+                  setF((x) => ({
+                    ...x,
+                    specs: x.specs.map((y, j) => (j === i ? { ...y, value: e.target.value } : y)),
+                  }))
+                }
+              />
+              <button
+                type="button"
+                className="link"
+                onClick={() => setF((x) => ({ ...x, specs: x.specs.filter((_, j) => j !== i) }))}
+              >
+                {t("catalogue:remove")}
+              </button>
+            </div>
+          ))}
+          <div className="row">
             <button
               type="button"
-              className="link"
-              onClick={() => setF((x) => ({ ...x, specs: x.specs.filter((_, j) => j !== i) }))}
+              disabled={f.specs.length >= 50}
+              onClick={() => setF((x) => ({ ...x, specs: [...x.specs, { key: "", value: "" }] }))}
             >
-              {t("catalogue:remove")}
+              {t("catalogue:addSpec")}
             </button>
           </div>
-        ))}
+        </fieldset>
+        <div className="form-grid">
+          <label>
+            {t("catalogue:businessPriceExcl")}
+            <input inputMode="decimal" value={f.business} onChange={set("business")} />
+          </label>
+          <label>
+            {t("catalogue:consumerPriceIncl")}
+            <input inputMode="decimal" value={f.consumer} onChange={set("consumer")} />
+          </label>
+          <label>
+            {t("catalogue:taxRate")}
+            <select
+              value={f.tax_rate_bps}
+              onChange={(e) => setF((x) => ({ ...x, tax_rate_bps: Number(e.target.value) }))}
+            >
+              {RATES.map((r) => (
+                <option key={r} value={r}>
+                  {t(`catalogue:rates.r${r}`)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            {t("catalogue:stock")}
+            <input
+              inputMode="numeric"
+              placeholder={t("catalogue:onRequest")}
+              value={f.stock}
+              onChange={set("stock")}
+            />
+          </label>
+        </div>
+        <ErrorText code={error} />
         <div className="row">
-          <button
-            type="button"
-            disabled={f.specs.length >= 50}
-            onClick={() => setF((x) => ({ ...x, specs: [...x.specs, { key: "", value: "" }] }))}
-          >
-            {t("catalogue:addSpec")}
+          <button type="submit" className="primary" disabled={busy}>
+            {t("action.save")}
+          </button>
+          <button type="button" onClick={onCancel}>
+            {t("action.cancel")}
           </button>
         </div>
-      </fieldset>
-      <div className="form-grid">
-        <label>
-          {t("catalogue:businessPriceExcl")}
-          <input inputMode="decimal" value={f.business} onChange={set("business")} />
-        </label>
-        <label>
-          {t("catalogue:consumerPriceIncl")}
-          <input inputMode="decimal" value={f.consumer} onChange={set("consumer")} />
-        </label>
-        <label>
-          {t("catalogue:taxRate")}
-          <select
-            value={f.tax_rate_bps}
-            onChange={(e) => setF((x) => ({ ...x, tax_rate_bps: Number(e.target.value) }))}
-          >
-            {RATES.map((r) => (
-              <option key={r} value={r}>
-                {t(`catalogue:rates.r${r}`)}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          {t("catalogue:stock")}
-          <input
-            inputMode="numeric"
-            placeholder={t("catalogue:onRequest")}
-            value={f.stock}
-            onChange={set("stock")}
-          />
-        </label>
-      </div>
-      <ErrorText code={error} />
-      <div className="row">
-        <button type="submit" className="primary" disabled={busy}>
-          {t("action.save")}
-        </button>
-        <button type="button" onClick={onCancel}>
-          {t("action.cancel")}
-        </button>
-      </div>
-    </form>
+      </form>
+    </>
   );
 }
 

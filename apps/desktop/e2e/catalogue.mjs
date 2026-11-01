@@ -120,13 +120,50 @@ try {
   check("supplier workspace shows product listings", await seeText(".brand-workspace", "Supplier workspace"));
   await nav("Product listings");
   await click("New listing");
-  await (await field("Manufacturer")).setValue("NSK");
-  await (await field("Model / part number")).setValue(MODEL);
-  await (await field("Product name (Japanese)")).setValue("深溝玉軸受 6204-2RS");
+  // AI assistant: a voice note (converted on the server) fills the main fields...
+  await click("Voice note");
+  const voice = await b.$('[data-testid="voice-input"]');
+  await b.execute((el) => {
+    el.hidden = false;
+  }, voice);
+  await voice.setValue(`${E2E_PHOTOS}/memo.ogg`);
+  check(
+    "voice note is transcribed on the server",
+    await seeText(
+      '[data-testid="ai-input-text"]',
+      "メーカー: NSK\n型番: 6204-2RS\n品名: 深溝玉軸受 6204-2RS\n状態: 新品\n内径: 20 mm",
+    ),
+  );
+  await click("Apply to the form");
+  await b.waitUntil(async () => (await (await field("Model / part number")).getValue()) === MODEL, {
+    timeout: 15000,
+    timeoutMsg: "suggestion not applied",
+  });
+  check(
+    "the suggestion fills the form (manufacturer, model, name)",
+    (await (await field("Manufacturer")).getValue()) === "NSK" &&
+      (await (await field("Product name (Japanese)")).getValue()) === "深溝玉軸受 6204-2RS",
+  );
+  // ...and a catalogue file (Shift_JIS CSV) adds specifications.
+  await click("Catalogue file");
+  const cat = await b.$('[data-testid="catalogue-file-input"]');
+  await b.execute((el) => {
+    el.hidden = false;
+  }, cat);
+  await cat.setValue(`${E2E_PHOTOS}/catalogue.csv`);
+  await (await b.$('[data-testid="ai-suggestion"]')).waitForExist({ timeout: 20000 });
+  await click("Apply to the form");
+  await b.waitUntil(async () => (await b.$$('[aria-label="Property"]')).length >= 3, {
+    timeout: 15000,
+    timeoutMsg: "specs not merged",
+  });
+  check("catalogue file adds specifications (20 mm, 47 mm, 14 mm)", true);
+  check(
+    "a second suggestion never overwrites what is already filled",
+    (await (await field("Product name (Japanese)")).getValue()) === "深溝玉軸受 6204-2RS",
+  );
+  await shot("00-ai-assistant");
   await (await field("Description (Japanese)", "textarea")).setValue("両側ゴムシール付き。即納在庫。");
-  await click("Add specification");
-  await (await b.$('[aria-label="Property"]')).setValue("内径");
-  await (await b.$('[aria-label="Value"]')).setValue("20 mm");
   await (await field("Business price (JPY, excl. tax)")).setValue("480");
   await (await field("Stock")).setValue("120");
   await click("Save");

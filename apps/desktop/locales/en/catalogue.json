@@ -81,5 +81,55 @@
     "r1000": "10% standard",
     "r800": "8% reduced",
     "r0": "0% exempt"
+  },
+  "ai": {
+    "title": "AI listing assistant",
+    "hint": "Describe the product by typing, with a voice note, or with a catalogue file. The assistant proposes fields; applying fills only empty fields (your own entries are kept). Check, then save. Chuo-Sogo still reviews the listing before it is published.",
+    "mode": {
+      "text": "Type",
+      "voice": "Voice note",
+      "file": "Catalogue file"
+    },
+    "textLabel": "Notes about the product",
+    "textPlaceholder": "e.g. メーカー: NSK / 型番: 6204-2RS / 内径: 20 mm …",
+    "suggest": "Suggest fields",
+    "language": "Spoken language",
+    "lang": {
+      "ja": "日本語",
+      "en": "English",
+      "ta": "தமிழ்",
+      "hi": "हिन्दी"
+    },
+    "record": "Record",
+    "stop": "Stop and send",
+    "uploadVoice": "Upload a voice note",
+    "voiceHint": "Up to 5 minutes; transcribed on Chuo-Sogo's server, the recording is not kept.",
+    "uploadFile": "Upload a catalogue or data sheet",
+    "fileHint": "PDF (with text), Excel or CSV, up to 10 MB.",
+    "working": "Working… (voice notes can take a minute)",
+    "source": {
+      "typed": "Your text",
+      "voice": "What was heard (transcript)",
+      "file": "Text read from the file"
+    },
+    "checkCarefully": "Check these values carefully: some could not be confirmed in your description.",
+    "flag": {
+      "model_not_in_source": "The model number is not in your description — check it.",
+      "manufacturer_not_in_source": "The manufacturer is not in your description — check it.",
+      "spec_not_in_source": "Some specification values are not in your description.",
+      "machine_translation": "One language was translated by the AI — check the wording."
+    },
+    "field": {
+      "manufacturer": "Manufacturer",
+      "model_number": "Model / part number",
+      "condition": "Condition",
+      "title": "Product name (Japanese)",
+      "title_en": "Product name (English)"
+    },
+    "notInSource": "not in your description",
+    "apply": "Apply to the form",
+    "discard": "Discard",
+    "translate": "Draft the other language",
+    "translatedCheck": "AI translation filled in — check it before saving."
   }
 }

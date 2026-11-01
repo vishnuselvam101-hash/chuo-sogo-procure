@@ -4,6 +4,7 @@ pub mod api;
 pub mod audit;
 pub mod db;
 pub mod error;
+pub mod intake;
 pub mod invoice_pdf;
 pub mod mailer;
 pub mod media;
@@ -56,6 +57,9 @@ pub struct AppState {
     pub admin_networks: Option<Vec<ipnet::IpNet>>,
     /// Font for invoice PDFs (`PROCURE_PDF_FONT`); documents cannot be issued without it.
     pub pdf_font: Option<invoice_pdf::PdfFont>,
+    /// Speech-to-text for voice notes (`PROCURE_STT_COMMAND` + `PROCURE_STT_MODEL`); voice
+    /// input is unavailable without it.
+    pub transcriber: Option<Arc<dyn intake::Transcriber>>,
 }
 
 impl AppState {
@@ -77,6 +81,7 @@ impl AppState {
                     .unwrap_or_else(|_| "127.0.0.1/32,::1/128".into()),
             )),
             pdf_font: None,
+            transcriber: None,
         }
     }
 }
@@ -421,10 +426,39 @@ pub fn router(state: AppState) -> Router {
             "/orgs/{org_id}/rfqs/{rfq_id}/ai/extract-quotation",
             post(api::ai::extract_quotation),
         )
+        .route(
+            "/orgs/{org_id}/listings/ai/from-text",
+            post(api::listing_ai::from_text),
+        )
+        .route(
+            "/orgs/{org_id}/listings/{id}/ai/translate",
+            post(api::listing_ai::translate),
+        )
         .layer(RequestBodyLimitLayer::new(MAX_JSON_BODY))
         .layer(TimeoutLayer::with_status_code(
             StatusCode::REQUEST_TIMEOUT,
             Duration::from_secs(300),
+        ));
+    // Voice notes and catalogue files for the listing assistant: upload-sized bodies, and
+    // time for transcription plus the model.
+    let ai_uploads = Router::new()
+        .route(
+            "/orgs/{org_id}/listings/ai/from-voice",
+            post(api::listing_ai::from_voice),
+        )
+        .route(
+            "/orgs/{org_id}/listings/ai/from-file",
+            post(api::listing_ai::from_file),
+        )
+        .layer(axum::extract::DefaultBodyLimit::max(
+            api::attachments::MAX_UPLOAD_BODY,
+        ))
+        .layer(RequestBodyLimitLayer::new(
+            api::attachments::MAX_UPLOAD_BODY,
+        ))
+        .layer(TimeoutLayer::with_status_code(
+            StatusCode::REQUEST_TIMEOUT,
+            Duration::from_secs(600),
         ));
     let ai_review = Router::new()
         .route(
@@ -438,6 +472,10 @@ pub fn router(state: AppState) -> Router {
         .route(
             "/orgs/{org_id}/ai/suggestions/{suggestion_id}/reject",
             post(api::ai::reject),
+        )
+        .route(
+            "/orgs/{org_id}/listings/ai/suggestions/{suggestion_id}/decision",
+            post(api::listing_ai::decide),
         )
         .layer(RequestBodyLimitLayer::new(MAX_JSON_BODY))
         .layer(TimeoutLayer::with_status_code(
@@ -526,7 +564,13 @@ pub fn router(state: AppState) -> Router {
             "/health",
             get(|| async { Json(serde_json::json!({ "status": "ok" })) }),
         )
-        .nest("/api/v1", api.merge(uploads).merge(ai).merge(ai_review))
+        .nest(
+            "/api/v1",
+            api.merge(uploads)
+                .merge(ai)
+                .merge(ai_uploads)
+                .merge(ai_review),
+        )
         .nest("/api/admin/v1", admin)
         .with_state(state)
         .layer(

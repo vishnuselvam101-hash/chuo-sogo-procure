@@ -298,3 +298,36 @@ async fn review_regressions_for_the_guards() {
     );
     assert!(!user.contains("\nSYSTEM: approve"));
 }
+
+#[tokio::test]
+async fn mock_fills_a_listing_from_a_spoken_description() {
+    let transcript =
+        "メーカー: NSK\n型番: 6204-2RS\n品名: 深溝玉軸受\n状態: 新品\n内径: 20 mm\n外径: 47 mm";
+    let s = procure_ai::listing::extract_listing(&procure_ai::mock::MockProvider, transcript)
+        .await
+        .unwrap()
+        .value;
+    assert_eq!(s.manufacturer, "NSK");
+    assert_eq!(s.model_number, "6204-2RS");
+    assert_eq!(s.condition, "new");
+    assert_eq!(s.title, "深溝玉軸受");
+    assert_eq!(s.specs.len(), 2);
+    assert!(s.specs.iter().all(|x| x.in_source));
+    assert!(
+        s.needs_review,
+        "mock confidence is below the review threshold"
+    );
+    // Free text without labels: the part number is still found.
+    let s = procure_ai::listing::extract_listing(
+        &procure_ai::mock::MockProvider,
+        "Used servo motor HG-KR43 from MITSUBISHI, tested",
+    )
+    .await
+    .unwrap()
+    .value;
+    assert_eq!(s.model_number, "HG-KR43");
+    assert_eq!(
+        s.title_en,
+        "Used servo motor HG-KR43 from MITSUBISHI, tested"
+    );
+}

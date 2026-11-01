@@ -773,3 +773,11 @@ button.danger {
 .facts dd {
   margin: 0;
 }
+
+.contents {
+  display: contents;
+}
+
+.ai-assist {
+  border-left: 3px solid var(--accent);
+}
