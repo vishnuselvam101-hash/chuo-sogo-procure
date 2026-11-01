@@ -15,3 +15,8 @@ unsafe_code = "forbid"
 unwrap_used = "deny"
 expect_used = "deny"
 panic = "deny"
+
+# Debug builds keep line numbers only (backtraces still point at the code): full debug info
+# made target/debug grow to tens of GB on the shared server.
+[profile.dev]
+debug = "line-tables-only"
