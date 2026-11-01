@@ -13,6 +13,7 @@ import { useAction } from "../lib/useAction";
 import { useApi } from "../lib/useApi";
 import { ErrorText, Loading, Money, StatusBadge } from "../components/ui";
 import { CURRENCIES } from "./NewRequest";
+import { AiFlags } from "./AiItems";
 import { P } from "../lib/perm";
 
 interface Props {
@@ -329,6 +330,83 @@ function QuotationForm(props: {
   );
   const setLine = (i: number, patch: Partial<LineDraft>) =>
     setLines(lines.map((l, j) => (j === i ? { ...l, ...patch } : l)));
+  const [aiText, setAiText] = useState("");
+  const [ai, setAi] = useState<{
+    id: string;
+    supplier: string;
+    flags: string[];
+    lineFlags: string[][];
+  } | null>(null);
+
+  /** Pre-fills the form from the supplier's text. The operator checks and saves; nothing is recorded by the AI. */
+  async function readWithAi() {
+    const res = await action.run<{
+      id: string;
+      status: string;
+      error_code?: string | null;
+      output?: unknown;
+    }>("POST", `${props.base}/ai/extract-quotation`, { supplier_id: head.supplier_id, text: aiText });
+    if (!res) return;
+    if (res.body.status === "failed" || !res.body.output) {
+      action.setError(`conflict/${res.body.error_code ?? "ai_unavailable"}`);
+      return;
+    }
+    const q = res.body.output as {
+      currency: string;
+      shipping_minor: number;
+      valid_until?: string | null;
+      supplier_reference: string;
+      flags: string[];
+      lines: {
+        line_no: number;
+        unit_price_minor: number;
+        quantity: number;
+        lead_time_days?: number | null;
+        offered_mpn: string;
+        alternative: boolean;
+        flags: string[];
+      }[];
+    };
+    if (q.lines.length === 0) {
+      setAi(null);
+      action.setError("conflict/ai_nothing_found");
+      return;
+    }
+    setHead({
+      ...head,
+      currency: q.currency,
+      shipping: minorToInput(q.shipping_minor, q.currency),
+      valid_until: q.valid_until ?? "",
+      reference: q.supplier_reference,
+    });
+    setLines(
+      props.items.map((item, i) => {
+        const l = q.lines.find((x) => x.line_no === item.line_no);
+        return l
+          ? {
+              price: minorToInput(l.unit_price_minor, q.currency),
+              quantity: String(l.quantity),
+              lead:
+                l.lead_time_days === null || l.lead_time_days === undefined ? "" : String(l.lead_time_days),
+              mpn: l.offered_mpn,
+              alternative: l.alternative,
+            }
+          : (lines[i] ?? {
+              price: "",
+              quantity: String(item.quantity),
+              lead: "",
+              mpn: "",
+              alternative: false,
+            });
+      }),
+    );
+    setAi({
+      id: res.body.id,
+      supplier: head.supplier_id,
+      flags: q.flags,
+      lineFlags: props.items.map((item) => q.lines.find((x) => x.line_no === item.line_no)?.flags ?? []),
+    });
+  }
 
   async function save() {
     const shipping = parseMinor(head.shipping, head.currency);
@@ -357,18 +435,61 @@ function QuotationForm(props: {
       shipping_minor: shipping,
       valid_until: head.valid_until || null,
       lines: parsed,
+      // Provenance only if the form still belongs to the supplier the AI read.
+      ai_suggestion_id: ai && ai.supplier === head.supplier_id ? ai.id : null,
     });
     if (res) props.onSaved();
   }
 
   return (
     <div className="stack sub-card">
+      <details>
+        <summary>{t("procurement:ai.quoteTitle")}</summary>
+        <div className="stack">
+          <label>
+            {t("procurement:ai.supplierText")}
+            <textarea rows={4} maxLength={20000} value={aiText} onChange={(e) => setAiText(e.target.value)} />
+          </label>
+          <div className="row">
+            <button
+              type="button"
+              disabled={!aiText.trim() || !head.supplier_id || action.busy}
+              onClick={() => void readWithAi()}
+            >
+              {action.busy ? t("procurement:ai.working") : t("procurement:ai.readQuote")}
+            </button>
+          </div>
+          {ai && <p className="notice">{t("procurement:ai.prefilled")}</p>}
+          {ai && <AiFlags flags={ai.flags} />}
+        </div>
+      </details>
       <div className="row">
         <label>
           {t("procurement:quote.supplier")}
           <select
             value={head.supplier_id}
-            onChange={(e) => setHead({ ...head, supplier_id: e.target.value })}
+            onChange={(e) => {
+              // Values read for one supplier must never stay in another supplier's form.
+              if (ai) {
+                setAi(null);
+                setLines(
+                  props.items.map((i) => ({
+                    price: "",
+                    quantity: String(i.quantity),
+                    lead: "",
+                    mpn: "",
+                    alternative: false,
+                  })),
+                );
+                setHead({
+                  ...head,
+                  supplier_id: e.target.value,
+                  shipping: minorToInput(0, head.currency),
+                  valid_until: "",
+                  reference: "",
+                });
+              } else setHead({ ...head, supplier_id: e.target.value });
+            }}
           >
             {props.recipients.map((r) => (
               <option key={r.id} value={r.id}>
@@ -428,7 +549,10 @@ function QuotationForm(props: {
           {props.items.map((item, i) => (
             <tr key={item.id}>
               <td className="num">{item.line_no}</td>
-              <td>{item.description}</td>
+              <td>
+                {item.description}
+                {ai && <AiFlags flags={ai.lineFlags[i] ?? []} />}
+              </td>
               <td>
                 <input
                   required

@@ -179,5 +179,38 @@
     "createRecord": "Create a new record",
     "createAndVerify": "Create and verify record",
     "note": "Why it matches (optional)"
+  },
+  "ai": {
+    "itemsTitle": "Fill items from an email or list (AI)",
+    "itemsHint": "Paste the text. The AI suggests items; nothing is added until you tick and add them. Check part numbers and quantities.",
+    "sourceText": "Text",
+    "extract": "Suggest items",
+    "working": "Reading…",
+    "reviewNotice": "AI suggestions ({{model}}): check each one before adding.",
+    "nothingFound": "No items found in this text.",
+    "confidence": "{{value}}% sure",
+    "addSelected": "Add {{count}} selected",
+    "dismiss": "Dismiss",
+    "quoteTitle": "Read the supplier's text (AI)",
+    "supplierText": "Supplier's reply",
+    "readQuote": "Pre-fill from text",
+    "prefilled": "Form pre-filled by AI. Check every value against the supplier's text before saving."
+  },
+  "aiFlag": {
+    "mpn_not_in_source": "part number not found in the text",
+    "quantity_not_in_source": "quantity not found in the text",
+    "unit_defaulted": "unit assumed",
+    "price_not_in_source": "price not found in the text",
+    "quantity_differs": "quantity differs from the request",
+    "different_part_number": "different part number offered (alternative)",
+    "currency_assumed": "currency not stated: request currency assumed",
+    "shipping_unreadable": "shipping not readable",
+    "valid_until_unreadable": "validity date not readable",
+    "line_dropped": "some lines could not be read",
+    "mpn_unverifiable": "part number cannot be checked",
+    "currency_not_in_source": "currency not found in the text",
+    "currency_differs": "different currency from the request (no conversion)",
+    "shipping_not_in_source": "shipping not found in the text",
+    "lead_time_not_in_source": "lead time not found in the text"
   }
 }

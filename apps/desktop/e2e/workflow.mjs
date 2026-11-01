@@ -36,7 +36,9 @@ async function click(text) {
 }
 /** Input/select/textarea inside the label whose own text starts with `label`. */
 async function field(label, tag = "input", scope = "") {
-  const el = await b.$(`${scope}//label[starts-with(normalize-space(.), '${label}')]//${tag}`);
+  // XPath string literal: double quotes when the label contains an apostrophe.
+  const lit = label.includes("'") ? `"${label}"` : `'${label}'`;
+  const el = await b.$(`${scope}//label[starts-with(normalize-space(.), ${lit})]//${tag}`);
   await el.waitForExist({ timeout: 15000 });
   return el;
 }
@@ -92,6 +94,21 @@ try {
   await (await b.$("input[type='file']")).setValue(drawing);
   await (await b.$("//td[normalize-space(.)='drawing-line3.pdf']")).waitForExist({ timeout: 15000 });
   check("requester attaches a PDF to the request", true);
+  // Second item from pasted text through the AI panel (offline mock provider).
+  await (await b.$("//summary[normalize-space(.)='Fill items from an email or list (AI)']")).click();
+  await (await field("Text", "textarea")).setValue("Also please add: 4 set THK HSR15 linear guide");
+  await click("Suggest items");
+  // Low-confidence suggestions are never pre-ticked: the requester ticks it after checking.
+  const box = await b.$("//details[@open]//input[@type='checkbox']");
+  await box.waitForExist({ timeout: 15000 });
+  check("AI suggestion is not pre-selected for the requester", !(await box.isSelected()));
+  await box.click();
+  await click("Add 1 selected");
+  await b.waitUntil(async () => (await b.$$("//td[normalize-space(.)='HSR15']")).length === 1, {
+    timeout: 15000,
+    timeoutMsg: "AI-suggested item not added",
+  });
+  check("requester adds an AI-suggested item only after ticking it", true);
   await click("Submit to Chuo-Sogo");
   check("requester submits it", await headerStatus("Submitted"));
   await shot("01-requester-submitted");
@@ -108,16 +125,38 @@ try {
   await click(number);
   await click("Pick up");
   check("operator picks the request up", await headerStatus("Identifying products"));
-  await click("Verify");
-  // No catalogue record yet: create one with evidence, verified in the same step.
-  await click("Create a new record");
-  await (await field("Source (https)")).setValue("https://www.nsk.example/6204ZZ-datasheet.pdf");
-  await click("Create and verify record");
-  const radio = await b.$("input[type='radio']");
-  await radio.waitForExist({ timeout: 15000 });
-  check("new record is verified and preselected", await radio.isSelected());
-  await click("Confirm verified");
-  await (await b.$("//td//span[normalize-space(.)='Verified']")).waitForExist({ timeout: 15000 });
+  // No catalogue records yet: create each with evidence, verified in the same step.
+  for (const [row, url] of [
+    [1, "https://www.nsk.example/6204ZZ-datasheet.pdf"],
+    [2, "https://www.thk.example/HSR15.pdf"],
+  ]) {
+    // Wait until the previous verification panel has closed and the table is stable.
+    await b.waitUntil(async () => (await b.$$(buttonXpath("Confirm verified"))).length === 0, {
+      timeout: 15000,
+    });
+    const rowXpath = `//table//tr[td[1][normalize-space(.)='${row}']]`;
+    // Click through the DOM: rows change height as evidence appears, so a coordinate click
+    // could land on the row above.
+    const verifyButton = await b.$(`${rowXpath}//button[normalize-space(.)='Verify']`);
+    await verifyButton.waitForExist({ timeout: 15000 });
+    await b.execute((el) => el.click(), verifyButton);
+    await b.waitUntil(
+      async () =>
+        (await b.$$(`${rowXpath}/following-sibling::tr[1]//button[normalize-space(.)='Create a new record']`))
+          .length === 1,
+      { timeout: 15000, timeoutMsg: `verification panel for row ${row} did not open` },
+    );
+    await click("Create a new record");
+    await (await field("Source (https)")).setValue(url);
+    await click("Create and verify record");
+    const radio = await b.$("input[type='radio']");
+    await radio.waitForExist({ timeout: 15000 });
+    check(`record ${row} is verified and preselected`, await radio.isSelected());
+    await click("Confirm verified");
+    await b.waitUntil(async () => (await b.$$("//td//span[normalize-space(.)='Verified']")).length === row, {
+      timeout: 15000,
+    });
+  }
   await click("Start sourcing");
   check("sourcing only after verification", await headerStatus("Sourcing"));
 
@@ -140,17 +179,45 @@ try {
   );
   await shot("02-operator-rfq");
 
-  for (const [supplier, price, lead] of [
-    ["Tokyo Bearings KK", "1200", "7"],
-    ["Osaka Motion Ltd", "1300", "14"],
-  ]) {
-    await click("Record quotation");
-    await (await field("Supplier", "select")).selectByVisibleText(supplier);
-    await (await b.$("input[aria-label='Unit price']")).setValue(price);
-    await (await b.$("input[aria-label='Lead time (days)']")).setValue(lead);
-    await click("Save");
-    await (await b.$("input[aria-label='Unit price']")).waitForExist({ timeout: 15000, reverse: true });
+  // Tokyo: pre-filled by AI from the supplier's text, checked and saved by the operator.
+  await click("Record quotation");
+  await (await field("Supplier", "select")).selectByVisibleText("Tokyo Bearings KK");
+  await (await b.$('//summary[normalize-space(.)="Read the supplier\'s text (AI)"]')).click();
+  await (
+    await field("Supplier's reply", "textarea")
+  ).setValue(
+    // Line breaks typed as Enter keys: WebDriver drops "\n" in plain text.
+    [
+      "Currency: JPY",
+      "Line 1: 1,200 x 100, 7 days",
+      "Line 2: 45,000 x 4, 14 days",
+      "Shipping: 0",
+      "Ref: TB-881",
+    ].join("\uE007"),
+  );
+  await click("Pre-fill from text");
+  await (await b.$("//p[contains(., 'Form pre-filled by AI')]")).waitForExist({ timeout: 15000 });
+  const prices = await b.execute(() =>
+    Array.from(document.querySelectorAll("input[aria-label='Unit price']")).map((e) => e.value),
+  );
+  check("AI pre-fills exact prices from the supplier text", prices.join("|") === "1200|45000");
+  await click("Save");
+  await b.waitUntil(async () => (await b.$$("input[aria-label='Unit price']")).length === 0, {
+    timeout: 15000,
+  });
+  // Osaka: typed by hand.
+  await click("Record quotation");
+  await (await field("Supplier", "select")).selectByVisibleText("Osaka Motion Ltd");
+  const priceInputs = await b.$$("input[aria-label='Unit price']");
+  const leadInputs = await b.$$("input[aria-label='Lead time (days)']");
+  for (const [i, price] of ["1300", "46000"].entries()) {
+    await priceInputs[i].setValue(price);
+    await leadInputs[i].setValue("10");
   }
+  await click("Save");
+  await b.waitUntil(async () => (await b.$$("input[aria-label='Unit price']")).length === 0, {
+    timeout: 15000,
+  });
   check("two quotations recorded", await headerStatus("Quotes received"));
   await click("Run comparison");
   check("comparison runs", await headerStatus("Under comparison"));
@@ -158,8 +225,8 @@ try {
   await firstRow.waitForExist({ timeout: 15000 });
   const top = await firstRow.getText();
   check(
-    "cheapest compliant quotation ranks first (exact total ¥120,000)",
-    top.includes("Tokyo Bearings") && top.includes("120,000"),
+    "cheapest compliant quotation ranks first (exact total ¥300,000)",
+    top.includes("Tokyo Bearings") && top.includes("300,000"),
   );
   await shot("03-operator-comparison");
   await click("Recommend");

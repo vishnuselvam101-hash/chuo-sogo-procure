@@ -42,6 +42,11 @@ impl App {
     /// `owner_pool` is the per-test database created by `#[sqlx::test]` (owner role).
     /// The app under test runs as the restricted runtime role, exactly like production.
     pub async fn new(owner_pool: PgPool) -> Self {
+        Self::with_ai(owner_pool, Arc::new(procure_ai::mock::MockProvider)).await
+    }
+
+    /// Same, with a chosen AI provider (e.g. a scripted adversarial one).
+    pub async fn with_ai(owner_pool: PgPool, ai: Arc<dyn procure_ai::Provider>) -> Self {
         let options = (*owner_pool.connect_options()).clone();
         let pool = sqlx::postgres::PgPoolOptions::new()
             .max_connections(10)
@@ -57,6 +62,7 @@ impl App {
             .unwrap();
         let mailer = Arc::new(MemoryMailer::default());
         let mut state = AppState::new(pool.clone(), mailer.clone());
+        state.ai = ai;
         // Content-addressed, so tests running in parallel can share one directory.
         state.storage = Arc::new(procure_server::storage::Storage::new(
             std::env::temp_dir().join("procure-test-storage"),
@@ -212,7 +218,10 @@ pub fn uuid(v: &Value) -> Uuid {
 
 /// Platform + two customer orgs (A, B), each with an active admin.
 pub async fn world(pool: PgPool) -> World {
-    let app = App::new(pool).await;
+    world_with(App::new(pool).await).await
+}
+
+pub async fn world_with(app: App) -> World {
     let token = bootstrap(
         &app.pool,
         "Chuo-Sogo Inc.",

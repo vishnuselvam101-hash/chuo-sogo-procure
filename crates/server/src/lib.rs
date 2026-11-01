@@ -41,6 +41,10 @@ pub struct AppState {
     pub storage: Arc<storage::Storage>,
     /// Bounds concurrent attachment uploads (each holds ~25 MB while being processed).
     pub upload_permits: Arc<tokio::sync::Semaphore>,
+    /// AI provider (`PROCURE_AI_PROVIDER`); the offline mock unless configured otherwise.
+    pub ai: Arc<dyn procure_ai::Provider>,
+    /// Bounds concurrent model calls across all users.
+    pub ai_permits: Arc<tokio::sync::Semaphore>,
 }
 
 impl AppState {
@@ -54,6 +58,8 @@ impl AppState {
                 std::env::var("PROCURE_STORAGE_DIR").unwrap_or_else(|_| "./var/storage".into()),
             )),
             upload_permits: Arc::new(tokio::sync::Semaphore::new(4)),
+            ai: Arc::new(procure_ai::mock::MockProvider),
+            ai_permits: Arc::new(tokio::sync::Semaphore::new(4)),
         }
     }
 }
@@ -275,12 +281,46 @@ pub fn router(state: AppState) -> Router {
             Duration::from_secs(180),
         ));
 
+    // Model calls can take minutes (with retries); only the two extraction routes get that long.
+    let ai = Router::new()
+        .route(
+            "/orgs/{org_id}/requests/{request_id}/ai/extract-items",
+            post(api::ai::extract_items),
+        )
+        .route(
+            "/orgs/{org_id}/rfqs/{rfq_id}/ai/extract-quotation",
+            post(api::ai::extract_quotation),
+        )
+        .layer(RequestBodyLimitLayer::new(MAX_JSON_BODY))
+        .layer(TimeoutLayer::with_status_code(
+            StatusCode::REQUEST_TIMEOUT,
+            Duration::from_secs(300),
+        ));
+    let ai_review = Router::new()
+        .route(
+            "/orgs/{org_id}/ai/suggestions/{suggestion_id}",
+            get(api::ai::get_suggestion),
+        )
+        .route(
+            "/orgs/{org_id}/ai/suggestions/{suggestion_id}/accept-items",
+            post(api::ai::accept_items),
+        )
+        .route(
+            "/orgs/{org_id}/ai/suggestions/{suggestion_id}/reject",
+            post(api::ai::reject),
+        )
+        .layer(RequestBodyLimitLayer::new(MAX_JSON_BODY))
+        .layer(TimeoutLayer::with_status_code(
+            StatusCode::REQUEST_TIMEOUT,
+            Duration::from_secs(30),
+        ));
+
     Router::new()
         .route(
             "/health",
             get(|| async { Json(serde_json::json!({ "status": "ok" })) }),
         )
-        .nest("/api/v1", api.merge(uploads))
+        .nest("/api/v1", api.merge(uploads).merge(ai).merge(ai_review))
         .with_state(state)
         .layer(
             TraceLayer::new_for_http()

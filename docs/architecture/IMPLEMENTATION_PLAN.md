@@ -38,6 +38,8 @@ Requests + items + attachments → product identities/evidence/verification → 
 ## Phase 3 — AI layer (dep Phase 2)
 Provider trait + mock + local adapter; schemas per capability; validation + retries + timeouts; `ai_suggestions` with provenance; confidence → review queue; prompt-injection test corpus.
 
+Status (2026-11-01): ☑ `crates/ai` — `Provider` trait, offline deterministic mock (default), OpenAI-compatible adapter (`local` = loopback model server; `remote` needs founder approval flag), strict JSON schemas, `deny_unknown_fields`, retries + timeouts, bounded responses. Capabilities: item extraction from customer text; quotation extraction from supplier text (forced `alternative` on any different part number; exact money). Hallucination guards with flags + confidence caps; `ai_suggestions` with provider/model/prompt-version/hash/latency provenance; requester accepts item suggestions; operator records quotations from a prefilled form (provenance + edited-line count). UI in ja/en/ta/hi. ◐ Real model evaluation pending the founder's provider decision. Product-identity suggestion capability → later.
+
 ## Phase 4 — Managed operations (dep Phase 2; parallel with Phase 3)
 Task queues, assignment, SLA/overdue, comments vs internal notes, communications log, follow-up jobs, exceptions, service time.
 

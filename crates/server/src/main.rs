@@ -81,7 +81,13 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
             let outbox =
                 std::env::var("PROCURE_OUTBOX_DIR").unwrap_or_else(|_| "./var/outbox".into());
             tracing::warn!(dir = %outbox, "mail is in TEST MODE: messages are written to files, nothing is sent");
-            let state = AppState::new(pool, Arc::new(FileMailer { dir: outbox.into() }));
+            let mut state = AppState::new(pool, Arc::new(FileMailer { dir: outbox.into() }));
+            state.ai = Arc::from(procure_ai::provider::from_env()?);
+            tracing::info!(
+                provider = state.ai.name(),
+                model = state.ai.model(),
+                "AI provider"
+            );
             let bind = std::env::var("PROCURE_BIND").unwrap_or_else(|_| "127.0.0.1:8088".into());
             let listener = tokio::net::TcpListener::bind(&bind).await?;
             tracing::info!(%bind, "listening");

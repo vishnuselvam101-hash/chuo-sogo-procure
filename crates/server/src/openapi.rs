@@ -5,7 +5,7 @@
 use utoipa::openapi::security::{HttpAuthScheme, HttpBuilder, SecurityScheme};
 use utoipa::{Modify, OpenApi};
 
-use crate::api::{approvals, attachments, auth, orgs, products, requests, rfqs, suppliers};
+use crate::api::{ai, approvals, attachments, auth, orgs, products, requests, rfqs, suppliers};
 use crate::error::{ErrorBody, ErrorInner};
 
 struct BearerAuth;
@@ -86,6 +86,11 @@ impl Modify for BearerAuth {
         attachments::list,
         attachments::download,
         attachments::remove,
+        ai::extract_items,
+        ai::extract_quotation,
+        ai::get_suggestion,
+        ai::accept_items,
+        ai::reject,
     ),
     components(schemas(ErrorBody, ErrorInner)),
     modifiers(&BearerAuth)

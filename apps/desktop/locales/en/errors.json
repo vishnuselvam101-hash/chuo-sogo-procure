@@ -56,11 +56,20 @@
     "url": "Sources must be https addresses.",
     "kind": "Choose an evidence type.",
     "item_id": "That item is not part of this request.",
-    "invalid_base64": "The file could not be read."
+    "invalid_base64": "The file could not be read.",
+    "ai_unavailable": "The AI service is not available. Enter the details by hand.",
+    "ai_timeout": "The AI took too long. Try again or enter the details by hand.",
+    "ai_invalid_output": "The AI answer could not be used. Enter the details by hand.",
+    "ai_input_too_large": "The text is too long (20,000 characters at most).",
+    "text": "Paste some text first.",
+    "ai_suggestion_id": "That AI suggestion belongs to a different supplier or RFQ.",
+    "indices": "Choose at least one suggestion.",
+    "ai_nothing_found": "The AI found no quoted lines in this text. Enter the quotation by hand."
   },
   "payload_too_large": "The file or request is too large.",
   "invalid_file_name": "This file name cannot be used.",
   "download_too_large": "The file is too large to save.",
   "no_download_folder": "The Downloads folder is not available.",
-  "save_failed": "The file could not be saved."
+  "save_failed": "The file could not be saved.",
+  "rate_limited": "Too many requests. Please wait and try again."
 }

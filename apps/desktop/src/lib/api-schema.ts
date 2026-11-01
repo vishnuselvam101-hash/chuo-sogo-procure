@@ -103,6 +103,54 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/orgs/{org_id}/ai/suggestions/{suggestion_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["get_suggestion"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/orgs/{org_id}/ai/suggestions/{suggestion_id}/accept-items": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["accept_items"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/orgs/{org_id}/ai/suggestions/{suggestion_id}/reject": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["reject"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/orgs/{org_id}/approval-policies": {
     parameters: {
       query?: never;
@@ -375,6 +423,22 @@ export interface paths {
     patch: operations["update_request"];
     trace?: never;
   };
+  "/api/v1/orgs/{org_id}/requests/{request_id}/ai/extract-items": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["extract_items"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/orgs/{org_id}/requests/{request_id}/attachments": {
     parameters: {
       query?: never;
@@ -561,6 +625,22 @@ export interface paths {
     get: operations["get_rfq"];
     put?: never;
     post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/orgs/{org_id}/rfqs/{rfq_id}/ai/extract-quotation": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["extract_quotation"];
     delete?: never;
     options?: never;
     head?: never;
@@ -795,6 +875,13 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
+    AcceptItemsBody: {
+      /** @description Positions in the suggestion's `items` array to add to the request. */
+      indices: number[];
+    };
+    AcceptItemsResponse: {
+      added: number;
+    };
     AddMemberRequest: {
       display_name: string;
       email: string;
@@ -966,6 +1053,15 @@ export interface components {
       kind: string;
       note: string;
       url?: string | null;
+    };
+    ExtractBody: {
+      /** @description Untrusted text (customer email, supplier reply). At most 20,000 characters. */
+      text: string;
+    };
+    ExtractQuotationBody: {
+      /** Format: uuid */
+      supplier_id: string;
+      text: string;
     };
     IdResponse: {
       /** Format: uuid */
@@ -1141,6 +1237,11 @@ export interface components {
       verified_at?: string | null;
     };
     QuotationInput: {
+      /**
+       * Format: uuid
+       * @description The AI suggestion the operator started from (marked accepted; values are the operator's).
+       */
+      ai_suggestion_id?: string | null;
       currency: string;
       lines: components["schemas"]["QuotationLineInput"][];
       notes?: string;
@@ -1369,6 +1470,28 @@ export interface components {
     SubmitBody: {
       /** @description Required when answering a clarification question. */
       answer?: string | null;
+    };
+    SuggestionView: {
+      /** @description `extract_items` or `extract_quotation`. */
+      capability: string;
+      /** Format: date-time */
+      created_at: string;
+      /** Format: date-time */
+      decided_at?: string | null;
+      error_code?: string | null;
+      /** Format: uuid */
+      id: string;
+      model: string;
+      /** @description Validated output: an array of item suggestions, or a quotation suggestion. Null when failed. */
+      output: Record<string, never>;
+      prompt_version: string;
+      provider: string;
+      /** @description `pending`, `accepted`, `rejected` or `failed`. */
+      status: string;
+      /** Format: uuid */
+      subject_id: string;
+      /** Format: uuid */
+      supplier_id?: string | null;
     };
     SupplierDecisionBody: {
       /** @description `approved` or `rejected`. */
@@ -1715,6 +1838,198 @@ export interface operations {
       };
       /** @description No valid session */
       401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  get_suggestion: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+        suggestion_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Suggestion */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SuggestionView"];
+        };
+      };
+      /** @description Malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown or not yours */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  accept_items: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+        suggestion_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["AcceptItemsBody"];
+      };
+    };
+    responses: {
+      /** @description Chosen items added to the request by the requester */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AcceptItemsResponse"];
+        };
+      };
+      /** @description Malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not the requester */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown suggestion */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Already decided, or request not editable */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description No or invalid selection, or too many items */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  reject: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+        suggestion_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ReasonBody"];
+      };
+    };
+    responses: {
+      /** @description Rejected */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown or not yours */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Already decided */
+      409: {
         headers: {
           [name: string]: unknown;
         };
@@ -3054,6 +3369,96 @@ export interface operations {
       };
     };
   };
+  extract_items: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+        request_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ExtractBody"];
+      };
+    };
+    responses: {
+      /** @description Suggestion stored (status pending, or failed with error_code) */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SuggestionView"];
+        };
+      };
+      /** @description Malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not the requester */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown or not visible */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Request not editable */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Empty or too long text */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description AI rate limit reached */
+      429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
   list: {
     parameters: {
       query?: never;
@@ -4090,6 +4495,96 @@ export interface operations {
       };
       /** @description Unknown RFQ */
       404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  extract_quotation: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+        rfq_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ExtractQuotationBody"];
+      };
+    };
+    responses: {
+      /** @description Suggestion stored (status pending, or failed with error_code) */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SuggestionView"];
+        };
+      };
+      /** @description Malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown RFQ or not assigned */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description RFQ not sent, or quotations frozen */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Empty or too long text, or supplier not invited */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description AI rate limit reached */
+      429: {
         headers: {
           [name: string]: unknown;
         };

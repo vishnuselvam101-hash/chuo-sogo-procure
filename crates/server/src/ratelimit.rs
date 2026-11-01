@@ -13,7 +13,7 @@ pub struct Limit {
 }
 
 pub struct RateLimiter {
-    buckets: Mutex<HashMap<String, (u32, Instant)>>,
+    buckets: Mutex<HashMap<String, (u32, Instant, Duration)>>,
 }
 
 impl Default for RateLimiter {
@@ -36,11 +36,14 @@ impl RateLimiter {
             return false;
         };
         if buckets.len() > 100_000 {
-            buckets.retain(|_, (_, start)| now.duration_since(*start) < limit.window);
+            // Each bucket expires by its own window (AI buckets last an hour, login a minute).
+            buckets.retain(|_, (_, start, window)| now.duration_since(*start) < *window);
         }
-        let entry = buckets.entry(key.to_string()).or_insert((0, now));
+        let entry = buckets
+            .entry(key.to_string())
+            .or_insert((0, now, limit.window));
         if now.duration_since(entry.1) >= limit.window {
-            *entry = (0, now);
+            *entry = (0, now, limit.window);
         }
         entry.0 += 1;
         entry.0 <= limit.max
@@ -62,6 +65,11 @@ pub const RESET_PER_IP: Limit = Limit {
 };
 pub const RESET_PER_EMAIL: Limit = Limit {
     max: 3,
+    window: Duration::from_secs(3600),
+};
+/// AI calls cost compute (or money with a hosted provider): per user.
+pub const AI_PER_USER: Limit = Limit {
+    max: 30,
     window: Duration::from_secs(3600),
 };
 pub const SET_PASSWORD_PER_IP: Limit = Limit {

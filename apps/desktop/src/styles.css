@@ -558,3 +558,12 @@ button.link {
     flex-basis: 100%;
   }
 }
+
+.warn-text {
+  color: #8a520a;
+}
+@media (prefers-color-scheme: dark) {
+  .warn-text {
+    color: #f0b35c;
+  }
+}

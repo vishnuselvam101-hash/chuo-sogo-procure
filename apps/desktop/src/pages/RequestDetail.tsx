@@ -11,6 +11,7 @@ import { RfqPanel } from "./RfqPanel";
 import { Attachments } from "./Attachments";
 import { ProductPanel } from "./Products";
 import { VerifyItem } from "./VerifyItem";
+import { AiItems } from "./AiItems";
 import { P } from "../lib/perm";
 
 const EDITABLE = ["draft", "needs_clarification"];
@@ -131,6 +132,7 @@ export function RequestDetail({ active, selfId, requestId, onBack }: Props) {
         </tbody>
       </table>
 
+      {editable && <AiItems active={active} requestId={r.id} onAdded={reload} />}
       {editable && (
         <div className="card item-row">
           <ItemFields value={newItem} onChange={setNewItem} />

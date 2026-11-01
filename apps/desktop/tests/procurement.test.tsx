@@ -368,3 +368,70 @@ describe("new request", () => {
     expect(body.needed_by).toBeNull();
   });
 });
+
+describe("AI item suggestions", () => {
+  it("adds nothing until the requester ticks suggestions, and pre-ticks only clean ones", async () => {
+    const { AiItems } = await import("../src/pages/AiItems");
+    const suggestion = {
+      id: "sug-1",
+      capability: "extract_items",
+      subject_id: REQ,
+      status: "pending",
+      provider: "mock",
+      model: "rules-v1",
+      prompt_version: "extract_items/v1",
+      created_at: "2026-11-01T00:00:00Z",
+      output: [
+        {
+          description: "Bearing",
+          manufacturer: "NSK",
+          mpn: "6204ZZ",
+          quantity: 100,
+          unit: "pcs",
+          confidence: 90,
+          flags: [],
+          needs_review: false,
+        },
+        {
+          description: "Seal",
+          manufacturer: "",
+          mpn: "INVENTED",
+          quantity: 5,
+          unit: "pcs",
+          confidence: 30,
+          flags: ["mpn_not_in_source"],
+          needs_review: true,
+        },
+      ],
+    };
+    const calls: { method: string; path: string; body: unknown }[] = [];
+    const api = vi.fn(async (method: string, path: string, body?: unknown) => {
+      calls.push({ method, path, body });
+      if (path.endsWith("/ai/extract-items")) return { status: 201, body: suggestion, request_id: "r" };
+      return { status: 200, body: { added: 1 }, request_id: "r" };
+    });
+    const added = vi.fn();
+    render(
+      <BridgeProvider value={{ api, log: vi.fn() } as unknown as Bridge}>
+        <AiItems active={view("member", ["submit_request"])} requestId={REQ} onAdded={added} />
+      </BridgeProvider>,
+    );
+    fireEvent.change(screen.getByLabelText("Text"), { target: { value: "100 x NSK 6204ZZ" } });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Suggest items" }));
+    });
+    const boxes = screen.getAllByRole("checkbox") as HTMLInputElement[];
+    expect(boxes.map((b) => b.checked)).toEqual([true, false]);
+    expect(screen.getByText("part number not found in the text")).toBeTruthy();
+    expect(calls.filter((c) => c.path.includes("accept-items"))).toHaveLength(0);
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Add 1 selected" }));
+    });
+    expect(calls.at(-1)).toEqual({
+      method: "POST",
+      path: `/api/v1/orgs/${ORG}/ai/suggestions/sug-1/accept-items`,
+      body: { indices: [0] },
+    });
+    expect(added).toHaveBeenCalled();
+  });
+});

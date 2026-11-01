@@ -410,6 +410,8 @@ pub struct QuotationInput {
     #[serde(default)]
     pub notes: String,
     pub lines: Vec<QuotationLineInput>,
+    /// The AI suggestion the operator started from (marked accepted; values are the operator's).
+    pub ai_suggestion_id: Option<Uuid>,
 }
 
 #[utoipa::path(
@@ -500,8 +502,9 @@ pub async fn record_quotation(
     let id = Uuid::now_v7();
     sqlx::query(
         "INSERT INTO quotations (id, org_id, rfq_id, rfq_recipient_id, supplier_reference, currency,
-                                 shipping_minor, valid_until, received_at, notes, recorded_by)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, coalesce($9, now()), $10, $11)",
+                                 shipping_minor, valid_until, received_at, notes, recorded_by,
+                                 ai_suggestion_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, coalesce($9, now()), $10, $11, $12)",
     )
     .bind(id)
     .bind(org_id)
@@ -514,6 +517,7 @@ pub async fn record_quotation(
     .bind(body.received_at)
     .bind(&notes)
     .bind(p.user_id)
+    .bind(body.ai_suggestion_id)
     .execute(&mut *tx)
     .await?;
     for l in &body.lines {
@@ -541,6 +545,17 @@ pub async fn record_quotation(
         .execute(&mut *tx)
         .await?;
     let audit = Audit { org_id, p: &p };
+    if let Some(suggestion) = body.ai_suggestion_id {
+        crate::api::ai::accept_quotation_suggestion(
+            &mut tx,
+            &audit,
+            suggestion,
+            rfq.id,
+            body.supplier_id,
+            id,
+        )
+        .await?;
+    }
     audit
         .record(
             &mut tx,

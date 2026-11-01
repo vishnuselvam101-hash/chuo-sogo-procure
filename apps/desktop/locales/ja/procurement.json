@@ -179,5 +179,38 @@
     "createRecord": "新しい記録を作成",
     "createAndVerify": "記録を作成して確認済みにする",
     "note": "一致すると判断した理由（任意）"
+  },
+  "ai": {
+    "itemsTitle": "メールやリストから品目を入力（AI）",
+    "itemsHint": "テキストを貼り付けてください。AIが品目を提案します。チェックして追加するまで何も登録されません。型番と数量を確認してください。",
+    "sourceText": "テキスト",
+    "extract": "品目を提案",
+    "working": "読み取り中…",
+    "reviewNotice": "AIの提案（{{model}}）：追加する前に1件ずつ確認してください。",
+    "nothingFound": "このテキストに品目は見つかりませんでした。",
+    "confidence": "確度 {{value}}%",
+    "addSelected": "選択した{{count}}件を追加",
+    "dismiss": "破棄",
+    "quoteTitle": "サプライヤーの文面を読み取る（AI）",
+    "supplierText": "サプライヤーの回答",
+    "readQuote": "文面から入力",
+    "prefilled": "AIがフォームに入力しました。保存する前に、すべての値をサプライヤーの文面と照合してください。"
+  },
+  "aiFlag": {
+    "mpn_not_in_source": "型番が文面にありません",
+    "quantity_not_in_source": "数量が文面にありません",
+    "unit_defaulted": "単位を仮定",
+    "price_not_in_source": "価格が文面にありません",
+    "quantity_differs": "数量が依頼と異なります",
+    "different_part_number": "別の型番の提案（代替品）",
+    "currency_assumed": "通貨の記載なし：依頼の通貨を仮定",
+    "shipping_unreadable": "送料を読み取れません",
+    "valid_until_unreadable": "有効期限を読み取れません",
+    "line_dropped": "読み取れない明細があります",
+    "mpn_unverifiable": "型番を確認できません",
+    "currency_not_in_source": "通貨が文面にありません",
+    "currency_differs": "依頼と異なる通貨（換算なし）",
+    "shipping_not_in_source": "送料が文面にありません",
+    "lead_time_not_in_source": "納期が文面にありません"
   }
 }

@@ -12,6 +12,7 @@ path = "src/main.rs"
 
 [dependencies]
 procure-domain = { path = "../domain" }
+procure-ai = { path = "../ai" }
 axum = { version = "0.8", features = ["macros"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal", "net", "sync", "fs", "io-util"] }
 tower = { version = "0.5", features = ["util"] }

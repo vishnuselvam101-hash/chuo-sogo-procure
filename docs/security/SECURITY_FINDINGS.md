@@ -32,6 +32,17 @@
 | SF-028 | 2026-11-01 | A product could be verified on a one-word note | Low | V2 (business logic) | Fixed | verification requires at least one https source |
 | SF-029 | 2026-11-01 | Items with attachments could not be deleted (FK error 422) | Low | — | Fixed | attachments detached to the request, audited |
 | SF-030 | 2026-11-01 | 30 s timeout too short for 10 MB uploads/downloads; upload decoded before authorization, unbounded concurrency | Low | V13 (resources) | Fixed | uploads 180 s server + client, role check before decode, 4 concurrent uploads |
+| SF-031 | 2026-11-01 | AI: `parse_decimal` stripped commas anywhere, so a decimal comma ("12,50") became a 100× price that the price guard confirmed | Medium | V2 (business logic) | Fixed | commas only as well-formed thousands groups; regression tests |
+| SF-032 | 2026-11-01 | AI hallucination guards matched digits inside other words (e.g. price 6204 "found" in 6204ZZ), MPNs as substrings across words, and unverifiable non-ASCII MPNs; shipping/currency/lead time unchecked | Medium | V2 | Fixed | standalone-number and whole-word matching, `mpn_unverifiable`, shipping/currency/lead-time source checks, `currency_differs` |
+| SF-033 | 2026-11-01 | AI: customer-typed item descriptions sent to the quotation model outside any fence; fence tags matched case-sensitively | Low | V5 (injection) | Fixed | reference data fenced and cleaned; case-insensitive tag neutralisation; prompt v2 |
+| SF-034 | 2026-11-01 | UI kept one supplier's AI-prefilled prices after switching supplier; low-confidence item suggestions pre-ticked | Low | — | Fixed | form cleared on supplier change; only `needs_review = false` pre-ticked |
+| SF-035 | 2026-11-01 | AI: no global concurrency bound, long timeout on all AI routes, unbounded provider response, remote provider usable without approval, limiter evicted long buckets early | Low | V13 | Fixed | 4 concurrent model calls, 300 s only on extraction routes, 2 MB response cap, `PROCURE_AI_REMOTE_APPROVED=yes` required for remote, `local` must be loopback, per-bucket expiry |
+
+## Residual risk (Phase 3)
+- Hallucination guards are heuristics (presence of the same number/part number in the source text); a model can still pick the wrong number that does appear in the text. Every AI output is a suggestion a human must check; low-confidence items are not pre-selected.
+- Any assigned operator may record a quotation from another operator's pending suggestion (team work); the audit records how many lines were edited.
+- No real model has been evaluated yet: default provider is the offline mock. Choosing a provider (local model vs. hosted API) is a founder decision; hosted providers need `PROCURE_AI_REMOTE_APPROVED=yes`.
+- Prompt-injection testing covers fencing, schema rejection and inertness of output; it cannot prove a real model never follows injected text — which is why output can only ever become a reviewed suggestion.
 
 ## Residual risk (Phase 2c)
 - Attachment bytes are never deleted (soft-remove keeps them; failed transactions can leave unreferenced files). No sweeper or retention policy yet.
