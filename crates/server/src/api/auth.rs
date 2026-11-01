@@ -254,6 +254,12 @@ pub async fn login(
     ApiJson(req): ApiJson<LoginRequest>,
 ) -> ApiResult<Json<LoginResponse>> {
     let user_id = check_password(&state, &ip, &req.email, req.password).await?;
+    Ok(Json(start_session(&state, &ip, user_id).await?))
+}
+
+/// A new app session for a user whose identity is already established (password, or the
+/// demo server's trial accounts).
+pub async fn start_session(state: &AppState, ip: &str, user_id: Uuid) -> ApiResult<LoginResponse> {
     let now = Utc::now();
     let mut tx = db::auth_tx(&state.pool).await?;
     let memberships = load_memberships(&mut tx, user_id).await?;
@@ -263,7 +269,7 @@ pub async fn login(
     if memberships
         .iter()
         .any(|m| m.role == Role::PlatformSuperAdmin)
-        && !super::admin::network_allowed(&state, &ip)
+        && !super::admin::network_allowed(state, ip)
     {
         tracing::warn!(%user_id, "super-admin app login refused outside the admin networks");
         return Err(ApiError::InvalidCredentials);
@@ -282,11 +288,11 @@ pub async fn login(
     let me = me_view(&mut tx, user_id, &memberships).await?;
     tx.commit().await?;
     tracing::info!(%user_id, "login");
-    Ok(Json(LoginResponse {
+    Ok(LoginResponse {
         token,
         expires_at,
         me,
-    }))
+    })
 }
 
 #[utoipa::path(

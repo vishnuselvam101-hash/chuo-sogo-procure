@@ -4,6 +4,7 @@ import { useBridge } from "../lib/BridgeContext";
 import { errorCode, ok } from "../lib/bridge";
 import type { Me } from "../lib/types";
 import { ErrorText } from "../components/ui";
+import { TrialStart, useTrialAccounts } from "../components/TrialStart";
 
 type Mode = "signin" | "signup" | "code";
 
@@ -28,6 +29,8 @@ export function ShopAuth({
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const trial = useTrialAccounts("shop");
+  const [useForm, setUseForm] = useState(false);
 
   async function guarded(fn: () => Promise<void>) {
     setBusy(true);
@@ -85,6 +88,22 @@ export function ShopAuth({
       </label>
     </details>
   );
+
+  if (trial === undefined)
+    return (
+      <main className="login shop-login">
+        <p className="muted">{t("state.loading")}</p>
+      </main>
+    );
+  if (trial.length > 0 && !useForm)
+    return (
+      <TrialStart
+        title={t("shop:name")}
+        accounts={trial}
+        onSignedIn={onSignedIn}
+        onUseForm={() => setUseForm(true)}
+      />
+    );
 
   return (
     <main className="login shop-login">

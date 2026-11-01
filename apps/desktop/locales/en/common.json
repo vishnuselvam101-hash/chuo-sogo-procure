@@ -157,5 +157,10 @@
   "invitation": {
     "accept": "Accept",
     "decline": "Decline"
+  },
+  "trial": {
+    "lead": "This is the trial. Choose a role to start straight away (no password).",
+    "note": "All data is fictional demo data, reset every night at 03:00 Japan time. To change role, use “Sign out” in the menu to come back here.",
+    "useEmail": "Sign in with email instead"
   }
 }

@@ -97,3 +97,72 @@ async fn shop_sign_up_can_be_switched_off(pool: PgPool) {
     assert_eq!(r.status, StatusCode::FORBIDDEN, "{:?}", r.body);
     assert!(app.mailer.sent.lock().unwrap().is_empty());
 }
+
+#[sqlx::test(migrator = "procure_server::MIGRATOR")]
+async fn trial_accounts_enter_without_password_only_where_configured(pool: PgPool) {
+    // Off by default: no list, no entry.
+    let w = world(pool.clone()).await;
+    let r = w
+        .app
+        .call(Method::GET, "/api/v1/demo/accounts", None, None)
+        .await;
+    assert_eq!(r.status, StatusCode::NOT_FOUND);
+    let r = w
+        .app
+        .call(
+            Method::POST,
+            "/api/v1/auth/demo-login",
+            None,
+            Some(json!({ "email": "admin@a.test" })),
+        )
+        .await;
+    assert_eq!(r.status, StatusCode::NOT_FOUND);
+
+    // Trial server: the super-admin is listed by mistake and must still be refused.
+    let trial = App::configured(pool, |s| {
+        s.demo_accounts = vec!["admin@a.test".into(), "root@chuo-sogo.test".into()];
+    })
+    .await;
+    let r = trial
+        .call(Method::GET, "/api/v1/demo/accounts", None, None)
+        .await;
+    assert_eq!(r.status, StatusCode::OK, "{:?}", r.body);
+    let listed: Vec<&str> = r
+        .body
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|a| a["email"].as_str().unwrap())
+        .collect();
+    assert_eq!(listed, vec!["admin@a.test"]);
+    assert_eq!(r.body[0]["role"], "customer_admin");
+    assert_eq!(r.body[0]["org_kind"], "customer");
+
+    let r = trial
+        .call(
+            Method::POST,
+            "/api/v1/auth/demo-login",
+            None,
+            Some(json!({ "email": "Admin@A.test" })),
+        )
+        .await;
+    assert_eq!(r.status, StatusCode::OK, "{:?}", r.body);
+    let token = r.body["token"].as_str().unwrap().to_string();
+    let me = trial
+        .call(Method::GET, "/api/v1/me", Some(&token), None)
+        .await;
+    assert_eq!(me.body["user"]["email"], "admin@a.test");
+
+    for email in ["root@chuo-sogo.test", "nobody@a.test"] {
+        let r = trial
+            .call(
+                Method::POST,
+                "/api/v1/auth/demo-login",
+                None,
+                Some(json!({ "email": email })),
+            )
+            .await;
+        assert_eq!(r.status, StatusCode::UNAUTHORIZED, "{email}: {:?}", r.body);
+        assert!(r.body.get("token").is_none());
+    }
+}

@@ -76,8 +76,9 @@ A separate, public instance for trial users (`scripts/demo/install-demo.sh`, as 
 `procure_live`; it cannot see `/var/lib/procure` or `/etc/procure/procure.env`. No speech-to-text,
 200 MB of files per organisation, no shop self sign-up, CPU and task limits.
 
-- Accounts: `/root/procure-demo-accounts.json` (0600). Trial accounts share one password; the
-  super-admin has its own and signs in only from Tailscale or this machine.
+- Accounts: `/root/procure-demo-accounts.json` (0600). Trial users need no password: the apps
+  show one button per trial account (`PROCURE_DEMO_LOGIN`). The shared password still works with
+  "Sign in with email"; the super-admin has its own and signs in only from Tailscale or here.
 - Every night at 03:00 JST `procure-demo-reset.timer` wipes and re-seeds the data, keeping the
   shared password. By hand: `install-demo.sh --reset` (add `--new-password` to rotate it).
 - Trial package: `scripts/demo/make-trial-package.sh <desktop-business> <desktop-shop>

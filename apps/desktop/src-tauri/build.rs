@@ -33,6 +33,8 @@ fn main() {
         "prefs_set_language",
         "prefs_set_server",
         "auth_login",
+        // Business and shop apps: trial server role buttons (granted in capabilities/default.json).
+        "auth_demo",
         "auth_logout",
         "api_request",
         "api_download",

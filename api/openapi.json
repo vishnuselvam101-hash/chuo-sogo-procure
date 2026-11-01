@@ -2917,6 +2917,66 @@
         ]
       }
     },
+    "/api/v1/auth/demo-login": {
+      "post": {
+        "tags": [
+          "demo"
+        ],
+        "operationId": "demo_login",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DemoLoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Signed in as the trial account",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not a trial account",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not a trial server",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/auth/login": {
       "post": {
         "tags": [
@@ -3102,6 +3162,39 @@
           },
           "429": {
             "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/demo/accounts": {
+      "get": {
+        "tags": [
+          "demo"
+        ],
+        "operationId": "demo_accounts",
+        "responses": {
+          "200": {
+            "description": "Trial accounts that can be entered without a password",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DemoAccount"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not a trial server",
             "content": {
               "application/json": {
                 "schema": {
@@ -13703,6 +13796,46 @@
               "null"
             ],
             "format": "date-time"
+          }
+        }
+      },
+      "DemoAccount": {
+        "type": "object",
+        "required": [
+          "email",
+          "display_name",
+          "role",
+          "org_name",
+          "org_kind"
+        ],
+        "properties": {
+          "display_name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "org_kind": {
+            "type": "string",
+            "description": "`platform`, `customer`, `supplier` or `consumer`: which app the account belongs in."
+          },
+          "org_name": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "description": "Role code in the account's organisation (translated by the apps)."
+          }
+        }
+      },
+      "DemoLoginRequest": {
+        "type": "object",
+        "required": [
+          "email"
+        ],
+        "properties": {
+          "email": {
+            "type": "string"
           }
         }
       },

@@ -182,6 +182,43 @@ async fn auth_login(
     Ok(res)
 }
 
+/// Trial server only: enters one of its listed trial accounts without a password (the server
+/// refuses anywhere else). Same session handling as `auth_login`; not in the admin console.
+#[cfg(not(feature = "admin"))]
+#[tauri::command]
+async fn auth_demo(
+    prefs: State<'_, Mutex<Prefs>>,
+    session: State<'_, Session>,
+    email: String,
+) -> Result<ApiResponse, String> {
+    if email.len() > 254 {
+        return Err("invalid email".into());
+    }
+    let base = lock(&prefs)?.server_url.clone();
+    let previous = lock(&session.token)?.take();
+    if let Some(prev) = previous
+        && let Ok(url) = validate::api_url(&prev.server, &endpoint("auth/logout"))
+    {
+        send(&session, url, reqwest::Method::POST, None, Some(prev.token)).await;
+    }
+    let url = validate::api_url(&base, &endpoint("auth/demo-login"))?;
+    let body = serde_json::json!({ "email": email });
+    let mut res = send(&session, url, reqwest::Method::POST, Some(body), None).await;
+    if res.status == 200
+        && let Some(token) = res
+            .body
+            .as_object_mut()
+            .and_then(|o| o.remove("token"))
+            .and_then(|t| t.as_str().map(str::to_owned))
+    {
+        *lock(&session.token)? = Some(BoundToken {
+            server: base,
+            token,
+        });
+    }
+    Ok(res)
+}
+
 /// `path` under this build's API namespace.
 fn endpoint(path: &str) -> String {
     format!("{}{path}", validate::API_PREFIX)
@@ -498,6 +535,7 @@ fn handlers() -> impl Fn(tauri::ipc::Invoke) -> bool + Send + Sync + 'static {
         prefs_set_language,
         prefs_set_server,
         auth_login,
+        auth_demo,
         auth_logout,
         api_request,
         api_download,

@@ -71,6 +71,7 @@
 | SF-067 | 2026-11-01 | No HSTS on HTTPS responses | Low | V9 | Fixed | `Strict-Transport-Security: max-age=31536000` on every response |
 | SF-068 | 2026-11-01 | Build-time server preset not validated (newline could inject cargo directives; http accepted) | Low | V14 | Fixed | `build.rs` accepts only one-line `https://` (or local http) |
 | SF-069 | 2026-11-01 | Trial package could ship installers without the demo address or from an unknown commit | Low | V14 | Fixed | package script checks every installer for the address and records run, branch and commit |
+| SF-070 | 2026-11-01 | Founder decision: trial users enter without a password. Risk: anyone with the trial link acts as the trial accounts | Accepted (demo only) | V6 | Mitigated | `PROCURE_DEMO_LOGIN` lists the trial emails; off unless set (only `install-demo.sh` sets it); super-admin always refused even if listed; rate-limited and logged; demo data isolated and reset nightly; test `demo_hardening` |
 
 ## Residual risk (trial demo)
 - Trial accounts share one password; anyone holding it can lock an account for 15 minutes (10 failures) or change shared demo data. Mitigation: nightly reset at 03:00 JST; one account set per trial user if abuse appears.

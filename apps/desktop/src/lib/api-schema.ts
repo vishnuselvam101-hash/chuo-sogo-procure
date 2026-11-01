@@ -548,6 +548,22 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/auth/demo-login": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["demo_login"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/auth/login": {
     parameters: {
       query?: never;
@@ -608,6 +624,22 @@ export interface paths {
     put?: never;
     /** Redeems an activation or reset token and sets the password. Revokes all sessions. */
     post: operations["set_password"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/demo/accounts": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["demo_accounts"];
+    put?: never;
+    post?: never;
     delete?: never;
     options?: never;
     head?: never;
@@ -2362,6 +2394,18 @@ export interface components {
       reversal_reason?: string | null;
       /** Format: date-time */
       reversed_at?: string | null;
+    };
+    DemoAccount: {
+      display_name: string;
+      email: string;
+      /** @description `platform`, `customer`, `supplier` or `consumer`: which app the account belongs in. */
+      org_kind: string;
+      org_name: string;
+      /** @description Role code in the account's organisation (translated by the apps). */
+      role: string;
+    };
+    DemoLoginRequest: {
+      email: string;
     };
     DiscrepancyView: {
       /** Format: int64 */
@@ -5836,6 +5880,57 @@ export interface operations {
       };
     };
   };
+  demo_login: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["DemoLoginRequest"];
+      };
+    };
+    responses: {
+      /** @description Signed in as the trial account */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["LoginResponse"];
+        };
+      };
+      /** @description Not a trial account */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not a trial server */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Rate limited */
+      429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
   login: {
     parameters: {
       query?: never;
@@ -6003,6 +6098,35 @@ export interface operations {
       };
       /** @description Rate limited */
       429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  demo_accounts: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Trial accounts that can be entered without a password */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["DemoAccount"][];
+        };
+      };
+      /** @description Not a trial server */
+      404: {
         headers: {
           [name: string]: unknown;
         };

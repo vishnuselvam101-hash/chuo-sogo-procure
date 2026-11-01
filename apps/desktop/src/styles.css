@@ -1432,3 +1432,45 @@ details > summary {
     transition: none !important;
   }
 }
+
+/* ---- Trial server: role picker instead of the sign-in form ---- */
+.trial-card {
+  width: min(460px, 100%);
+}
+
+.trial-roles {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.trial-role {
+  width: 100%;
+  min-height: 52px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  padding: 8px 14px;
+  text-align: start;
+  white-space: normal;
+}
+
+.trial-role:hover {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+}
+
+.trial-role-name {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.trial-role-org {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--muted);
+}

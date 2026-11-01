@@ -4,6 +4,7 @@ import { useBridge } from "../lib/BridgeContext";
 import { errorCode, ok } from "../lib/bridge";
 import type { Me } from "../lib/types";
 import { ErrorText } from "../components/ui";
+import { TrialStart, useTrialAccounts } from "../components/TrialStart";
 
 interface Props {
   serverUrl: string;
@@ -142,6 +143,8 @@ export function Login({ serverUrl, onLoggedIn }: Props) {
   const [server, setServer] = useState(serverUrl);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const trial = useTrialAccounts("business");
+  const [useForm, setUseForm] = useState(false);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -183,6 +186,22 @@ export function Login({ serverUrl, onLoggedIn }: Props) {
       <main className="login">
         <ForgotForm onBack={() => setMode(SIGNIN)} />
       </main>
+    );
+
+  if (trial === undefined)
+    return (
+      <main className="login">
+        <p className="muted">{t("state.loading")}</p>
+      </main>
+    );
+  if (trial.length > 0 && !useForm)
+    return (
+      <TrialStart
+        title={t("app.name")}
+        accounts={trial}
+        onSignedIn={onLoggedIn}
+        onUseForm={() => setUseForm(true)}
+      />
     );
 
   return (

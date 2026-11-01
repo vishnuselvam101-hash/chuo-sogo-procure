@@ -6,8 +6,8 @@ use utoipa::openapi::security::{HttpAuthScheme, HttpBuilder, SecurityScheme};
 use utoipa::{Modify, OpenApi};
 
 use crate::api::{
-    admin, ai, approvals, attachments, auth, billing, listing_ai, listings, ops, orders, orgs,
-    products, requests, rfqs, shop, suppliers,
+    admin, ai, approvals, attachments, auth, billing, demo, listing_ai, listings, ops, orders,
+    orgs, products, requests, rfqs, shop, suppliers,
 };
 use crate::error::{ErrorBody, ErrorInner};
 
@@ -33,6 +33,8 @@ impl Modify for BearerAuth {
     info(title = "Chuo-Sogo Procure API", description = "Backend API for the Chuo-Sogo Procure desktop client."),
     paths(
         auth::login,
+        demo::login,
+        demo::accounts,
         auth::logout,
         auth::me,
         auth::respond_invitation,

@@ -25,8 +25,8 @@ T = {
         "get": "1. ダウンロード",
         "get_body": f"次のページを開くと、お使いの端末（Windows・Mac・Android など）に合ったファイルが自動で表示されます。",
         "install": "2. インストール",
-        "signin": "3. ログイン",
-        "signin_body": "役割ごとにアカウントがあります。パスワードは全アカウント共通で、中央総合の担当者から別途お伝えします。画面の言語メニューで日本語 / English を切り替えられます。",
+        "signin": "3. 始め方（パスワード不要）",
+        "signin_body": "アプリを開くと役割のボタンが並びます。押すだけで始められ、パスワードは要りません。役割を変えるときは、メニューの「サインアウト」で最初の画面に戻ります。画面の言語メニューで日本語 / English を切り替えられます。",
         "try": "4. 試してほしいこと（約30分）",
         "notes": "5. ご注意",
         "role": "役割", "email": "メールアドレス", "app": "アプリ",
@@ -41,8 +41,8 @@ T = {
         "get": "1. Download",
         "get_body": "Open the page below. It shows the right file for your device (Windows, Mac, Android and so on) automatically.",
         "install": "2. Install",
-        "signin": "3. Sign in",
-        "signin_body": "There is an account for each role. All accounts share one password, which your Chuo-Sogo contact gives you separately. The language menu in the app switches between 日本語 and English.",
+        "signin": "3. Getting started (no password)",
+        "signin_body": "When the app opens it shows one button per role. Press one to start; no password is needed. To change role, use “Sign out” in the menu to return to the first screen. The language menu in the app switches between 日本語 and English.",
         "try": "4. What to try (about 30 minutes)",
         "notes": "5. Please note",
         "role": "Role", "email": "Email address", "app": "App",
@@ -57,11 +57,11 @@ INSTALL = [
         "ja": ["ChuoSogo-Trial-Setup.exe をダウンロードして開きます。",
                "青い画面「WindowsによってPCが保護されました」が出たら「詳細情報」→「実行」。",
                "「次へ」→「完了」。Procure と Shop の両方が入り、デスクトップに試用ガイドができます。",
-               "デスクトップの「Chuo-Sogo Procure」を開きます。"],
+               "デスクトップの「Chuo-Sogo Procure」を開き、役割のボタンを押します。"],
         "en": ["Download and open ChuoSogo-Trial-Setup.exe.",
                "If a blue “Windows protected your PC” screen appears, press “More info”, then “Run anyway”.",
                "Press “Next”, then “Finish”. Procure and Shop are both installed, and the guide is put on the desktop.",
-               "Open “Chuo-Sogo Procure” on the desktop."]}),
+               "Open “Chuo-Sogo Procure” on the desktop and press a role button."]}),
     ("Mac", {"ja": "macOS 10.15 以降（Appleチップ / Intel 両対応）", "en": "macOS 10.15+, Apple chip or Intel"}, {
         "ja": ["ChuoSogo-Procure.dmg をダウンロードして開きます。",
                "アプリのアイコンを「Applications（アプリケーション）」フォルダへドラッグします。",
@@ -109,34 +109,34 @@ ACCOUNTS = [
 TRY = {
     "ja": [
         ("A. 顧客企業（サンプル精機）", [
-            "<b>requester</b> でログイン →「調達依頼」。下書き「安全手袋・消耗品」を開いて提出します。",
-            "<b>manager</b> でログイン →「承認」。内容を確認して承認または差し戻し。承認できるのは人だけで、AIは承認も発注もしません。",
-            "<b>finance</b> でログイン →「中央総合からの請求書」。インボイス制度対応の請求書をPDFで保存できます。",
-            "<b>ceo</b> でログイン →「メンバー管理」「監査ログ」。誰がいつ何をしたかがすべて残ります。"]),
+            "「依頼者」を選択 →「調達依頼」。下書き「安全手袋・消耗品」を開いて提出します。",
+            "「調達マネージャー」を選択 →「承認」。内容を確認して承認または差し戻し。承認できるのは人だけで、AIは承認も発注もしません。",
+            "「経理担当」を選択 →「中央総合からの請求書」。インボイス制度対応の請求書をPDFで保存できます。",
+            "「組織管理者」を選択 →「メンバー管理」「監査ログ」。誰がいつ何をしたかがすべて残ります。"]),
         ("B. 中央総合の調達担当", [
-            "<b>operator</b> でログイン →「業務キュー」。顧客から届いた依頼が並びます。",
+            "「調達オペレーター」を選択 →「業務キュー」。顧客から届いた依頼が並びます。",
             "「見積依頼 (RFQ)」「見積書」で仕入先の見積を比較します。試用版ではメールは実際には送信されません。"]),
         ("C. 仕入先（大阪ベアリング）", [
-            "<b>sales</b> でログイン →「製品掲載」。写真・型番・仕様付きの製品が並んでいます。",
+            "「サプライヤー管理者」を選択 →「製品掲載」。写真・型番・仕様付きの製品が並んでいます。",
             "新しい製品を作り、AIアシストにカタログのPDFやExcelを渡すと入力案が出ます。採用するかは人が決め、入力済みの項目は上書きされません。"]),
         ("D. 一般のお客様（Shopアプリ）", [
-            "<b>hanako</b> でログイン。税込価格の商品一覧からカートに入れ、注文します。",
+            "Shopアプリで「個人のお客様」を選択。税込価格の商品一覧からカートに入れ、注文します。",
             "「ご注文履歴」で請求書付きのデモ注文を開き、振込先と請求書PDFを確認します。"]),
     ],
     "en": [
         ("A. Customer company (Sample Seiki)", [
-            "Sign in as <b>requester</b> → “Procurement”. Open the draft “Safety gloves and consumables” and submit it.",
-            "Sign in as <b>manager</b> → “Approvals”. Check the request and approve it or send it back. Only people approve; the AI never approves or orders.",
-            "Sign in as <b>finance</b> → “Invoices from Chuo-Sogo”. Save a qualified (インボイス) invoice as PDF.",
-            "Sign in as <b>ceo</b> → “Members” and “Audit log”. Every action is recorded with who and when."]),
+            "Choose <b>Requester</b> → “Procurement”. Open the draft “Safety gloves and consumables” and submit it.",
+            "Choose <b>Procurement manager</b> → “Approvals”. Check the request and approve it or send it back. Only people approve; the AI never approves or orders.",
+            "Choose <b>Finance</b> → “Invoices from Chuo-Sogo”. Save a qualified (インボイス) invoice as PDF.",
+            "Choose <b>Organisation administrator</b> → “Members” and “Audit log”. Every action is recorded with who and when."]),
         ("B. Chuo-Sogo buyer", [
-            "Sign in as <b>operator</b> → “Operations queue”. Requests from customers appear here.",
+            "Choose <b>Procurement operator</b> → “Operations queue”. Requests from customers appear here.",
             "Compare supplier quotations under “RFQs” and “Quotations”. In the trial no email is actually sent."]),
         ("C. Supplier (Osaka Bearing)", [
-            "Sign in as <b>sales</b> → “Listings”. Products with photos, model numbers and specifications.",
+            "Choose <b>Supplier administrator</b> → “Listings”. Products with photos, model numbers and specifications.",
             "Create a product and give the AI assistant a catalogue PDF or Excel file: it suggests the fields. A person decides what to keep; filled-in fields are never overwritten."]),
         ("D. Consumer (Shop app)", [
-            "Sign in as <b>hanako</b>. Add products (tax-inclusive prices) to the cart and order.",
+            "In the Shop app, choose <b>Shopper</b>. Add products (tax-inclusive prices) to the cart and order.",
             "Open the demo order with an invoice under “My orders” and check the bank details and invoice PDF."]),
     ],
 }

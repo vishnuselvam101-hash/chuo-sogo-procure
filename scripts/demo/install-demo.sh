@@ -5,7 +5,8 @@
 # system: its own Unix user (procure-demo), database (procure_demo) and database logins
 # (procure_demo_owner / procure_demo_app, which cannot connect to procure_live), files
 # (/var/lib/procure-demo), secret key and mail outbox; no speech-to-text; a storage quota per
-# organisation; no shop self sign-up. The real system (procure.service) keeps running.
+# organisation; no shop self sign-up; trial accounts open from role buttons without a password
+# (PROCURE_DEMO_LOGIN). The real system (procure.service) keeps running.
 # Publish it with:  tailscale funnel --bg --https=8443 http://127.0.0.1:8090
 # Demo accounts are written to /root/procure-demo-accounts.json (owner-only). The trial
 # accounts share one password; the platform super-admin has its own.
@@ -86,6 +87,14 @@ RUST_LOG=info
 ENV
   chmod 0600 "$DEMO_ENV"
   unset OWNER_PW APP_PW
+fi
+# Trial accounts open from role buttons in the apps, without a password (this server only;
+# never the super-admin). Added to existing env files too.
+DEMO_LOGIN=ceo@demo-customer.example,manager@demo-customer.example,requester@demo-customer.example,finance@demo-customer.example,operator@demo.chuo-sogo.example,sales@demo-supplier.example,hanako@demo-consumer.example
+if grep -q '^PROCURE_DEMO_LOGIN=' "$DEMO_ENV"; then
+  sed -i "s#^PROCURE_DEMO_LOGIN=.*#PROCURE_DEMO_LOGIN=$DEMO_LOGIN#" "$DEMO_ENV"
+else
+  echo "PROCURE_DEMO_LOGIN=$DEMO_LOGIN" >> "$DEMO_ENV"
 fi
 exists="$(pg -c "SELECT 1 FROM pg_database WHERE datname = 'procure_demo'")"
 [ "$exists" = 1 ] || pg -c "CREATE DATABASE procure_demo OWNER procure_demo_owner ENCODING 'UTF8' TEMPLATE template0"

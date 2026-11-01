@@ -68,6 +68,9 @@ pub struct AppState {
     /// Consumer self sign-up in the shop (`PROCURE_SHOP_SIGNUP=off` turns it off outside the
     /// admin networks, e.g. on the public demo, where nobody can receive the activation mail).
     pub shop_signup: bool,
+    /// Trial server only (`PROCURE_DEMO_LOGIN`, comma-separated emails): these accounts can be
+    /// entered without a password. Empty, i.e. off, everywhere else.
+    pub demo_accounts: Vec<String>,
 }
 
 impl AppState {
@@ -96,6 +99,12 @@ impl AppState {
                 .filter(|mb| *mb > 0)
                 .map(|mb| mb.saturating_mul(1024 * 1024)),
             shop_signup: std::env::var("PROCURE_SHOP_SIGNUP").as_deref() != Ok("off"),
+            demo_accounts: std::env::var("PROCURE_DEMO_LOGIN")
+                .unwrap_or_default()
+                .split(',')
+                .map(|e| e.trim().to_lowercase())
+                .filter(|e| !e.is_empty())
+                .collect(),
         }
     }
 }
@@ -139,6 +148,8 @@ pub fn router(state: AppState) -> Router {
     let request_id = HeaderName::from_static("x-request-id");
     let api = Router::new()
         .route("/auth/login", post(api::auth::login))
+        .route("/auth/demo-login", post(api::demo::login))
+        .route("/demo/accounts", get(api::demo::accounts))
         .route("/auth/logout", post(api::auth::logout))
         .route(
             "/auth/password-reset",

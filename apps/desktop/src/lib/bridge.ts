@@ -11,6 +11,8 @@ export const bridge = {
   prefsSetServer: (url: string) => invoke<null>("prefs_set_server", { url }),
   login: (email: string, password: string) =>
     invoke<ApiResponse<Me & { expires_at: string }>>("auth_login", { email, password }),
+  /** Trial server only: enters a listed trial account without a password. */
+  demoLogin: (email: string) => invoke<ApiResponse<Me & { expires_at: string }>>("auth_demo", { email }),
   logout: () => invoke<null>("auth_logout"),
   /** Admin console: password check; the next step token stays in the native layer. */
   adminLogin: (email: string, password: string) =>
