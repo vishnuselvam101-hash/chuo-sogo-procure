@@ -33,7 +33,7 @@ pub struct LoginRequest {
     pub password: String,
 }
 
-#[derive(Serialize, utoipa::ToSchema)]
+#[derive(Serialize, sqlx::FromRow, utoipa::ToSchema)]
 pub struct UserView {
     pub id: Uuid,
     pub email: String,
@@ -166,25 +166,16 @@ async fn me_view(
 /// id, password_hash, status, locked_until
 type LoginRow = (Uuid, Option<String>, String, Option<DateTime<Utc>>);
 
-#[utoipa::path(
-    post,
-    path = "/api/v1/auth/login",
-    tag = "auth",
-    request_body = LoginRequest,
-    responses(
-        (status = 200, description = "Signed in", body = LoginResponse),
-        (status = 401, description = "Invalid credentials (also for unknown, inactive or locked accounts)", body = ErrorBody),
-        (status = 429, description = "Rate limited", body = ErrorBody),
-        (status = 400, description = "Malformed request", body = ErrorBody),
-    )
-)]
-pub async fn login(
-    State(state): State<AppState>,
-    ClientIp(ip): ClientIp,
-    ApiJson(req): ApiJson<LoginRequest>,
-) -> ApiResult<Json<LoginResponse>> {
-    let email = req.email.trim().to_lowercase();
-    if email.len() > 254 || req.password.len() > security::MAX_PASSWORD_BYTES {
+/// Password step shared by every login (apps and admin console): rate limits, uniform
+/// handling of unknown/inactive/locked accounts, lockout after repeated failures.
+pub async fn check_password(
+    state: &AppState,
+    ip: &str,
+    email_raw: &str,
+    password: String,
+) -> ApiResult<Uuid> {
+    let email = email_raw.trim().to_lowercase();
+    if email.len() > 254 || password.len() > security::MAX_PASSWORD_BYTES {
         return Err(ApiError::InvalidCredentials);
     }
     if !state
@@ -214,7 +205,7 @@ pub async fn login(
         .as_ref()
         .filter(|(_, _, status, locked)| status == "active" && !locked.is_some_and(|t| t > now));
     let phc = usable.and_then(|(_, h, _, _)| h.clone());
-    let ok = security::verify_password_blocking(&state.hash_permits, req.password, phc).await;
+    let ok = security::verify_password_blocking(&state.hash_permits, password, phc).await;
 
     let Some((user_id, ..)) = usable.cloned() else {
         return Err(ApiError::InvalidCredentials);
@@ -241,6 +232,30 @@ pub async fn login(
         .bind(user_id)
         .execute(&mut *tx)
         .await?;
+    tx.commit().await?;
+    Ok(user_id)
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/v1/auth/login",
+    tag = "auth",
+    request_body = LoginRequest,
+    responses(
+        (status = 200, description = "Signed in", body = LoginResponse),
+        (status = 401, description = "Invalid credentials (also for unknown, inactive or locked accounts)", body = ErrorBody),
+        (status = 429, description = "Rate limited", body = ErrorBody),
+        (status = 400, description = "Malformed request", body = ErrorBody),
+    )
+)]
+pub async fn login(
+    State(state): State<AppState>,
+    ClientIp(ip): ClientIp,
+    ApiJson(req): ApiJson<LoginRequest>,
+) -> ApiResult<Json<LoginResponse>> {
+    let user_id = check_password(&state, &ip, &req.email, req.password).await?;
+    let now = Utc::now();
+    let mut tx = db::auth_tx(&state.pool).await?;
     let (token, token_hash) = security::new_token();
     let expires_at = now + SESSION_TTL;
     sqlx::query(

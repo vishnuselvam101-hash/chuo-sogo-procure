@@ -83,6 +83,21 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
             tracing::warn!(dir = %outbox, "mail is in TEST MODE: messages are written to files, nothing is sent");
             let mut state = AppState::new(pool, Arc::new(FileMailer { dir: outbox.into() }));
             state.ai = Arc::from(procure_ai::provider::from_env()?);
+            if std::env::var("PROCURE_TRUST_LOCAL_PROXY").as_deref() == Ok("1") {
+                procure_server::principal::TRUST_LOCAL_PROXY
+                    .store(true, std::sync::atomic::Ordering::Relaxed);
+                tracing::info!("trusting X-Forwarded-For from a proxy on this machine");
+            }
+            match std::env::var("PROCURE_SECRET_KEY") {
+                Ok(key) => {
+                    let sb = procure_server::mfa::SecretBox::from_hex(&key)
+                        .ok_or("PROCURE_SECRET_KEY must be 64 hex characters (32 bytes)")?;
+                    state.secret_box = Some(Arc::new(sb));
+                }
+                Err(_) => {
+                    tracing::warn!("PROCURE_SECRET_KEY not set: admin console sign-in disabled")
+                }
+            }
             tracing::info!(
                 provider = state.ai.name(),
                 model = state.ai.model(),

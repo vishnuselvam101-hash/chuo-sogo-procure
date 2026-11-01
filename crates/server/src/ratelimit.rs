@@ -67,6 +67,11 @@ pub const RESET_PER_EMAIL: Limit = Limit {
     max: 3,
     window: Duration::from_secs(3600),
 };
+/// Second-factor attempts per account (on top of the shared lockout).
+pub const MFA_PER_USER: Limit = Limit {
+    max: 5,
+    window: Duration::from_secs(300),
+};
 /// AI calls cost compute (or money with a hosted provider): per user.
 pub const AI_PER_USER: Limit = Limit {
     max: 30,

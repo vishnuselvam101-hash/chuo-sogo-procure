@@ -778,6 +778,12 @@ pub async fn submit(
         json!({ "answer": answer }),
     )
     .await?;
+    let identify_due = chrono::Utc::now()
+        + chrono::Duration::hours(i64::from(
+            crate::api::admin::load_settings(&mut tx, org_id)
+                .await?
+                .identify_sla_hours,
+        ));
     // Chuo-Sogo's service level starts now: identify the products.
     crate::api::ops::open_auto_task(
         &mut tx,
@@ -786,7 +792,7 @@ pub async fn submit(
         None,
         "identify",
         &format!("Identify products for {}", row.number),
-        chrono::Utc::now() + crate::api::ops::IDENTIFY_SLA,
+        identify_due,
     )
     .await?;
     tx.commit().await?;

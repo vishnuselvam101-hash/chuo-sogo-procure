@@ -99,7 +99,14 @@ pub async fn list_members(
 ) -> ApiResult<Json<Vec<MemberView>>> {
     require_member_admin(&p, &state, org_id).await?;
     let mut tx = db::tenant_tx(&state.pool, p.user_id, org_id).await?;
-    let rows = sqlx::query_as::<_, MemberView>(
+    let rows = member_rows(&mut tx, org_id).await?;
+    tx.commit().await?;
+    Ok(Json(rows))
+}
+
+/// Members and pending invitations of `org_id` (transaction already in that org's context).
+pub async fn member_rows(tx: &mut db::Tx, org_id: Uuid) -> ApiResult<Vec<MemberView>> {
+    Ok(sqlx::query_as::<_, MemberView>(
         // Invited/declined rows show only what the inviting admin typed; the account's own
         // profile becomes visible after the user accepts.
         "SELECT m.user_id,
@@ -111,10 +118,8 @@ pub async fn list_members(
          WHERE m.org_id = $1 ORDER BY 3",
     )
     .bind(org_id)
-    .fetch_all(&mut *tx)
-    .await?;
-    tx.commit().await?;
-    Ok(Json(rows))
+    .fetch_all(&mut **tx)
+    .await?)
 }
 
 #[derive(Deserialize, utoipa::ToSchema)]
@@ -558,23 +563,35 @@ pub async fn list_audit(
     p.require(&state, org_id, Permission::ViewAudit).await?;
     let limit = q.limit.unwrap_or(100).clamp(1, 500);
     let mut tx = db::tenant_tx(&state.pool, p.user_id, org_id).await?;
+    let resp = audit_page(&mut tx, org_id, q.before_seq, limit).await?;
+    tx.commit().await?;
+    Ok(Json(resp))
+}
+
+/// One page of an organisation's audit log, newest first, with chain verification
+/// (transaction already in that org's context).
+pub async fn audit_page(
+    tx: &mut db::Tx,
+    org_id: Uuid,
+    before_seq: Option<i64>,
+    limit: i64,
+) -> ApiResult<AuditResponse> {
     let events = sqlx::query_as::<_, AuditView>(
         "SELECT seq, actor_user_id, action, entity_type, entity_id, data, request_id, created_at
          FROM audit_events WHERE org_id = $1 AND ($2::bigint IS NULL OR seq < $2)
          ORDER BY seq DESC LIMIT $3",
     )
     .bind(org_id)
-    .bind(q.before_seq)
+    .bind(before_seq)
     .bind(limit)
-    .fetch_all(&mut *tx)
+    .fetch_all(&mut **tx)
     .await?;
-    let broken = audit::verify_chain(&mut tx, org_id).await?;
-    tx.commit().await?;
-    Ok(Json(AuditResponse {
+    let broken = audit::verify_chain(tx, org_id).await?;
+    Ok(AuditResponse {
         events,
         chain_valid: broken.is_none(),
         first_broken_seq: broken,
-    }))
+    })
 }
 
 #[derive(Deserialize, utoipa::ToSchema)]

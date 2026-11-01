@@ -1,3 +1,4 @@
+pub mod admin;
 pub mod ai;
 pub mod approvals;
 pub mod attachments;

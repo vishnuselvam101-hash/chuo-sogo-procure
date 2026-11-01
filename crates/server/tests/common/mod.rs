@@ -47,6 +47,11 @@ impl App {
 
     /// Same, with a chosen AI provider (e.g. a scripted adversarial one).
     pub async fn with_ai(owner_pool: PgPool, ai: Arc<dyn procure_ai::Provider>) -> Self {
+        Self::configured(owner_pool, move |s| s.ai = ai).await
+    }
+
+    /// Same, with any change to the application state (e.g. admin network allow-list).
+    pub async fn configured(owner_pool: PgPool, configure: impl FnOnce(&mut AppState)) -> Self {
         let options = (*owner_pool.connect_options()).clone();
         let pool = sqlx::postgres::PgPoolOptions::new()
             .max_connections(10)
@@ -62,7 +67,11 @@ impl App {
             .unwrap();
         let mailer = Arc::new(MemoryMailer::default());
         let mut state = AppState::new(pool.clone(), mailer.clone());
-        state.ai = ai;
+        // Admin console: a fixed test key, and no network restriction (in-process requests
+        // have no peer address); a dedicated test checks the restriction.
+        state.secret_box = procure_server::mfa::SecretBox::from_hex(&"42".repeat(32)).map(Arc::new);
+        state.admin_networks = None;
+        configure(&mut state);
         // Content-addressed, so tests running in parallel can share one directory.
         state.storage = Arc::new(procure_server::storage::Storage::new(
             std::env::temp_dir().join("procure-test-storage"),

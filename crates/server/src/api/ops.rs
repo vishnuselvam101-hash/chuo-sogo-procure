@@ -33,11 +33,6 @@ pub const TASK_KINDS: [&str; 7] = [
 const TASK_STATUSES: [&str; 4] = ["open", "in_progress", "done", "cancelled"];
 const PRIORITIES: [&str; 4] = ["low", "normal", "high", "urgent"];
 
-/// Service level for identifying products after a request is submitted.
-pub const IDENTIFY_SLA: Duration = Duration::hours(24);
-/// Chasing quotations when the RFQ has no response date.
-pub const CHASE_DEFAULT: Duration = Duration::hours(72);
-
 // ---------------------------------------------------------------------------------------
 // Automatic tasks, called from workflow handlers inside their transactions.
 

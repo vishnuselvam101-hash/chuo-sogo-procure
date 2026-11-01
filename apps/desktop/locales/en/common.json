@@ -34,7 +34,20 @@
     "email": "Email address",
     "password": "Password",
     "server": "Server",
-    "signingIn": "Signing in…"
+    "signingIn": "Signing in…",
+    "setPasswordTitle": "Activate account / set password",
+    "setPasswordHint": "Paste the code from your invitation or password-reset email, then choose a password (at least 12 characters).",
+    "token": "Code from the email",
+    "newPassword": "New password",
+    "repeatPassword": "Repeat the password",
+    "setPassword": "Set password",
+    "backToSignIn": "Back to sign-in",
+    "passwordSet": "Password set. You can sign in now.",
+    "haveToken": "Activate account / I have a code",
+    "forgot": "Forgot password?",
+    "forgotTitle": "Reset your password",
+    "sendReset": "Send reset email",
+    "resetSent": "If the address has an account, a reset email is on its way."
   },
   "dashboard": {
     "welcome": "Welcome, {{name}}",

@@ -97,7 +97,8 @@
     "recommendation_inconsistent": "The approved recommendation does not match its quotation; ask Chuo-Sogo to check it.",
     "invoice_already_recorded": "This supplier invoice number is already recorded.",
     "already_invoiced": "Already invoiced: correct through the invoice differences.",
-    "already_reversed": "This receipt is already reversed."
+    "already_reversed": "This receipt is already reversed.",
+    "password_mismatch": "The passwords do not match."
   },
   "payload_too_large": "The file or request is too large.",
   "invalid_file_name": "This file name cannot be used.",

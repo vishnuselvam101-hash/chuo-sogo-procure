@@ -330,7 +330,14 @@ pub async fn dispatch_rfq(
     // timezone), or in 72 hours.
     let chase_due = match due {
         Some(d) => crate::api::ops::end_of_local_day(&mut tx, org_id, d).await?,
-        None => chrono::Utc::now() + crate::api::ops::CHASE_DEFAULT,
+        None => {
+            chrono::Utc::now()
+                + chrono::Duration::hours(i64::from(
+                    crate::api::admin::load_settings(&mut tx, org_id)
+                        .await?
+                        .chase_default_hours,
+                ))
+        }
     };
     crate::api::ops::open_auto_task(
         &mut tx,

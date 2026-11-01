@@ -72,6 +72,20 @@ fn check_text(text: &str) -> ApiResult<String> {
         .collect())
 }
 
+/// Chuo-Sogo can switch AI off per customer organisation (admin console rules).
+async fn ai_allowed(state: &AppState, p: &Principal, org_id: Uuid) -> ApiResult<()> {
+    let mut tx = db::tenant_tx(&state.pool, p.user_id, org_id).await?;
+    let enabled = crate::api::admin::load_settings(&mut tx, org_id)
+        .await?
+        .ai_enabled;
+    tx.commit().await?;
+    if enabled {
+        Ok(())
+    } else {
+        Err(ApiError::Conflict("ai_disabled"))
+    }
+}
+
 fn rate_limit(state: &AppState, p: &Principal) -> ApiResult<()> {
     if state
         .limiter
@@ -196,6 +210,7 @@ pub async fn extract_items(
         }
         tx.commit().await?;
     }
+    ai_allowed(&state, &p, org_id).await?;
     rate_limit(&state, &p)?;
     // No transaction is held while the model runs.
     let _permit = state
@@ -299,6 +314,7 @@ pub async fn extract_quotation(
             .collect::<Vec<_>>();
         (targets, req.currency()?)
     };
+    ai_allowed(&state, &p, org_id).await?;
     rate_limit(&state, &p)?;
     let _permit = state
         .ai_permits

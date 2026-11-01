@@ -5,6 +5,7 @@ pub mod audit;
 pub mod db;
 pub mod error;
 pub mod mailer;
+pub mod mfa;
 pub mod openapi;
 pub mod principal;
 pub mod ratelimit;
@@ -45,6 +46,12 @@ pub struct AppState {
     pub ai: Arc<dyn procure_ai::Provider>,
     /// Bounds concurrent model calls across all users.
     pub ai_permits: Arc<tokio::sync::Semaphore>,
+    /// Encrypts admin second-factor secrets (`PROCURE_SECRET_KEY`); admin sign-in is
+    /// unavailable without it.
+    pub secret_box: Option<Arc<mfa::SecretBox>>,
+    /// Networks allowed to reach the admin API (`PROCURE_ADMIN_ALLOWED_CIDRS`, default this
+    /// machine only). `None` only in in-process tests.
+    pub admin_networks: Option<Vec<ipnet::IpNet>>,
 }
 
 impl AppState {
@@ -60,8 +67,29 @@ impl AppState {
             upload_permits: Arc::new(tokio::sync::Semaphore::new(4)),
             ai: Arc::new(procure_ai::mock::MockProvider),
             ai_permits: Arc::new(tokio::sync::Semaphore::new(4)),
+            secret_box: None,
+            admin_networks: Some(admin_networks_from(
+                &std::env::var("PROCURE_ADMIN_ALLOWED_CIDRS")
+                    .unwrap_or_else(|_| "127.0.0.1/32,::1/128".into()),
+            )),
         }
     }
+}
+
+/// Parses a comma-separated list of networks; invalid entries are ignored (logged), so a typo
+/// can only make the allow-list stricter.
+pub fn admin_networks_from(list: &str) -> Vec<ipnet::IpNet> {
+    list.split(',')
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .filter_map(|s| match s.parse::<ipnet::IpNet>() {
+            Ok(n) => Some(n),
+            Err(_) => {
+                tracing::warn!(entry = %s, "ignoring invalid PROCURE_ADMIN_ALLOWED_CIDRS entry");
+                None
+            }
+        })
+        .collect()
 }
 
 /// Keeps a client-supplied `x-request-id` only if it is a UUID; otherwise drops it so the
@@ -361,12 +389,49 @@ pub fn router(state: AppState) -> Router {
             Duration::from_secs(30),
         ));
 
+    // Admin console API: separate namespace, sessions only valid here.
+    let admin = Router::new()
+        .route("/auth/login", post(api::admin::login))
+        .route("/auth/mfa", post(api::admin::verify_mfa))
+        .route("/auth/totp/enroll", post(api::admin::enroll))
+        .route("/auth/totp/confirm", post(api::admin::confirm_enrollment))
+        .route("/auth/logout", post(api::admin::logout))
+        .route("/me", get(api::admin::me))
+        .route("/health", get(api::admin::health))
+        .route(
+            "/orgs",
+            get(api::admin::list_orgs).post(api::admin::create_org),
+        )
+        .route("/orgs/{org_id}", patch(api::admin::update_org))
+        .route("/orgs/{org_id}/members", get(api::admin::org_members))
+        .route(
+            "/orgs/{org_id}/settings",
+            get(api::admin::get_settings).put(api::admin::put_settings),
+        )
+        .route(
+            "/orgs/{org_id}/assignments",
+            get(api::admin::list_assignments).post(api::admin::assign),
+        )
+        .route(
+            "/orgs/{org_id}/assignments/{user_id}",
+            axum::routing::delete(api::admin::unassign),
+        )
+        .route("/orgs/{org_id}/audit", get(api::admin::org_audit))
+        .route("/accounts", get(api::admin::list_accounts))
+        .route("/accounts/{user_id}", patch(api::admin::update_account))
+        .layer(RequestBodyLimitLayer::new(MAX_JSON_BODY))
+        .layer(TimeoutLayer::with_status_code(
+            StatusCode::REQUEST_TIMEOUT,
+            Duration::from_secs(60),
+        ));
+
     Router::new()
         .route(
             "/health",
             get(|| async { Json(serde_json::json!({ "status": "ok" })) }),
         )
         .nest("/api/v1", api.merge(uploads).merge(ai).merge(ai_review))
+        .nest("/api/admin/v1", admin)
         .with_state(state)
         .layer(
             TraceLayer::new_for_http()

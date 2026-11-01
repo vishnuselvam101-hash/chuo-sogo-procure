@@ -34,7 +34,20 @@
     "email": "メールアドレス",
     "password": "パスワード",
     "server": "サーバー",
-    "signingIn": "サインイン中…"
+    "signingIn": "サインイン中…",
+    "setPasswordTitle": "アカウントの有効化／パスワード設定",
+    "setPasswordHint": "招待メールまたはパスワード再設定メールのコードを貼り付け、パスワード（12文字以上）を決めてください。",
+    "token": "メールに記載のコード",
+    "newPassword": "新しいパスワード",
+    "repeatPassword": "パスワード（確認）",
+    "setPassword": "パスワードを設定",
+    "backToSignIn": "サインインに戻る",
+    "passwordSet": "パスワードを設定しました。サインインできます。",
+    "haveToken": "アカウントの有効化／コードをお持ちの方",
+    "forgot": "パスワードをお忘れの方",
+    "forgotTitle": "パスワードの再設定",
+    "sendReset": "再設定メールを送信",
+    "resetSent": "アカウントがあるアドレスの場合、再設定メールを送信しました。"
   },
   "dashboard": {
     "welcome": "{{name}} さん、ようこそ",

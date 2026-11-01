@@ -1,0 +1,9 @@
+[Unit]
+Description=Nightly Chuo-Sogo Procure database backup
+
+[Timer]
+OnCalendar=*-*-* 03:30:00 Asia/Tokyo
+Persistent=true
+
+[Install]
+WantedBy=timers.target

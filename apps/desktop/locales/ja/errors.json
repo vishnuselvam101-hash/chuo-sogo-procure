@@ -97,7 +97,8 @@
     "recommendation_inconsistent": "承認済みの推奨と見積内容が一致しません。Chuo-Sogoに確認を依頼してください。",
     "invoice_already_recorded": "このサプライヤー請求書番号はすでに記録されています。",
     "already_invoiced": "請求済みです。請求書の差異で訂正してください。",
-    "already_reversed": "この受領はすでに取り消されています。"
+    "already_reversed": "この受領はすでに取り消されています。",
+    "password_mismatch": "パスワードが一致しません。"
   },
   "payload_too_large": "ファイルまたはリクエストが大きすぎます。",
   "invalid_file_name": "このファイル名は使用できません。",
