@@ -49,7 +49,9 @@ describe("trial server sign-in", () => {
       "Requesterサンプル精機株式会社",
       "Supplier administratorOther",
     ]);
-    fireEvent.click(roles[1]);
+    const requester = roles[1];
+    expect(requester).toBeDefined();
+    if (requester) fireEvent.click(requester);
     await waitFor(() => expect(onLoggedIn).toHaveBeenCalled());
     expect(demoLogin).toHaveBeenCalledWith("req@c.test");
   });
