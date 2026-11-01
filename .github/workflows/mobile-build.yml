@@ -5,8 +5,15 @@
 #   signing identity the founder has not provisioned.
 # The generated mobile projects (src-tauri/gen) are recreated here from tauri.conf.json.
 name: mobile-build
+# `app: shop` builds the consumer shop (Chuo-Sogo Shop) instead of the business app.
 on:
   workflow_dispatch:
+    inputs:
+      app:
+        description: Which app to build
+        type: choice
+        options: [business, shop]
+        default: business
 permissions:
   contents: read
 jobs:
@@ -39,12 +46,14 @@ jobs:
       - run: pnpm -C apps/desktop install --frozen-lockfile
       - run: cargo install tauri-cli --version "=2.12.4" --locked
       - working-directory: apps/desktop
+        env:
+          CONFIG: ${{ inputs.app == 'shop' && '--config src-tauri/tauri.shop.conf.json' || '' }}
         run: |
-          cargo tauri android init --ci
-          cargo tauri android build --debug --apk --target aarch64
+          cargo tauri android init --ci $CONFIG
+          cargo tauri android build --debug --apk --target aarch64 $CONFIG
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: chuo-sogo-procure-android-debug
+          name: chuo-sogo-${{ inputs.app }}-android-debug
           path: apps/desktop/src-tauri/gen/android/app/build/outputs/apk/**/*.apk
           retention-days: 14
 
@@ -68,12 +77,14 @@ jobs:
       - run: pnpm -C apps/desktop install --frozen-lockfile
       - run: cargo install tauri-cli --version "=2.12.4" --locked
       - working-directory: apps/desktop
+        env:
+          CONFIG: ${{ inputs.app == 'shop' && '--config src-tauri/tauri.shop.conf.json' || '' }}
         run: |
-          cargo tauri ios init --ci
-          cargo tauri ios build --debug --target aarch64-sim
+          cargo tauri ios init --ci $CONFIG
+          cargo tauri ios build --debug --target aarch64-sim $CONFIG
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: chuo-sogo-procure-ios-simulator
+          name: chuo-sogo-${{ inputs.app }}-ios-simulator
           path: |
             apps/desktop/src-tauri/gen/apple/build/**/*.app
             apps/desktop/src-tauri/gen/apple/build/**/*.zip
