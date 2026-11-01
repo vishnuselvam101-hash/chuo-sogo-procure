@@ -48,6 +48,14 @@
 | SF-044 | 2026-11-01 | Billing: credit notes rounded separately could return more consumption tax than the original invoice charged (ceil / half-up rounding) | Medium | V2 | Fixed | `limit_credit` caps tax per rate at the tax still returnable; domain + integration tests |
 | SF-045 | 2026-11-01 | Billing: over-long notes / reason / bank details would be silently cut off on an issued (immutable) PDF | Medium | V3 | Fixed | renderer reserves the full text height and refuses (`text_too_long`) instead of truncating |
 | SF-046 | 2026-11-01 | Billing: draft edit reset a custom recipient; issuer snapshot vs document rounding mismatch; second "paid" overwrote the payment record; issue dates could precede earlier numbers | Low | V3 | Fixed | keep recipient on PUT, issue uses the snapshot's rounding, `already_paid`, dates monotonic per series and year |
+| SF-047 | 2026-11-01 | Listings: photo positions grew without reuse; after delete/add cycles uploads failed with a 500 for good | Medium | V3 | Fixed | lowest free slot within the limit; regression test with 8 cycles |
+| SF-048 | 2026-11-01 | Catalogue: listings of a suspended supplier stayed visible | Medium | V2 | Fixed | catalogue list, item and media require an active supplier; test suspends and reactivates |
+| SF-049 | 2026-11-01 | Photo metadata removal: JPEG data after EOI kept, Adobe colour segment dropped, PNG private chunks kept / CRC unchecked, no pixel cap | Medium | V5 | Fixed | scan to real markers, keep APP14 Adobe, PNG allowlist + CRC, ≤ 50 MP |
+| SF-050 | 2026-11-01 | Listing workflow enforced only in the API (owner could set `approved` in its own transaction) | Low | V2 | Fixed | `product_listing_guard` trigger; tested directly against the database |
+
+## Residual risk (Phase C)
+- Photos are displayed by the desktop webview's image decoders (WebKit/WebView2); malformed images are refused by structure checks, not fully decoded on the server.
+- The catalogue shows business prices of all published listings to every customer organisation (intended; suppliers agree to publication by submitting).
 
 ## Residual risk (Phase B)
 - Billing numbers are per series and calendar year; a database restore from backup could re-use numbers already sent to customers — restores must be followed by a check of the last issued number.

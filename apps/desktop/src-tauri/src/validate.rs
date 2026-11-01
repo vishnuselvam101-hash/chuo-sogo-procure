@@ -107,6 +107,31 @@ pub fn log_text(raw: &str) -> String {
         .collect()
 }
 
+/// A listing media content path (`.../listings/<id>/media/<id>/content` or the catalogue
+/// equivalent); the prefix and traversal checks are done by `api_url`.
+pub fn listing_media_path(path: &str) -> bool {
+    let parts: Vec<&str> = path.split('/').collect();
+    let n = parts.len();
+    n >= 6
+        && parts[n - 1] == "content"
+        && parts[n - 3] == "media"
+        && matches!(parts[n - 5], "listings" | "catalogue")
+        && uuid::Uuid::parse_str(parts[n - 2]).is_ok()
+        && uuid::Uuid::parse_str(parts[n - 4]).is_ok()
+}
+
+/// The image type, if the declared type is JPEG/PNG/WebP and the bytes really are that.
+pub fn image_type(declared: &str, b: &[u8]) -> Option<&'static str> {
+    match declared {
+        "image/jpeg" if b.starts_with(&[0xFF, 0xD8, 0xFF]) => Some("image/jpeg"),
+        "image/png" if b.starts_with(b"\x89PNG\r\n\x1a\n") => Some("image/png"),
+        "image/webp" if b.len() > 12 && b.starts_with(b"RIFF") && &b[8..12] == b"WEBP" => {
+            Some("image/webp")
+        }
+        _ => None,
+    }
+}
+
 /// `<number>.pdf` for an issued invoice or credit note (numbers are A–Z, 0–9 and '-').
 pub fn invoice_file_name(number: &str) -> Option<String> {
     let ok = (1..=40).contains(&number.len())
@@ -300,6 +325,33 @@ mod tests {
         assert!(api_url_in(V1, base, "/api/admin/v1/orgs").is_err());
         assert!(api_url_in(ADMIN, base, "/api/admin/v1/%2e%2e/%2e%2e/v1/me").is_err());
         assert!(api_url(base, &format!("{API_PREFIX}me")).is_ok());
+    }
+
+    #[test]
+    fn only_listing_images_are_displayed() {
+        let id = "0192f0aa-1111-7222-8333-444455556666";
+        assert!(listing_media_path(&format!(
+            "/api/v1/orgs/{id}/listings/{id}/media/{id}/content"
+        )));
+        assert!(listing_media_path(&format!(
+            "/api/v1/orgs/{id}/catalogue/{id}/media/{id}/content"
+        )));
+        assert!(listing_media_path(&format!(
+            "/api/admin/v1/listings/{id}/media/{id}/content"
+        )));
+        assert!(!listing_media_path(&format!(
+            "/api/v1/orgs/{id}/attachments/{id}/content"
+        )));
+        assert!(!listing_media_path(&format!(
+            "/api/v1/orgs/{id}/listings/{id}/media/x/content"
+        )));
+        assert_eq!(
+            image_type("image/png", b"\x89PNG\r\n\x1a\nrest"),
+            Some("image/png")
+        );
+        assert_eq!(image_type("image/png", b"<svg onload=alert(1)>"), None);
+        assert_eq!(image_type("image/svg+xml", b"<svg/>"), None);
+        assert_eq!(image_type("text/html", b"\xFF\xD8\xFF"), None);
     }
 
     #[test]

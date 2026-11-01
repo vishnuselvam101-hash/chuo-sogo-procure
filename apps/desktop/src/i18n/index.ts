@@ -12,7 +12,15 @@ export const LANGUAGES = [
 ] as const;
 
 export type LanguageCode = (typeof LANGUAGES)[number]["code"];
-export const NAMESPACES = ["common", "procurement", "settings", "errors", "admin", "billing"] as const;
+export const NAMESPACES = [
+  "common",
+  "procurement",
+  "settings",
+  "errors",
+  "admin",
+  "billing",
+  "catalogue",
+] as const;
 export const DEFAULT_LANGUAGE: LanguageCode = "ja";
 export const FALLBACK_LANGUAGE: LanguageCode = "en";
 

@@ -13,6 +13,7 @@
     "allow-auth-enroll",
     "allow-auth-code",
     "allow-invoice-download",
+    "allow-api-image",
     "allow-client-log"
   ]
 }

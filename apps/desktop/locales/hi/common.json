@@ -19,12 +19,15 @@
     "organisations": "संगठन",
     "audit": "ऑडिट लॉग",
     "opsQueue": "संचालन कतार",
-    "billing": "चुओ-सोगो के चालान"
+    "billing": "चुओ-सोगो के चालान",
+    "listings": "उत्पाद लिस्टिंग",
+    "catalogue": "कैटलॉग"
   },
   "workspace": {
     "customer": "ग्राहक कार्यक्षेत्र",
     "operations": "खरीद संचालन",
-    "serving": "सेवा प्राप्त ग्राहक"
+    "serving": "सेवा प्राप्त ग्राहक",
+    "supplier": "आपूर्तिकर्ता कार्यक्षेत्र"
   },
   "org": {
     "switch": "संगठन बदलें"
@@ -62,7 +65,9 @@
     "customer_admin": "संगठन प्रशासक",
     "procurement_manager": "खरीद प्रबंधक",
     "requester": "अनुरोधकर्ता",
-    "finance": "वित्त"
+    "finance": "वित्त",
+    "supplier_admin": "आपूर्तिकर्ता व्यवस्थापक",
+    "supplier_staff": "आपूर्तिकर्ता कर्मचारी"
   },
   "members": {
     "add": "सदस्य जोड़ें",

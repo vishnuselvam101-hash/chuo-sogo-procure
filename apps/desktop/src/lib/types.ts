@@ -46,3 +46,7 @@ export type InvoiceSummary = Schemas["InvoiceSummary"];
 export type IssuedInvoice = Schemas["InvoiceDetail"];
 export type InvoiceLineInput = Schemas["LineInput"];
 export type IssuerProfile = Schemas["IssuerProfile"];
+export type ListingSummary = Schemas["ListingSummary"];
+export type ListingDetail = Schemas["ListingDetail"];
+export type ListingInput = Schemas["ListingInput"];
+export type ListingMedia = Schemas["MediaView"];

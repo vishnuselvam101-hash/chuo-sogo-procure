@@ -7,12 +7,15 @@ import { ErrorText, Loading, PageHeader, StatusBadge } from "../components/ui";
 import { ADMIN_API, type CreateOrgRequest, type OrgOverview } from "./types";
 
 const DEFAULT_TIMEZONE = "Asia/Tokyo";
+const CUSTOMER_KIND = "customer";
+const KINDS = ["customer", "supplier"] as const;
 
 function CreateOrg({ onCreated }: { onCreated: (orgId: string) => void }) {
   const { t } = useTranslation();
   const { run, busy, error } = useAction();
   const [form, setForm] = useState<CreateOrgRequest>({
     name: "",
+    kind: CUSTOMER_KIND,
     admin_email: "",
     admin_name: "",
     default_locale: DEFAULT_LANGUAGE,
@@ -33,6 +36,16 @@ function CreateOrg({ onCreated }: { onCreated: (orgId: string) => void }) {
       <label>
         {t("admin:orgs.name")}
         <input required maxLength={200} value={form.name} onChange={set("name")} />
+      </label>
+      <label>
+        {t("admin:orgs.kind")}
+        <select value={form.kind ?? CUSTOMER_KIND} onChange={set("kind")}>
+          {KINDS.map((k) => (
+            <option key={k} value={k}>
+              {t(`admin:kind.${k}`)}
+            </option>
+          ))}
+        </select>
       </label>
       <label>
         {t("admin:orgs.adminName")}

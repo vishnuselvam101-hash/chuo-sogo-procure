@@ -19,12 +19,15 @@
     "organisations": "顧客組織",
     "audit": "監査ログ",
     "opsQueue": "業務キュー",
-    "billing": "中央総合からの請求書"
+    "billing": "中央総合からの請求書",
+    "listings": "製品掲載",
+    "catalogue": "カタログ"
   },
   "workspace": {
     "customer": "顧客ワークスペース",
     "operations": "調達オペレーション",
-    "serving": "担当顧客"
+    "serving": "担当顧客",
+    "supplier": "サプライヤー"
   },
   "org": {
     "switch": "組織を切り替え"
@@ -62,7 +65,9 @@
     "customer_admin": "組織管理者",
     "procurement_manager": "調達マネージャー",
     "requester": "依頼者",
-    "finance": "経理担当"
+    "finance": "経理担当",
+    "supplier_admin": "サプライヤー管理者",
+    "supplier_staff": "サプライヤー担当者"
   },
   "members": {
     "add": "メンバーを追加",

@@ -8,6 +8,8 @@ pub enum OrgKind {
     /// Chuo-Sogo itself: internal procurement staff live here.
     Platform,
     Customer,
+    /// A company that lists its products in the catalogue (Phase C).
+    Supplier,
 }
 
 impl OrgKind {
@@ -15,6 +17,7 @@ impl OrgKind {
         match self {
             OrgKind::Platform => "platform",
             OrgKind::Customer => "customer",
+            OrgKind::Supplier => "supplier",
         }
     }
 
@@ -22,6 +25,7 @@ impl OrgKind {
         match code {
             "platform" => Some(OrgKind::Platform),
             "customer" => Some(OrgKind::Customer),
+            "supplier" => Some(OrgKind::Supplier),
             _ => None,
         }
     }
@@ -36,10 +40,12 @@ pub enum Role {
     ProcurementManager,
     Requester,
     Finance,
+    SupplierAdmin,
+    SupplierStaff,
 }
 
 impl Role {
-    pub const ALL: [Role; 7] = [
+    pub const ALL: [Role; 9] = [
         Role::PlatformSuperAdmin,
         Role::ProcurementAdmin,
         Role::ProcurementOperator,
@@ -47,6 +53,8 @@ impl Role {
         Role::ProcurementManager,
         Role::Requester,
         Role::Finance,
+        Role::SupplierAdmin,
+        Role::SupplierStaff,
     ];
 
     pub const fn code(self) -> &'static str {
@@ -58,6 +66,8 @@ impl Role {
             Role::ProcurementManager => "procurement_manager",
             Role::Requester => "requester",
             Role::Finance => "finance",
+            Role::SupplierAdmin => "supplier_admin",
+            Role::SupplierStaff => "supplier_staff",
         }
     }
 
@@ -74,6 +84,7 @@ impl Role {
             Role::CustomerAdmin | Role::ProcurementManager | Role::Requester | Role::Finance => {
                 OrgKind::Customer
             }
+            Role::SupplierAdmin | Role::SupplierStaff => OrgKind::Supplier,
         }
     }
 
@@ -127,6 +138,12 @@ pub enum Permission {
     RecordQuotations,
     AssignWork,
     ViewInternalNotes,
+    /// Supplier: create, edit and submit the company's own product listings.
+    ManageListings,
+    /// Chuo-Sogo: approve, reject or retire submitted listings.
+    ModerateListings,
+    /// Browse published listings.
+    ViewCatalogue,
 }
 
 impl Permission {
@@ -161,6 +178,9 @@ impl Permission {
             Permission::RecordQuotations => "record_quotations",
             Permission::AssignWork => "assign_work",
             Permission::ViewInternalNotes => "view_internal_notes",
+            Permission::ManageListings => "manage_listings",
+            Permission::ModerateListings => "moderate_listings",
+            Permission::ViewCatalogue => "view_catalogue",
         }
     }
 }
@@ -175,6 +195,8 @@ pub fn home_permissions(role: Role) -> &'static [Permission] {
             ManageServiceAssignments,
             ViewSystemHealth,
             ManageBilling,
+            ModerateListings,
+            ViewCatalogue,
             ViewAudit,
             ViewReports,
         ],
@@ -182,10 +204,12 @@ pub fn home_permissions(role: Role) -> &'static [Permission] {
             ManageServiceAssignments,
             ManageSuppliers,
             ManageProducts,
+            ModerateListings,
+            ViewCatalogue,
             ViewReports,
             ViewAudit,
         ],
-        Role::ProcurementOperator => &[ManageSuppliers, ManageProducts],
+        Role::ProcurementOperator => &[ManageSuppliers, ManageProducts, ViewCatalogue],
         Role::CustomerAdmin => &[
             ManageOrgUsers,
             ManageOrgSettings,
@@ -199,6 +223,7 @@ pub fn home_permissions(role: Role) -> &'static [Permission] {
             ReceiveGoods,
             ViewOrders,
             ViewReports,
+            ViewCatalogue,
         ],
         Role::ProcurementManager => &[
             SubmitRequest,
@@ -211,8 +236,9 @@ pub fn home_permissions(role: Role) -> &'static [Permission] {
             ReceiveGoods,
             ViewOrders,
             ViewReports,
+            ViewCatalogue,
         ],
-        Role::Requester => &[SubmitRequest, ViewOwnRequests, ReceiveGoods],
+        Role::Requester => &[SubmitRequest, ViewOwnRequests, ReceiveGoods, ViewCatalogue],
         Role::Finance => &[
             ViewAllRequests,
             ViewOrders,
@@ -220,6 +246,8 @@ pub fn home_permissions(role: Role) -> &'static [Permission] {
             ManageInvoices,
             ViewReports,
         ],
+        Role::SupplierAdmin => &[ManageOrgUsers, ViewAudit, ManageListings],
+        Role::SupplierStaff => &[ManageListings],
     }
 }
 
@@ -251,7 +279,12 @@ pub fn service_permissions(role: Role) -> &'static [Permission] {
             ViewInternalNotes,
             ViewOrders,
         ],
-        Role::CustomerAdmin | Role::ProcurementManager | Role::Requester | Role::Finance => &[],
+        Role::CustomerAdmin
+        | Role::ProcurementManager
+        | Role::Requester
+        | Role::Finance
+        | Role::SupplierAdmin
+        | Role::SupplierStaff => &[],
     }
 }
 
@@ -399,5 +432,37 @@ mod tests {
                 "{r}"
             );
         }
+    }
+
+    #[test]
+    fn suppliers_only_manage_their_listings() {
+        for r in [Role::SupplierAdmin, Role::SupplierStaff] {
+            assert_eq!(r.org_kind(), OrgKind::Supplier);
+            assert!(!r.is_internal());
+            for p in [
+                Permission::SubmitRequest,
+                Permission::ViewAllRequests,
+                Permission::ApproveRecommendation,
+                Permission::ModerateListings,
+                Permission::ViewCatalogue,
+                Permission::ViewFinance,
+            ] {
+                assert!(!allows(Access::Member(r), p), "{r} {p:?}");
+            }
+            assert!(allows(Access::Member(r), Permission::ManageListings));
+        }
+        // Moderation is Chuo-Sogo's; listing is the supplier's.
+        assert!(allows(
+            Access::Member(Role::ProcurementAdmin),
+            Permission::ModerateListings
+        ));
+        assert!(!allows(
+            Access::Member(Role::ProcurementOperator),
+            Permission::ModerateListings
+        ));
+        assert!(!allows(
+            Access::Member(Role::PlatformSuperAdmin),
+            Permission::ManageListings
+        ));
     }
 }

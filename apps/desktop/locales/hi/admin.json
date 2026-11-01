@@ -19,7 +19,8 @@
     "orgs": "संगठन",
     "accounts": "खाते",
     "settings": "सेटिंग्स",
-    "billing": "बिलिंग"
+    "billing": "बिलिंग",
+    "listings": "लिस्टिंग समीक्षा"
   },
   "health": {
     "server": "सर्वर संस्करण",
@@ -59,7 +60,8 @@
   },
   "kind": {
     "platform": "चुओ-सोगो (प्लेटफ़ॉर्म)",
-    "customer": "ग्राहक"
+    "customer": "ग्राहक",
+    "supplier": "आपूर्तिकर्ता"
   },
   "status": {
     "active": "सक्रिय",

@@ -597,6 +597,8 @@ pub async fn audit_page(
 #[derive(Deserialize, utoipa::ToSchema)]
 pub struct CreateOrgRequest {
     pub name: String,
+    /// `customer` (default) or `supplier` (lists products in the catalogue).
+    pub kind: Option<String>,
     pub default_locale: Option<String>,
     pub timezone: Option<String>,
     pub admin_email: String,
@@ -637,6 +639,11 @@ pub async fn create_organisation(
     let timezone = req.timezone.unwrap_or_else(|| "Asia/Tokyo".into());
     let email = normalise_email(&req.admin_email)?;
     let admin_name = clean_name(&req.admin_name, 120)?;
+    let (kind, admin_role) = match req.kind.as_deref().unwrap_or("customer") {
+        "customer" => (OrgKind::Customer, Role::CustomerAdmin),
+        "supplier" => (OrgKind::Supplier, Role::SupplierAdmin),
+        _ => return Err(ApiError::Validation("kind")),
+    };
 
     let mut tx = db::user_tx(&state.pool, p.user_id).await?;
     let tz_ok: bool =
@@ -650,12 +657,13 @@ pub async fn create_organisation(
     db::enable_platform_scope(&mut tx).await?;
     let org_id = Uuid::now_v7();
     sqlx::query(
-        "INSERT INTO organisations (id, kind, name, default_locale, timezone) VALUES ($1, 'customer', $2, $3, $4)",
+        "INSERT INTO organisations (id, kind, name, default_locale, timezone) VALUES ($1, $5, $2, $3, $4)",
     )
     .bind(org_id)
     .bind(&name)
     .bind(&locale)
     .bind(&timezone)
+    .bind(kind.code())
     .execute(&mut *tx)
     .await?;
     for target in [platform_org, org_id] {
@@ -667,21 +675,13 @@ pub async fn create_organisation(
                 action: "organisation.created",
                 entity_type: "organisation",
                 entity_id: Some(org_id.to_string()),
-                data: json!({ "name": name, "default_locale": locale, "timezone": timezone }),
+                data: json!({ "name": name, "kind": kind.code(), "default_locale": locale, "timezone": timezone }),
                 request_id: p.request_id.as_deref(),
             },
         )
         .await?;
     }
-    let mail = invite_member(
-        &mut tx,
-        &p,
-        org_id,
-        &email,
-        &admin_name,
-        Role::CustomerAdmin,
-    )
-    .await?;
+    let mail = invite_member(&mut tx, &p, org_id, &email, &admin_name, admin_role).await?;
     tx.commit().await?;
     mail.send(&state)?;
     Ok((

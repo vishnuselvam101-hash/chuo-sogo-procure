@@ -19,7 +19,8 @@
     "orgs": "組織",
     "accounts": "アカウント",
     "settings": "設定",
-    "billing": "請求"
+    "billing": "請求",
+    "listings": "掲載審査"
   },
   "health": {
     "server": "サーバーのバージョン",
@@ -59,7 +60,8 @@
   },
   "kind": {
     "platform": "中央総合（プラットフォーム）",
-    "customer": "顧客"
+    "customer": "顧客",
+    "supplier": "サプライヤー"
   },
   "status": {
     "active": "有効",

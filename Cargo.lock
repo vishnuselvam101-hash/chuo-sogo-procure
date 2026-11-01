@@ -3135,6 +3135,7 @@ dependencies = [
  "hex",
  "hmac",
  "http-body-util",
+ "imagesize",
  "ipnet",
  "krilla",
  "procure-ai",

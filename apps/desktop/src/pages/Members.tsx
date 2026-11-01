@@ -8,11 +8,17 @@ import { ErrorText, PageHeader, StatusBadge } from "../components/ui";
 
 const CUSTOMER_ROLES = ["customer_admin", "procurement_manager", "requester", "finance"];
 const INTERNAL_ROLES = ["procurement_operator", "procurement_admin", "platform_super_admin"];
+const SUPPLIER_ROLES = ["supplier_admin", "supplier_staff"];
 
 export function Members({ active, selfId }: { active: MembershipView; selfId: string }) {
   const { t } = useTranslation();
   const bridge = useBridge();
-  const roles = active.org_kind === "platform" ? INTERNAL_ROLES : CUSTOMER_ROLES;
+  const roles =
+    active.org_kind === "platform"
+      ? INTERNAL_ROLES
+      : active.org_kind === "supplier"
+        ? SUPPLIER_ROLES
+        : CUSTOMER_ROLES;
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState({ email: "", display_name: "", role: roles[roles.length - 1] ?? "" });
   const base = `/api/v1/orgs/${active.org_id}/members`;

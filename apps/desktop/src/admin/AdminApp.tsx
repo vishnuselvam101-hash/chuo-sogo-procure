@@ -12,17 +12,19 @@ import { Orgs } from "./Orgs";
 import { OrgDetail } from "./OrgDetail";
 import { Accounts } from "./Accounts";
 import { Billing } from "./Billing";
+import { Moderation } from "./Moderation";
 import { ADMIN_API, PERM, PLATFORM_TZ, type AdminMe } from "./types";
 
 const SESSION_CHECK_MS = 60_000;
 
-export type AdminPage = "overview" | "orgs" | "accounts" | "billing" | "settings";
+export type AdminPage = "overview" | "orgs" | "accounts" | "listings" | "billing" | "settings";
 
 /** Sections shown for the administrator's permissions; the server checks each call again. */
 export function adminNav(permissions: string[]): AdminPage[] {
   const pages: AdminPage[] = [];
   if (permissions.includes(PERM.viewHealth)) pages.push("overview");
   if (permissions.includes(PERM.manageOrgs)) pages.push("orgs", "accounts");
+  if (permissions.includes(PERM.moderateListings)) pages.push("listings");
   if (permissions.includes(PERM.manageBilling)) pages.push("billing");
   pages.push("settings");
   return pages;
@@ -102,6 +104,7 @@ export function AdminApp() {
     );
   else if (current === "orgs") body = <Orgs canCreate onOpen={open} />;
   else if (current === "billing") body = <Billing />;
+  else if (current === "listings") body = <Moderation />;
   else if (current === "overview") body = <Overview onOpenOrg={open} />;
   else if (current === "accounts")
     body = <Accounts selfId={me.user.id} canManage={me.permissions.includes(PERM.manageInternalUsers)} />;

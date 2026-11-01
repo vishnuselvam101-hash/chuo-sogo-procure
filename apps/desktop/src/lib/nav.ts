@@ -11,6 +11,8 @@ export type PageId =
   | "orders"
   | "invoices"
   | "billing"
+  | "listings"
+  | "catalogue"
   | "reports"
   | "opsQueue"
   | "organisations"
@@ -42,12 +44,15 @@ export function navFor(m: MembershipView): NavItem[] {
     if (has("view_reports")) items.push(item("reports"));
     if (has("manage_organisations")) items.push(item("organisations", true));
     if (has("manage_internal_users")) items.push(item("members", true));
+  } else if (m.org_kind === "supplier") {
+    if (has("manage_listings")) items.push(item("listings", true));
+    if (has("manage_org_users")) items.push(item("members", true));
   } else {
     if (has("submit_request") || has("view_all_requests")) items.push(item("procurement", true));
     if (has("approve_suppliers") || has("manage_rfqs")) items.push(item("suppliers", true));
     // Staff working inside a customer keep their work queue one click away.
     if (m.access === "assigned" && has("operate_requests")) items.push(item("opsQueue", true));
-    if (m.access !== "assigned") items.push(item("products"));
+    if (m.access !== "assigned" && has("view_catalogue")) items.push(item("catalogue", true));
     if (has("approve_recommendation") || has("manage_approval_policy")) items.push(item("approvals", true));
     if (has("view_orders")) items.push(item("orders", true));
     if (has("view_finance")) items.push(item("invoices", true));

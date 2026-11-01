@@ -19,6 +19,8 @@ import { Approvals } from "./pages/Approvals";
 import { Products } from "./pages/Products";
 import { OpsQueue } from "./pages/OpsQueue";
 import { Billing } from "./pages/Billing";
+import { Listings } from "./pages/Listings";
+import { Catalogue } from "./pages/Catalogue";
 
 const HOME: PageId = "dashboard";
 const PROCUREMENT: PageId = "procurement";
@@ -155,6 +157,12 @@ export function App() {
           }}
         />
       );
+      break;
+    case "listings":
+      body = <Listings key={active.org_id} active={active} />;
+      break;
+    case "catalogue":
+      body = <Catalogue key={active.org_id} active={active} />;
       break;
     case "billing":
       body = <Billing key={active.org_id} active={active} />;

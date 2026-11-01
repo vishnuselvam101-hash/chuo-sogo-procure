@@ -26,9 +26,11 @@ export function Sidebar(props: Props) {
           {t(
             active.org_kind === "platform"
               ? "workspace.operations"
-              : active.access === "assigned"
-                ? "workspace.serving"
-                : "workspace.customer",
+              : active.org_kind === "supplier"
+                ? "workspace.supplier"
+                : active.access === "assigned"
+                  ? "workspace.serving"
+                  : "workspace.customer",
           )}
         </div>
       </div>

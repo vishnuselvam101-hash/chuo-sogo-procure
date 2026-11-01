@@ -70,7 +70,8 @@ async fn send(
     token: Option<String>,
 ) -> ApiResponse {
     let request_id = uuid::Uuid::new_v4().to_string();
-    let upload = method == reqwest::Method::POST && url.path().ends_with("/attachments");
+    let upload = method == reqwest::Method::POST
+        && (url.path().ends_with("/attachments") || url.path().ends_with("/media"));
     let mut req = session
         .http
         .request(method, url)
@@ -257,6 +258,89 @@ async fn api_download(
     save_download(&app, &session, &base, url, &name).await
 }
 
+/// Largest listing photo the client will display.
+const MAX_IMAGE_BYTES: usize = 10 * 1024 * 1024;
+
+/// Fetches a listing photo and returns it as a `data:` URL for an `<img>` (the webview never
+/// talks to the network itself). Only listing media content paths, only JPEG/PNG/WebP whose
+/// bytes match the declared type, size-capped.
+#[tauri::command]
+async fn api_image(
+    prefs: State<'_, Mutex<Prefs>>,
+    session: State<'_, Session>,
+    path: String,
+) -> Result<ApiResponse, String> {
+    if !validate::listing_media_path(&path) {
+        return Err("invalid_path".into());
+    }
+    let base = lock(&prefs)?.server_url.clone();
+    let url = validate::api_url(&base, &path)?;
+    let token = session.token_for(&base)?;
+    let request_id = uuid::Uuid::new_v4().to_string();
+    let mut req = session
+        .http
+        .get(url)
+        .timeout(TRANSFER_TIMEOUT)
+        .header("x-request-id", &request_id);
+    if let Some(t) = token {
+        req = req.bearer_auth(t);
+    }
+    let mut res = match req.send().await {
+        Ok(r) => r,
+        Err(e) => {
+            tracing::warn!(%request_id, error = %e, "image fetch failed");
+            return Ok(network_error(request_id));
+        }
+    };
+    let status = res.status().as_u16();
+    if status != 200 {
+        let body = res.json::<Value>().await.unwrap_or(Value::Null);
+        return Ok(ApiResponse {
+            status,
+            body,
+            request_id,
+        });
+    }
+    let declared = res
+        .headers()
+        .get(reqwest::header::CONTENT_TYPE)
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("")
+        .to_string();
+    let mut bytes = Vec::new();
+    while let Some(chunk) = res.chunk().await.map_err(|_| "network".to_string())? {
+        if bytes.len() + chunk.len() > MAX_IMAGE_BYTES {
+            return Err("download_too_large".into());
+        }
+        bytes.extend_from_slice(&chunk);
+    }
+    let mime = validate::image_type(&declared, &bytes).ok_or("not_an_image")?;
+    Ok(ApiResponse {
+        status,
+        body: serde_json::json!({ "data_url": format!("data:{mime};base64,{}", base64_encode(&bytes)) }),
+        request_id,
+    })
+}
+
+/// Standard base64 (no external crate needed for this one use).
+fn base64_encode(bytes: &[u8]) -> String {
+    const T: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut out = String::with_capacity(bytes.len().div_ceil(3) * 4);
+    for c in bytes.chunks(3) {
+        let n = (u32::from(c[0]) << 16)
+            | (u32::from(*c.get(1).unwrap_or(&0)) << 8)
+            | u32::from(*c.get(2).unwrap_or(&0));
+        for (i, shift) in [18u32, 12, 6, 0].into_iter().enumerate() {
+            if i <= c.len() {
+                out.push(char::from(T[((n >> shift) & 63) as usize]));
+            } else {
+                out.push('=');
+            }
+        }
+    }
+    out
+}
+
 /// Saves an issued invoice or credit note PDF (`<number>.pdf`) into the Downloads folder.
 /// Business app: the customer's own documents; admin console: any organisation's.
 #[tauri::command]
@@ -418,6 +502,7 @@ fn handlers() -> impl Fn(tauri::ipc::Invoke) -> bool + Send + Sync + 'static {
         api_request,
         api_download,
         invoice_download,
+        api_image,
         client_log
     ]
 }
@@ -436,6 +521,7 @@ fn handlers() -> impl Fn(tauri::ipc::Invoke) -> bool + Send + Sync + 'static {
         admin::auth_enroll,
         admin::auth_code,
         invoice_download,
+        api_image,
         client_log
     ]
 }
@@ -486,7 +572,16 @@ pub fn run() {
 
 #[cfg(test)]
 mod tests {
-    use super::save_unique;
+    use super::{base64_encode, save_unique};
+
+    #[test]
+    fn base64_matches_the_standard() {
+        assert_eq!(base64_encode(b""), "");
+        assert_eq!(base64_encode(b"f"), "Zg==");
+        assert_eq!(base64_encode(b"fo"), "Zm8=");
+        assert_eq!(base64_encode(b"foo"), "Zm9v");
+        assert_eq!(base64_encode(b"foobar"), "Zm9vYmFy");
+    }
 
     #[test]
     fn saving_never_overwrites() {

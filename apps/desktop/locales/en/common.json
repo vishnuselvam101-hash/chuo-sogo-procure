@@ -19,12 +19,15 @@
     "organisations": "Organisations",
     "audit": "Audit log",
     "opsQueue": "Operations queue",
-    "billing": "Chuo-Sogo invoices"
+    "billing": "Chuo-Sogo invoices",
+    "listings": "Product listings",
+    "catalogue": "Catalogue"
   },
   "workspace": {
     "customer": "Customer workspace",
     "operations": "Procurement operations",
-    "serving": "Serving customer"
+    "serving": "Serving customer",
+    "supplier": "Supplier workspace"
   },
   "org": {
     "switch": "Switch organisation"
@@ -62,7 +65,9 @@
     "customer_admin": "Organisation administrator",
     "procurement_manager": "Procurement manager",
     "requester": "Requester",
-    "finance": "Finance"
+    "finance": "Finance",
+    "supplier_admin": "Supplier administrator",
+    "supplier_staff": "Supplier staff"
   },
   "members": {
     "add": "Add member",

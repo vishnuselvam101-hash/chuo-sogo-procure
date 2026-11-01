@@ -4,6 +4,7 @@
 pub mod approval;
 pub mod comparison;
 pub mod invoicing;
+pub mod listing;
 pub mod matching;
 pub mod money;
 pub mod rbac;

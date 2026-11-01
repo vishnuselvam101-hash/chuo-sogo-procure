@@ -6,6 +6,7 @@ pub mod db;
 pub mod error;
 pub mod invoice_pdf;
 pub mod mailer;
+pub mod media;
 pub mod mfa;
 pub mod openapi;
 pub mod principal;
@@ -306,6 +307,41 @@ pub fn router(state: AppState) -> Router {
             get(api::billing::customer_list),
         )
         .route(
+            "/orgs/{org_id}/listings",
+            get(api::listings::list_own).post(api::listings::create),
+        )
+        .route(
+            "/orgs/{org_id}/listings/{id}",
+            get(api::listings::get_own)
+                .put(api::listings::update)
+                .delete(api::listings::delete_draft),
+        )
+        .route(
+            "/orgs/{org_id}/listings/{id}/submit",
+            post(api::listings::submit),
+        )
+        .route(
+            "/orgs/{org_id}/listings/{id}/retire",
+            post(api::listings::retire_own),
+        )
+        .route(
+            "/orgs/{org_id}/listings/{id}/media/{media_id}",
+            axum::routing::delete(api::listings::delete_media),
+        )
+        .route(
+            "/orgs/{org_id}/listings/{id}/media/{media_id}/content",
+            get(api::listings::own_media),
+        )
+        .route("/orgs/{org_id}/catalogue", get(api::listings::catalogue))
+        .route(
+            "/orgs/{org_id}/catalogue/{id}",
+            get(api::listings::catalogue_item),
+        )
+        .route(
+            "/orgs/{org_id}/catalogue/{id}/media/{media_id}/content",
+            get(api::listings::catalogue_media),
+        )
+        .route(
             "/orgs/{org_id}/billing/invoices/{id}",
             get(api::billing::customer_get),
         )
@@ -358,6 +394,10 @@ pub fn router(state: AppState) -> Router {
         .route(
             "/orgs/{org_id}/requests/{request_id}/attachments",
             get(api::attachments::list).post(api::attachments::upload),
+        )
+        .route(
+            "/orgs/{org_id}/listings/{id}/media",
+            post(api::listings::upload_media),
         )
         .layer(axum::extract::DefaultBodyLimit::max(
             api::attachments::MAX_UPLOAD_BODY,
@@ -440,6 +480,15 @@ pub fn router(state: AppState) -> Router {
             get(api::billing::get_issuer).put(api::billing::put_issuer),
         )
         .route("/billing/invoices", get(api::billing::list_invoices))
+        .route("/listings", get(api::listings::moderation_list))
+        .route("/listings/{id}", get(api::listings::moderation_get))
+        .route("/listings/{id}/approve", post(api::listings::approve))
+        .route("/listings/{id}/reject", post(api::listings::reject))
+        .route("/listings/{id}/retire", post(api::listings::retire))
+        .route(
+            "/listings/{id}/media/{media_id}/content",
+            get(api::listings::moderation_media),
+        )
         .route(
             "/orgs/{org_id}/billing/invoices",
             post(api::billing::create_invoice),
