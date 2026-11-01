@@ -1,5 +1,138 @@
 {
   "request": {
-    "new": "New procurement request"
+    "new": "New procurement request",
+    "number": "No.",
+    "title": "Title",
+    "status": "Status",
+    "requester": "Requester",
+    "items": "Items",
+    "updated": "Updated",
+    "currency": "Currency",
+    "neededBy": "Needed by",
+    "deliveryLocation": "Delivery location",
+    "description": "Description",
+    "saveDraft": "Save as draft",
+    "submit": "Submit to Chuo-Sogo",
+    "cancel": "Cancel request"
+  },
+  "list": {
+    "filter": "Filter by status",
+    "all": "All statuses"
+  },
+  "item": {
+    "heading": "Items",
+    "line": "#",
+    "description": "Description",
+    "manufacturer": "Manufacturer",
+    "mpn": "Part number",
+    "quantity": "Quantity",
+    "unit": "Unit",
+    "verification": "Verification",
+    "add": "Add item",
+    "remove": "Remove",
+    "verify": "Verify",
+    "evidence": "Evidence",
+    "evidenceHint": "Datasheet URL, catalogue page or supplier confirmation",
+    "confirmVerified": "Confirm verified"
+  },
+  "clarification": {
+    "question": "Question from Chuo-Sogo",
+    "answer": "Your answer",
+    "ask": "Ask the requester a question",
+    "send": "Send question"
+  },
+  "ops": {
+    "pickUp": "Pick up",
+    "startSourcing": "Start sourcing"
+  },
+  "rfq": {
+    "heading": "Requests for quotation",
+    "new": "New RFQ",
+    "create": "Create RFQ",
+    "responseDue": "Response due",
+    "message": "Message to suppliers",
+    "anonymityNote": "Suppliers see Chuo-Sogo's RFQ number only, never the customer's name.",
+    "noVerifiedSuppliers": "No verified suppliers in the directory yet.",
+    "dispatch": "Dispatch (test mode)",
+    "outbox": "Show messages",
+    "testModeNote": "Test mode: messages are recorded for manual export. Nothing is emailed.",
+    "dueOn": "Due {{date}}",
+    "counts": "{{recipients}} suppliers · {{quotations}} quotations"
+  },
+  "quote": {
+    "record": "Record quotation",
+    "supplier": "Supplier",
+    "reference": "Supplier reference",
+    "validUntil": "Valid until",
+    "shipping": "Shipping",
+    "lines": "Lines",
+    "unitPrice": "Unit price",
+    "leadDays": "Lead time (days)",
+    "offeredMpn": "Offered part number",
+    "alternative": "Alternative",
+    "lineSummary": "Line {{line}} · qty {{quantity}} · {{days}} days · unit price"
+  },
+  "comparison": {
+    "heading": "Comparison",
+    "run": "Run comparison",
+    "rank": "Rank",
+    "compliance": "Compliance",
+    "total": "Total",
+    "leadTime": "Lead time",
+    "days": "{{n}} days",
+    "recommend": "Recommend",
+    "reason": "Reason (required if not rank 1)"
+  },
+  "reason": {
+    "missing_item": "Item not quoted",
+    "insufficient_quantity": "Quantity too low",
+    "expired": "Quotation expired",
+    "currency_differs": "Different currency (no conversion)",
+    "alternative_offered": "Alternative product offered",
+    "duplicate_line": "Item quoted twice",
+    "unknown_item": "Quotes an item not in the request",
+    "amount_overflow": "Amount too large"
+  },
+  "recommendation": {
+    "heading": "Recommendation",
+    "send": "Send to customer for approval",
+    "withdraw": "Withdraw",
+    "withdrawReason": "Reason for withdrawing"
+  },
+  "approval": {
+    "pending": "Awaiting your approval",
+    "required": "Approvals required",
+    "progress": "{{required}} required, {{remaining}} remaining",
+    "comment": "Comment",
+    "approve": "Approve",
+    "reject": "Reject",
+    "clarify": "Ask a question",
+    "commentRequired": "A comment is required to reject or ask a question.",
+    "selfNote": "You raised this request. Unless your organisation's policy allows it, your approval does not count."
+  },
+  "policy": {
+    "heading": "Approval policy",
+    "explain": "Number of different approvers needed from each amount. Below the first threshold one approval is needed. The person who raised a request cannot approve it unless allowed below.",
+    "from": "From amount",
+    "approvals": "Approvals",
+    "addTier": "Add threshold",
+    "allowSelf": "Allow requesters to approve their own requests",
+    "default": "Not configured: one approval, never by the requester.",
+    "version": "Version {{version}}"
+  },
+  "supplier": {
+    "name": "Name",
+    "country": "Country",
+    "website": "Website",
+    "categories": "Categories",
+    "notes": "Internal notes",
+    "add": "Add supplier",
+    "decision": "Your decision",
+    "approve": "Approve",
+    "reject": "Reject",
+    "reason": "Reason (required to reject)",
+    "reasonRequired": "Enter a reason first",
+    "propose": "Propose a verified supplier",
+    "proposeButton": "Propose"
   }
 }

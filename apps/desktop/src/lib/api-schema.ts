@@ -873,6 +873,8 @@ export interface components {
       user_status: string;
     };
     MembershipView: {
+      /** @description `member` of the organisation, or internal staff `assigned` to serve it. */
+      access: string;
       default_locale: string;
       /** Format: uuid */
       org_id: string;
@@ -1120,6 +1122,11 @@ export interface components {
       email: string;
     };
     RfqDetail: {
+      /**
+       * Format: uuid
+       * @description Most recent comparison run of this RFQ, if any.
+       */
+      latest_comparison_id?: string | null;
       /** @description Current (not superseded) quotations. */
       quotations: components["schemas"]["QuotationView"][];
       recipients: components["schemas"]["RecipientView"][];

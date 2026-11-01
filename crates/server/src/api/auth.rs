@@ -4,7 +4,7 @@ use axum::Json;
 use axum::extract::State;
 use axum::http::StatusCode;
 use chrono::{DateTime, Duration, Utc};
-use procure_domain::rbac;
+use procure_domain::rbac::{self, OrgKind};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use uuid::Uuid;
@@ -51,6 +51,8 @@ pub struct MembershipView {
     pub timezone: String,
     pub role: &'static str,
     pub permissions: Vec<&'static str>,
+    /// `member` of the organisation, or internal staff `assigned` to serve it.
+    pub access: &'static str,
 }
 
 #[derive(Serialize, sqlx::FromRow, utoipa::ToSchema)]
@@ -107,7 +109,39 @@ async fn me_view(
                 .iter()
                 .map(|p| p.code())
                 .collect(),
+            access: "member",
         });
+    }
+    // Internal staff also work in the customer organisations they are assigned to.
+    if let Some(role) = memberships
+        .iter()
+        .find(|m| m.org_kind == OrgKind::Platform)
+        .map(|m| m.role)
+    {
+        let assigned: Vec<(Uuid, String, String, String)> = sqlx::query_as(
+            "SELECT o.id, o.name, o.default_locale, o.timezone
+             FROM service_assignments a JOIN organisations o ON o.id = a.org_id
+             WHERE a.user_id = $1 AND a.revoked_at IS NULL AND o.status = 'active'
+             ORDER BY o.name, o.id",
+        )
+        .bind(user_id)
+        .fetch_all(&mut **tx)
+        .await?;
+        for (org_id, org_name, default_locale, timezone) in assigned {
+            views.push(MembershipView {
+                org_id,
+                org_name,
+                org_kind: OrgKind::Customer.code(),
+                default_locale,
+                timezone,
+                role: role.code(),
+                permissions: rbac::service_permissions(role)
+                    .iter()
+                    .map(|p| p.code())
+                    .collect(),
+                access: "assigned",
+            });
+        }
     }
     let invitations = sqlx::query_as::<_, InvitationView>(
         "SELECT m.org_id, o.name AS org_name, m.role FROM memberships m JOIN organisations o ON o.id = m.org_id

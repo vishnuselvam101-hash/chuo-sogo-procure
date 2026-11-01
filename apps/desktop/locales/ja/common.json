@@ -22,7 +22,8 @@
   },
   "workspace": {
     "customer": "顧客ワークスペース",
-    "operations": "調達オペレーション"
+    "operations": "調達オペレーション",
+    "serving": "担当顧客"
   },
   "org": {
     "switch": "組織を切り替え"
@@ -60,7 +61,46 @@
   "status": {
     "active": "有効",
     "deactivated": "無効",
-    "pending": "招待中"
+    "pending": "招待中",
+    "draft": "下書き",
+    "submitted": "提出済み",
+    "needs_clarification": "確認待ち",
+    "identifying": "製品特定中",
+    "sourcing": "調達先選定中",
+    "rfq_sent": "見積依頼送付済み",
+    "quotes_received": "見積受領",
+    "under_comparison": "比較中",
+    "recommended": "推奨作成済み",
+    "awaiting_approval": "承認待ち",
+    "approved": "承認済み",
+    "rejected": "却下",
+    "ordered": "発注済み",
+    "delivered": "納品済み",
+    "invoiced": "請求済み",
+    "disputed": "差異あり",
+    "reconciled": "照合済み",
+    "closed": "完了",
+    "cancelled": "取消",
+    "sent": "送付済み",
+    "exported": "出力済み（テスト）",
+    "responded": "回答あり",
+    "declined": "辞退",
+    "unverified": "未確認",
+    "verified": "確認済み",
+    "discovered": "発見",
+    "contacted": "連絡済み",
+    "under_review": "審査中",
+    "inactive": "無効",
+    "proposed": "提案中",
+    "compliant": "適合",
+    "needs_review": "要確認",
+    "incomplete": "不完全",
+    "non_compliant": "不適合",
+    "clarification_requested": "質問あり",
+    "withdrawn": "取り下げ",
+    "approve": "承認",
+    "reject": "却下",
+    "clarify": "質問"
   },
   "orgs": {
     "create": "顧客組織を作成",
@@ -77,7 +117,8 @@
   "action": {
     "save": "保存",
     "cancel": "キャンセル",
-    "refresh": "再読み込み"
+    "refresh": "再読み込み",
+    "back": "戻る"
   },
   "state": {
     "loading": "読み込み中…",

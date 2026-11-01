@@ -36,15 +36,16 @@ export function navFor(m: MembershipView): NavItem[] {
   const items: NavItem[] = [item("dashboard", true)];
   if (m.org_kind === "platform") {
     items.push(item("opsQueue"), item("products"));
-    if (has("manage_suppliers")) items.push(item("suppliers"));
+    if (has("manage_suppliers")) items.push(item("suppliers", true));
     items.push(item("rfqs"), item("quotations"));
     if (has("view_reports")) items.push(item("reports"));
     if (has("manage_organisations")) items.push(item("organisations", true));
     if (has("manage_internal_users")) items.push(item("members", true));
   } else {
-    if (has("submit_request") || has("view_all_requests")) items.push(item("procurement"), item("products"));
-    if (has("review_quotations")) items.push(item("quotations"));
-    if (has("approve_recommendation")) items.push(item("approvals"));
+    if (has("submit_request") || has("view_all_requests")) items.push(item("procurement", true));
+    if (has("approve_suppliers") || has("manage_rfqs")) items.push(item("suppliers", true));
+    if (m.access !== "assigned") items.push(item("products"));
+    if (has("approve_recommendation") || has("manage_approval_policy")) items.push(item("approvals", true));
     if (has("view_orders")) items.push(item("orders"));
     if (has("view_finance")) items.push(item("invoices"));
     if (has("view_reports")) items.push(item("reports"));

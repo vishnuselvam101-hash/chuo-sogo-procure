@@ -33,7 +33,7 @@ Requests + items + attachments → product identities/evidence/verification → 
 7. ☑ Recommendation: latest comparison only (stale check), compliant quotations only, customer-approved supplier only, reason required if not rank 1
 8. ☑ Approval policies per currency (versioned tiers, default 1 approval, no self-approval), snapshot at send; decisions by customer users with ApproveRecommendation only; approve/reject/clarify; append-only approval records
 9. ☐ Attachments (local storage) — 2b
-10. ☐ Desktop screens for requests, RFQs/quotations, comparison, approvals — 2b
+10. ☑ Desktop screens (2b): request list/new/detail (customer edit, submit, cancel, clarification answer), operator intake (pick up, question, item verification with evidence, start sourcing), RFQ create/dispatch (test mode)/outbox, quotation entry, comparison display, recommend/send/withdraw, customer approve/reject/question, supplier directory (staff) and customer supplier decisions, approval policy editor; staff see assigned customer orgs (`/me` → `access: assigned`); ja/en/ta/hi; Vitest + `scripts/e2e-workflow.sh` (full run through the release binary)
 
 ## Phase 3 — AI layer (dep Phase 2)
 Provider trait + mock + local adapter; schemas per capability; validation + retries + timeouts; `ai_suggestions` with provenance; confidence → review queue; prompt-injection test corpus.

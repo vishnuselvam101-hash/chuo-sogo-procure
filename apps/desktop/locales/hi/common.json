@@ -22,7 +22,8 @@
   },
   "workspace": {
     "customer": "ग्राहक कार्यक्षेत्र",
-    "operations": "खरीद संचालन"
+    "operations": "खरीद संचालन",
+    "serving": "सेवा प्राप्त ग्राहक"
   },
   "org": {
     "switch": "संगठन बदलें"
@@ -60,7 +61,46 @@
   "status": {
     "active": "सक्रिय",
     "deactivated": "निष्क्रिय",
-    "pending": "आमंत्रित"
+    "pending": "आमंत्रित",
+    "draft": "मसौदा",
+    "submitted": "जमा किया गया",
+    "needs_clarification": "स्पष्टीकरण आवश्यक",
+    "identifying": "उत्पाद पहचान जारी",
+    "sourcing": "आपूर्तिकर्ता खोज",
+    "rfq_sent": "कोटेशन अनुरोध भेजा गया",
+    "quotes_received": "कोटेशन प्राप्त",
+    "under_comparison": "तुलना जारी",
+    "recommended": "अनुशंसित",
+    "awaiting_approval": "अनुमोदन की प्रतीक्षा",
+    "approved": "अनुमोदित",
+    "rejected": "अस्वीकृत",
+    "ordered": "ऑर्डर किया गया",
+    "delivered": "डिलीवर किया गया",
+    "invoiced": "बिल प्राप्त",
+    "disputed": "विवादित",
+    "reconciled": "मिलान किया गया",
+    "closed": "बंद",
+    "cancelled": "रद्द",
+    "sent": "भेजा गया",
+    "exported": "निर्यात (परीक्षण)",
+    "responded": "उत्तर मिला",
+    "declined": "अस्वीकार किया",
+    "unverified": "असत्यापित",
+    "verified": "सत्यापित",
+    "discovered": "खोजा गया",
+    "contacted": "संपर्क किया गया",
+    "under_review": "समीक्षा में",
+    "inactive": "निष्क्रिय",
+    "proposed": "प्रस्तावित",
+    "compliant": "अनुरूप",
+    "needs_review": "समीक्षा आवश्यक",
+    "incomplete": "अपूर्ण",
+    "non_compliant": "अननुरूप",
+    "clarification_requested": "प्रश्न पूछा गया",
+    "withdrawn": "वापस लिया गया",
+    "approve": "अनुमोदन",
+    "reject": "अस्वीकृति",
+    "clarify": "प्रश्न"
   },
   "orgs": {
     "create": "ग्राहक संगठन बनाएं",
@@ -77,7 +117,8 @@
   "action": {
     "save": "सहेजें",
     "cancel": "रद्द करें",
-    "refresh": "रीफ़्रेश करें"
+    "refresh": "रीफ़्रेश करें",
+    "back": "वापस"
   },
   "state": {
     "loading": "लोड हो रहा है…",

@@ -15,6 +15,7 @@ function membership(role: string, permissions: string[], kind: "customer" | "pla
     timezone: "Asia/Tokyo",
     role,
     permissions,
+    access: "member",
   };
 }
 

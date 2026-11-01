@@ -22,7 +22,8 @@
   },
   "workspace": {
     "customer": "Customer workspace",
-    "operations": "Procurement operations"
+    "operations": "Procurement operations",
+    "serving": "Serving customer"
   },
   "org": {
     "switch": "Switch organisation"
@@ -60,7 +61,46 @@
   "status": {
     "active": "Active",
     "deactivated": "Deactivated",
-    "pending": "Invited"
+    "pending": "Invited",
+    "draft": "Draft",
+    "submitted": "Submitted",
+    "needs_clarification": "Needs clarification",
+    "identifying": "Identifying products",
+    "sourcing": "Sourcing",
+    "rfq_sent": "RFQ sent",
+    "quotes_received": "Quotes received",
+    "under_comparison": "Under comparison",
+    "recommended": "Recommended",
+    "awaiting_approval": "Awaiting approval",
+    "approved": "Approved",
+    "rejected": "Rejected",
+    "ordered": "Ordered",
+    "delivered": "Delivered",
+    "invoiced": "Invoiced",
+    "disputed": "Disputed",
+    "reconciled": "Reconciled",
+    "closed": "Closed",
+    "cancelled": "Cancelled",
+    "sent": "Sent",
+    "exported": "Exported (test)",
+    "responded": "Responded",
+    "declined": "Declined",
+    "unverified": "Unverified",
+    "verified": "Verified",
+    "discovered": "Discovered",
+    "contacted": "Contacted",
+    "under_review": "Under review",
+    "inactive": "Inactive",
+    "proposed": "Proposed",
+    "compliant": "Compliant",
+    "needs_review": "Needs review",
+    "incomplete": "Incomplete",
+    "non_compliant": "Non-compliant",
+    "clarification_requested": "Question asked",
+    "withdrawn": "Withdrawn",
+    "approve": "Approved",
+    "reject": "Rejected",
+    "clarify": "Asked a question"
   },
   "orgs": {
     "create": "Create customer organisation",
@@ -77,7 +117,8 @@
   "action": {
     "save": "Save",
     "cancel": "Cancel",
-    "refresh": "Refresh"
+    "refresh": "Refresh",
+    "back": "Back"
   },
   "state": {
     "loading": "Loading…",

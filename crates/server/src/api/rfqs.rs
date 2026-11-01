@@ -617,6 +617,8 @@ pub struct RfqDetail {
     pub recipients: Vec<RecipientView>,
     /// Current (not superseded) quotations.
     pub quotations: Vec<QuotationView>,
+    /// Most recent comparison run of this RFQ, if any.
+    pub latest_comparison_id: Option<Uuid>,
 }
 
 #[utoipa::path(
@@ -677,11 +679,18 @@ pub async fn get_rfq(
         .fetch_all(&mut *tx)
         .await?;
     }
+    let latest_comparison_id: Option<Uuid> = sqlx::query_scalar(
+        "SELECT id FROM comparison_runs WHERE rfq_id = $1 ORDER BY ran_at DESC, id DESC LIMIT 1",
+    )
+    .bind(rfq_id)
+    .fetch_optional(&mut *tx)
+    .await?;
     tx.commit().await?;
     Ok(Json(RfqDetail {
         rfq,
         recipients,
         quotations,
+        latest_comparison_id,
     }))
 }
 

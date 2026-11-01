@@ -23,7 +23,13 @@ export function Sidebar(props: Props) {
       <div className="brand">
         <div className="brand-name">{t("app.name")}</div>
         <div className="brand-workspace">
-          {t(active.org_kind === "platform" ? "workspace.operations" : "workspace.customer")}
+          {t(
+            active.org_kind === "platform"
+              ? "workspace.operations"
+              : active.access === "assigned"
+                ? "workspace.serving"
+                : "workspace.customer",
+          )}
         </div>
       </div>
       {props.memberships.length > 1 ? (

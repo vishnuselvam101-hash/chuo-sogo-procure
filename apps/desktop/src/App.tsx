@@ -13,6 +13,9 @@ import { Organisations } from "./pages/Organisations";
 import { Audit } from "./pages/Audit";
 import { Settings } from "./pages/Settings";
 import { Placeholder } from "./pages/Placeholder";
+import { Requests } from "./pages/Requests";
+import { Suppliers } from "./pages/Suppliers";
+import { Approvals } from "./pages/Approvals";
 
 const HOME: PageId = "dashboard";
 const HOME_LABEL = "nav.dashboard";
@@ -27,6 +30,7 @@ function noOrg(language: LanguageCode): MembershipView {
     timezone: "Asia/Tokyo",
     role: "",
     permissions: [],
+    access: "member",
   };
 }
 
@@ -106,6 +110,15 @@ export function App() {
   switch (current?.implemented ? current.id : null) {
     case "dashboard":
       body = <Dashboard me={me} active={active} onChanged={() => void refreshMe()} />;
+      break;
+    case "procurement":
+      body = <Requests key={active.org_id} active={active} selfId={me.user.id} />;
+      break;
+    case "suppliers":
+      body = <Suppliers key={active.org_id} active={active} />;
+      break;
+    case "approvals":
+      body = <Approvals key={active.org_id} active={active} selfId={me.user.id} />;
       break;
     case "members":
       body = <Members active={active} selfId={me.user.id} />;

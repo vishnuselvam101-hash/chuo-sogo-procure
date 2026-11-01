@@ -1071,3 +1071,33 @@ async fn review_findings_regressions(pool: PgPool) {
         .unwrap();
     assert_eq!(visible, 2);
 }
+
+#[sqlx::test(migrator = "procure_server::MIGRATOR")]
+async fn staff_see_their_assigned_customer_orgs(pool: PgPool) {
+    let f = Flow::new(pool).await;
+    let me = f.w.app.get("/api/v1/me", &f.operator).await.body;
+    let views = me["memberships"].as_array().unwrap();
+    assert_eq!(views.len(), 2);
+    assert_eq!(views[0]["access"], "member");
+    assert_eq!(views[0]["org_kind"], "platform");
+    assert_eq!(views[1]["access"], "assigned");
+    assert_eq!(views[1]["org_id"], json!(f.w.org_a));
+    assert_eq!(views[1]["org_name"], "株式会社エー製作所");
+    let perms = views[1]["permissions"].as_array().unwrap();
+    assert!(perms.contains(&json!("operate_requests")));
+    assert!(!perms.contains(&json!("approve_recommendation")));
+    // Org B is not listed: no assignment.
+    assert!(!me.to_string().contains(&f.w.org_b.to_string()));
+    // Revoking the assignment removes it.
+    let op_id = f.w.user_id(&f.operator).await;
+    let r =
+        f.w.app
+            .delete(
+                &format!("/api/v1/orgs/{}/assignments/{op_id}", f.w.org_a),
+                &f.w.super_admin,
+            )
+            .await;
+    assert_eq!(r.status, StatusCode::NO_CONTENT);
+    let me = f.w.app.get("/api/v1/me", &f.operator).await.body;
+    assert_eq!(me["memberships"].as_array().unwrap().len(), 1);
+}

@@ -1,5 +1,138 @@
 {
   "request": {
-    "new": "新規調達依頼"
+    "new": "新規調達依頼",
+    "number": "番号",
+    "title": "件名",
+    "status": "ステータス",
+    "requester": "依頼者",
+    "items": "品目数",
+    "updated": "更新日時",
+    "currency": "通貨",
+    "neededBy": "希望納期",
+    "deliveryLocation": "納品場所",
+    "description": "詳細",
+    "saveDraft": "下書き保存",
+    "submit": "Chuo-Sogo へ提出",
+    "cancel": "依頼を取り消す"
+  },
+  "list": {
+    "filter": "ステータスで絞り込み",
+    "all": "すべてのステータス"
+  },
+  "item": {
+    "heading": "品目",
+    "line": "行",
+    "description": "品名・説明",
+    "manufacturer": "メーカー",
+    "mpn": "型番",
+    "quantity": "数量",
+    "unit": "単位",
+    "verification": "製品確認",
+    "add": "品目を追加",
+    "remove": "削除",
+    "verify": "確認する",
+    "evidence": "根拠",
+    "evidenceHint": "データシートURL、カタログのページ、またはサプライヤーの確認",
+    "confirmVerified": "確認済みにする"
+  },
+  "clarification": {
+    "question": "Chuo-Sogo からの質問",
+    "answer": "回答",
+    "ask": "依頼者へ質問する",
+    "send": "質問を送信"
+  },
+  "ops": {
+    "pickUp": "担当する",
+    "startSourcing": "調達先選定を開始"
+  },
+  "rfq": {
+    "heading": "見積依頼 (RFQ)",
+    "new": "新規見積依頼",
+    "create": "見積依頼を作成",
+    "responseDue": "回答期限",
+    "message": "サプライヤーへのメッセージ",
+    "anonymityNote": "サプライヤーにはChuo-Sogo のRFQ番号のみが表示され、顧客名は表示されません。",
+    "noVerifiedSuppliers": "確認済みのサプライヤーがまだ登録されていません。",
+    "dispatch": "送付（テストモード）",
+    "outbox": "メッセージを表示",
+    "testModeNote": "テストモード：メッセージは記録され、手動で送付します。メールは送信されません。",
+    "dueOn": "期限 {{date}}",
+    "counts": "サプライヤー {{recipients}} 社・見積 {{quotations}} 件"
+  },
+  "quote": {
+    "record": "見積を登録",
+    "supplier": "サプライヤー",
+    "reference": "サプライヤー見積番号",
+    "validUntil": "有効期限",
+    "shipping": "送料",
+    "lines": "明細",
+    "unitPrice": "単価",
+    "leadDays": "納期（日）",
+    "offeredMpn": "提示型番",
+    "alternative": "代替品",
+    "lineSummary": "{{line}}行目・数量 {{quantity}}・{{days}}日・単価"
+  },
+  "comparison": {
+    "heading": "比較",
+    "run": "比較を実行",
+    "rank": "順位",
+    "compliance": "適合性",
+    "total": "合計",
+    "leadTime": "納期",
+    "days": "{{n}}日",
+    "recommend": "推奨する",
+    "reason": "理由（1位以外を推奨する場合は必須）"
+  },
+  "reason": {
+    "missing_item": "見積のない品目あり",
+    "insufficient_quantity": "数量不足",
+    "expired": "有効期限切れ",
+    "currency_differs": "通貨が異なる（換算なし）",
+    "alternative_offered": "代替品の提案",
+    "duplicate_line": "同じ品目が重複",
+    "unknown_item": "依頼にない品目を含む",
+    "amount_overflow": "金額が大きすぎます"
+  },
+  "recommendation": {
+    "heading": "推奨",
+    "send": "顧客へ承認依頼を送る",
+    "withdraw": "取り下げ",
+    "withdrawReason": "取り下げ理由"
+  },
+  "approval": {
+    "pending": "承認待ちの依頼",
+    "required": "必要な承認数",
+    "progress": "必要 {{required}} 件・残り {{remaining}} 件",
+    "comment": "コメント",
+    "approve": "承認",
+    "reject": "却下",
+    "clarify": "質問する",
+    "commentRequired": "却下・質問にはコメントが必要です。",
+    "selfNote": "この依頼はあなたが提出したものです。組織の規程で認められていない限り、あなたの承認は数えられません。"
+  },
+  "policy": {
+    "heading": "承認規程",
+    "explain": "金額ごとに必要な承認者の人数を設定します。最初のしきい値未満は承認1件です。下で許可しない限り、依頼者本人は承認できません。",
+    "from": "金額（以上）",
+    "approvals": "承認数",
+    "addTier": "しきい値を追加",
+    "allowSelf": "依頼者本人による承認を認める",
+    "default": "未設定：承認1件、依頼者本人は不可。",
+    "version": "バージョン {{version}}"
+  },
+  "supplier": {
+    "name": "名称",
+    "country": "国",
+    "website": "ウェブサイト",
+    "categories": "取扱分野",
+    "notes": "社内メモ",
+    "add": "サプライヤーを追加",
+    "decision": "貴社の判断",
+    "approve": "承認",
+    "reject": "却下",
+    "reason": "理由（却下時は必須）",
+    "reasonRequired": "先に理由を入力してください",
+    "propose": "確認済みサプライヤーを提案",
+    "proposeButton": "提案する"
   }
 }

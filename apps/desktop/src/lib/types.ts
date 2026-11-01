@@ -12,6 +12,20 @@ export type AuditEvent = Schemas["AuditView"];
 export type AuditResponse = Schemas["AuditResponse"];
 export type OrgView = Schemas["OrgView"];
 export type ErrorBody = Schemas["ErrorBody"];
+export type RequestSummary = Schemas["RequestSummary"];
+export type RequestDetail = Schemas["RequestDetail"];
+export type ItemView = Schemas["ItemView"];
+export type ItemInput = Schemas["ItemInput"];
+export type RfqDetail = Schemas["RfqDetail"];
+export type ComparisonView = Schemas["ComparisonView"];
+export type ComparisonResult = Schemas["ComparisonResult"];
+export type RecommendationDetail = Schemas["RecommendationDetail"];
+export type OutboxMessage = Schemas["OutboxMessage"];
+export type SupplierView = Schemas["SupplierView"];
+export type OrgSupplierView = Schemas["OrgSupplierView"];
+export type PolicyView = Schemas["PolicyView"];
+export type TierView = Schemas["TierView"];
+export type Created = Schemas["Created"];
 
 /** What the Rust layer's `api_request`/`auth_login` commands return. */
 export interface ApiResponse<T = unknown> {

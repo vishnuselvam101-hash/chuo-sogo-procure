@@ -33,6 +33,7 @@ pub fn method(m: &str) -> Result<reqwest::Method, String> {
     match m {
         "GET" => Ok(reqwest::Method::GET),
         "POST" => Ok(reqwest::Method::POST),
+        "PUT" => Ok(reqwest::Method::PUT),
         "PATCH" => Ok(reqwest::Method::PATCH),
         "DELETE" => Ok(reqwest::Method::DELETE),
         _ => Err("invalid_method".into()),
@@ -167,7 +168,9 @@ mod tests {
     #[test]
     fn methods_and_languages() {
         assert!(method("GET").is_ok());
+        assert!(method("PUT").is_ok());
         assert!(method("TRACE").is_err());
+        assert!(method("put").is_err());
         assert!(is_supported_language("ta"));
         assert!(!is_supported_language("xx"));
     }

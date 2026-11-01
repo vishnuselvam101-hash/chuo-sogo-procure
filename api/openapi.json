@@ -4944,9 +4944,14 @@
           "default_locale",
           "timezone",
           "role",
-          "permissions"
+          "permissions",
+          "access"
         ],
         "properties": {
+          "access": {
+            "type": "string",
+            "description": "`member` of the organisation, or internal staff `assigned` to serve it."
+          },
           "default_locale": {
             "type": "string"
           },
@@ -5770,6 +5775,14 @@
           "quotations"
         ],
         "properties": {
+          "latest_comparison_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "Most recent comparison run of this RFQ, if any."
+          },
           "quotations": {
             "type": "array",
             "items": {
