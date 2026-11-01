@@ -27,7 +27,16 @@ jobs:
       PGPASSWORD: ci-only-not-secret
       DATABASE_URL: postgres://procure:ci-owner@127.0.0.1:5432/procure_dev
       PROCURE_RUNTIME_DATABASE_URL: postgres://procure_app:ci-app@127.0.0.1:5432/procure_dev
+      # Smaller debug builds: the full workspace with tests outgrew the runner's disk (the
+      # linker died with SIGBUS when it ran out of space).
+      CARGO_PROFILE_DEV_DEBUG: line-tables-only
+      CARGO_PROFILE_TEST_DEBUG: line-tables-only
+      CARGO_INCREMENTAL: "0"
     steps:
+      - name: Free disk space (unused preinstalled SDKs)
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL /usr/local/share/boost
+          df -h /
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false

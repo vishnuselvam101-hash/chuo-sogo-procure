@@ -3176,7 +3176,7 @@ dependencies = [
 
 [[package]]
 name = "procure-ai"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "chrono",
  "hex",
@@ -3192,7 +3192,7 @@ dependencies = [
 
 [[package]]
 name = "procure-desktop"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "reqwest 0.12.28",
  "serde",
@@ -3207,11 +3207,11 @@ dependencies = [
 
 [[package]]
 name = "procure-domain"
-version = "0.0.1"
+version = "1.0.0"
 
 [[package]]
 name = "procure-server"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "aes-gcm",
  "argon2",

@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased — 1.0 release candidate (2026-11-01, not tagged)
+## 1.0.0 — 2026-11-01 (installers built; not tagged, unsigned)
 
 - **Phase F — release preparation**: backups now include stored files with checksums;
   `procure-server verify` (audit chains + stored files); restore drill script; health and
