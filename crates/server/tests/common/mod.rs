@@ -56,7 +56,12 @@ impl App {
             .await
             .unwrap();
         let mailer = Arc::new(MemoryMailer::default());
-        let router = router(AppState::new(pool.clone(), mailer.clone()));
+        let mut state = AppState::new(pool.clone(), mailer.clone());
+        // Content-addressed, so tests running in parallel can share one directory.
+        state.storage = Arc::new(procure_server::storage::Storage::new(
+            std::env::temp_dir().join("procure-test-storage"),
+        ));
+        let router = router(state);
         App {
             router,
             pool,

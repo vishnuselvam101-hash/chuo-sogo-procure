@@ -100,7 +100,8 @@
     "withdrawn": "取り下げ",
     "approve": "承認",
     "reject": "却下",
-    "clarify": "質問"
+    "clarify": "質問",
+    "retired": "廃止"
   },
   "orgs": {
     "create": "顧客組織を作成",

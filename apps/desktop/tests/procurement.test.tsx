@@ -61,6 +61,7 @@ function detail(status: string, recommendation = false): Detail {
         verified_mpn: null,
         verification_evidence: null,
         verified_at: null,
+        product_identity_id: null,
       },
     ],
     rfqs: [],
@@ -176,8 +177,24 @@ describe("errors", () => {
 });
 
 describe("request detail", () => {
-  it("lets an assigned operator verify items with evidence and start sourcing", async () => {
-    const { bridge, calls } = fakeBridge({ [base]: detail("identifying") });
+  it("lets an assigned operator verify an item only against a verified product record", async () => {
+    const product = {
+      id: "prod-1",
+      manufacturer: "NSK",
+      mpn: "6204ZZ",
+      description: "Ball bearing",
+      category: "",
+      specs: {},
+      status: "verified",
+      evidence_count: 1,
+      verified_at: "2026-11-01T00:00:00Z",
+      created_at: "2026-11-01T00:00:00Z",
+    };
+    const { bridge, calls } = fakeBridge({
+      [base]: detail("identifying"),
+      [`${base}/attachments`]: [],
+      "/api/v1/products?status=verified&q=6204ZZ": [product],
+    });
     render(
       <BridgeProvider value={bridge}>
         <RequestDetail
@@ -190,15 +207,19 @@ describe("request detail", () => {
     );
     fireEvent.click(await screen.findByRole("button", { name: "Verify" }));
     const confirm = screen.getByRole("button", { name: "Confirm verified" });
-    expect((confirm as HTMLButtonElement).disabled).toBe(true); // evidence is required
-    fireEvent.change(screen.getByLabelText("Evidence"), { target: { value: "datasheet p.3" } });
+    expect((confirm as HTMLButtonElement).disabled).toBe(true); // a record must be chosen
+    // Only verified records are searched for, starting from the item's part number.
+    fireEvent.click(await screen.findByRole("radio", { name: /NSK 6204ZZ/ }));
+    fireEvent.change(screen.getByLabelText("Why it matches (optional)"), {
+      target: { value: "label photo" },
+    });
     await act(async () => {
       fireEvent.click(confirm);
     });
     expect(calls).toContainEqual({
       method: "POST",
       path: `${base}/items/item-1/verification`,
-      body: { manufacturer: "NSK", mpn: "6204ZZ", evidence: "datasheet p.3" },
+      body: { product_id: "prod-1", note: "label photo" },
     });
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "Start sourcing" }));
@@ -206,6 +227,56 @@ describe("request detail", () => {
     expect(calls.some((c) => c.method === "POST" && c.path === `${base}/start-sourcing`)).toBe(true);
     // Customer-only actions are not offered to staff.
     expect(screen.queryByRole("button", { name: "Submit to Chuo-Sogo" })).toBeNull();
+  });
+
+  it("uploads attachments as base64 and saves downloads through the native layer", async () => {
+    const att = {
+      id: "att-1",
+      item_id: null,
+      file_name: "図面.pdf",
+      content_type: "application/pdf",
+      size_bytes: 2048,
+      uploaded_by: "someone-else",
+      uploaded_by_name: "Req",
+      created_at: "2026-11-01T00:00:00Z",
+    };
+    const { bridge, calls } = fakeBridge({ [base]: detail("submitted"), [`${base}/attachments`]: [att] });
+    const download = vi.fn(async () => ({
+      status: 200,
+      body: { saved_to: "/home/u/Downloads/図面.pdf" },
+      request_id: "r",
+    }));
+    (bridge as unknown as { download: typeof download }).download = download;
+    render(
+      <BridgeProvider value={bridge}>
+        <RequestDetail
+          active={view("assigned", ["operate_requests", "view_all_requests"])}
+          selfId={ME}
+          requestId={REQ}
+          onBack={() => undefined}
+        />
+      </BridgeProvider>,
+    );
+    expect(await screen.findByText("図面.pdf")).toBeTruthy();
+    expect(screen.getByText("2 KB")).toBeTruthy();
+    // Not the uploader: no remove button for this file.
+    expect(screen.queryByRole("button", { name: "Remove" })).toBeNull();
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Save to Downloads" }));
+    });
+    expect(download).toHaveBeenCalledWith(ORG, "att-1", "図面.pdf");
+    expect(screen.getByRole("status").textContent).toContain("/home/u/Downloads/図面.pdf");
+
+    const file = new File(["%PDF-1.7 test"], "spec.pdf", { type: "application/pdf" });
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText("Add a file"), { target: { files: [file] } });
+    });
+    await waitFor(() =>
+      expect(calls.some((c) => c.method === "POST" && c.path === `${base}/attachments`)).toBe(true),
+    );
+    const upload = calls.find((c) => c.method === "POST" && c.path === `${base}/attachments`);
+    expect(upload?.body).toMatchObject({ file_name: "spec.pdf", item_id: null });
+    expect(atob((upload?.body as { data_base64: string }).data_base64)).toBe("%PDF-1.7 test");
   });
 
   it("never offers approval controls to staff, and offers them to customer approvers", async () => {

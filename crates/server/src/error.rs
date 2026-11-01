@@ -26,6 +26,8 @@ pub enum ApiError {
     Validation(&'static str),
     #[error("conflict: {0}")]
     Conflict(&'static str),
+    #[error("request body too large")]
+    PayloadTooLarge,
     #[error("internal error")]
     Internal(#[source] Box<dyn std::error::Error + Send + Sync>),
 }
@@ -45,6 +47,7 @@ impl ApiError {
             ApiError::NotFound => (StatusCode::NOT_FOUND, "not_found"),
             ApiError::Validation(_) => (StatusCode::UNPROCESSABLE_ENTITY, "validation_failed"),
             ApiError::Conflict(_) => (StatusCode::CONFLICT, "conflict"),
+            ApiError::PayloadTooLarge => (StatusCode::PAYLOAD_TOO_LARGE, "payload_too_large"),
             ApiError::Internal(_) => (StatusCode::INTERNAL_SERVER_ERROR, "internal_error"),
         }
     }
@@ -71,8 +74,13 @@ impl From<axum::extract::rejection::PathRejection> for ApiError {
 }
 
 impl From<axum::extract::rejection::JsonRejection> for ApiError {
-    fn from(_: axum::extract::rejection::JsonRejection) -> Self {
-        ApiError::BadRequest("invalid_json")
+    fn from(r: axum::extract::rejection::JsonRejection) -> Self {
+        // A body cut off by the size limit is "too large", not malformed.
+        if r.status() == StatusCode::PAYLOAD_TOO_LARGE {
+            ApiError::PayloadTooLarge
+        } else {
+            ApiError::BadRequest("invalid_json")
+        }
     }
 }
 

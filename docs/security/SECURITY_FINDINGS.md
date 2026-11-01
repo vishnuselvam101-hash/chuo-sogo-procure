@@ -27,6 +27,18 @@
 | SF-023 | 2026-11-01 | Stale-comparison detection relied on transaction-start timestamps (race window) | Low | V2 | Fixed | comparison stores the exact quotation id set; stale = set differs or run not from today |
 | SF-024 | 2026-11-01 | Internal supplier notes protected only by API column lists (row-level policy exposed the column to customer transactions) | Low | V8 | Fixed | notes moved to `supplier_notes` with staff-only RLS; raw-SQL test from customer context sees 0 rows |
 | SF-025 | 2026-11-01 | Audit "from" value of supplier status/decision could be pre-wait under concurrent writers | Info | V16 (logging) | Fixed | `SELECT … FOR UPDATE` then `UPDATE` |
+| SF-026 | 2026-11-01 | Desktop `api_download` accepted any `/api/v1` path and any file name/extension (a compromised webview could save e.g. `.bat`/`.desktop` files in Downloads) | Medium | V12 (files) | Fixed | command takes org + attachment ids and builds the path itself; only attachment extensions written; never overwrites; partial files removed; 401 clears the token |
+| SF-027 | 2026-11-01 | Internal product evidence (notes, supplier confirmations) visible to customers via product detail and the item verification snapshot | Medium | V8 | Fixed | customers get https sources only; snapshot built from public URLs + operator note; regression test |
+| SF-028 | 2026-11-01 | A product could be verified on a one-word note | Low | V2 (business logic) | Fixed | verification requires at least one https source |
+| SF-029 | 2026-11-01 | Items with attachments could not be deleted (FK error 422) | Low | — | Fixed | attachments detached to the request, audited |
+| SF-030 | 2026-11-01 | 30 s timeout too short for 10 MB uploads/downloads; upload decoded before authorization, unbounded concurrency | Low | V13 (resources) | Fixed | uploads 180 s server + client, role check before decode, 4 concurrent uploads |
+
+## Residual risk (Phase 2c)
+- Attachment bytes are never deleted (soft-remove keeps them; failed transactions can leave unreferenced files). No sweeper or retention policy yet.
+- Content checks are magic-number based: any ZIP passes as .xlsx/.docx, CSV/TXT may contain spreadsheet formulas, PDFs may contain active content. Files are only saved, never opened by the app; the UI warns users.
+- One person can create, add evidence to and verify a product record (no four-eyes rule) — founder decision.
+- Retiring a product record leaves items already verified against it unchanged (by design; history stays as decided).
+- Evidence URLs are not checked for reachability or internal hostnames; they are displayed as text only.
 
 ## Residual risk (Phase 2a)
 - Zero-price quotation lines are accepted and can rank first (legitimate for samples; operator reviews before recommending).

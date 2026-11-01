@@ -85,9 +85,85 @@ pub fn log_text(raw: &str) -> String {
         .collect()
 }
 
+/// A file name safe to create in the user's Downloads folder: no path components, no
+/// control or reserved characters, not hidden, at most 150 characters. `None` if nothing
+/// usable remains.
+pub fn download_name(raw: &str) -> Option<String> {
+    let base = raw.rsplit(['/', '\\']).next()?;
+    let cleaned: String = base
+        .chars()
+        .map(|c| {
+            if c.is_control() || matches!(c, '<' | '>' | ':' | '"' | '|' | '?' | '*') {
+                '_'
+            } else {
+                c
+            }
+        })
+        .take(150)
+        .collect();
+    let cleaned = cleaned.trim().trim_start_matches('.').trim().to_string();
+    // Windows reserved device names.
+    let stem = cleaned.split('.').next().unwrap_or("").to_ascii_uppercase();
+    let reserved = matches!(stem.as_str(), "CON" | "PRN" | "AUX" | "NUL")
+        || ((stem.starts_with("COM") || stem.starts_with("LPT"))
+            && stem.len() == 4
+            && stem[3..].chars().all(|c| c.is_ascii_digit()));
+    if cleaned.is_empty() || reserved {
+        None
+    } else {
+        Some(cleaned)
+    }
+}
+
+/// File types the server accepts as attachments; nothing else is ever written to disk.
+pub fn is_attachment_type(name: &str) -> bool {
+    name.rsplit_once('.').is_some_and(|(_, ext)| {
+        matches!(
+            ext.to_ascii_lowercase().as_str(),
+            "pdf" | "png" | "jpg" | "jpeg" | "webp" | "txt" | "csv" | "xlsx" | "docx"
+        )
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn only_attachment_types_are_saved() {
+        assert!(is_attachment_type("図面.PDF"));
+        assert!(is_attachment_type("a.xlsx"));
+        for bad in [
+            "run.bat",
+            "x.lnk",
+            "x.desktop",
+            "x.scr",
+            "x.exe",
+            "x.sh",
+            "noext",
+            "x.pdf.exe",
+        ] {
+            assert!(!is_attachment_type(bad), "{bad}");
+        }
+    }
+
+    #[test]
+    fn download_names_cannot_escape_the_folder() {
+        assert_eq!(download_name("../../.bashrc").as_deref(), Some("bashrc"));
+        assert_eq!(
+            download_name("C:\\Windows\\x.pdf").as_deref(),
+            Some("x.pdf")
+        );
+        assert_eq!(download_name("見積書.pdf").as_deref(), Some("見積書.pdf"));
+        assert_eq!(download_name("a\u{0}:b.pdf").as_deref(), Some("a__b.pdf"));
+        assert_eq!(download_name("CON.txt"), None);
+        assert_eq!(download_name("..."), None);
+        assert_eq!(download_name("dir/"), None);
+        assert_eq!(
+            download_name(&"x".repeat(400)).map(|n| n.chars().count()),
+            Some(150)
+        );
+    }
 
     #[test]
     fn api_urls_stay_on_origin_and_prefix() {

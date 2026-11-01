@@ -177,17 +177,52 @@ impl Flow {
         r.body["request"]["status"].as_str().unwrap().to_string()
     }
 
-    /// Operator identifies both items and starts sourcing.
+    /// Catalogue record created by the operator; `verified` adds evidence and verifies it.
+    async fn product(&self, mpn: &str, verified: bool) -> Uuid {
+        let evidence = if verified {
+            json!([{ "kind": "datasheet", "url": "https://example.test/datasheet.pdf" }])
+        } else {
+            json!([])
+        };
+        let r = self
+            .w
+            .app
+            .post(
+                "/api/v1/products",
+                &self.operator,
+                json!({ "manufacturer": "NSK", "mpn": mpn, "description": "Ball bearing",
+                        "specs": { "bore_mm": "20" }, "evidence": evidence }),
+            )
+            .await;
+        assert_eq!(r.status, StatusCode::CREATED, "{:?}", r.body);
+        let id = uuid(&r.body["id"]);
+        if verified {
+            let r = self
+                .w
+                .app
+                .post(
+                    &format!("/api/v1/products/{id}/status"),
+                    &self.operator,
+                    json!({ "status": "verified" }),
+                )
+                .await;
+            assert_eq!(r.status, StatusCode::NO_CONTENT, "{:?}", r.body);
+        }
+        id
+    }
+
+    /// Operator identifies both items against verified catalogue records and starts sourcing.
     async fn sourcing(&self, request: Uuid, items: &[Uuid]) {
         self.ok(self
             .post_op(&format!("requests/{request}/pick-up"), json!({}))
             .await);
+        let tag = &request.to_string()[24..];
         for (i, item) in items.iter().enumerate() {
+            let product = self.product(&format!("VERIFIED-{i}-{tag}"), true).await;
             self.ok(self
                 .post_op(
                     &format!("requests/{request}/items/{item}/verification"),
-                    json!({ "manufacturer": "NSK", "mpn": format!("VERIFIED-{i}"),
-                            "evidence": "https://example.test/datasheet.pdf" }),
+                    json!({ "product_id": product }),
                 )
                 .await);
         }
@@ -598,7 +633,8 @@ async fn workflow_guards(pool: PgPool) {
     assert_eq!(r.body["error"]["detail"], "not_editable");
     // Verification only while identifying; sourcing only once everything is verified.
     let verify = format!("requests/{request}/items/{}/verification", items[0]);
-    let body = json!({ "manufacturer": "NSK", "mpn": "6204ZZ", "evidence": "catalogue p.12" });
+    let draft = f.product("DRAFT-1", false).await;
+    let body = json!({ "product_id": f.product("6204ZZ", true).await, "note": "catalogue p.12" });
     assert_eq!(
         f.post_op(&verify, body.clone()).await.status,
         StatusCode::CONFLICT
@@ -615,14 +651,13 @@ async fn workflow_guards(pool: PgPool) {
         )
         .await;
     assert_eq!(r.body["error"]["detail"], "invalid_transition");
-    // Evidence is mandatory.
+    // Only verified catalogue records (which always have evidence) can back an item.
+    let r = f.post_op(&verify, json!({ "product_id": draft })).await;
+    assert_eq!(r.body["error"]["detail"], "product_not_verified");
     let r = f
-        .post_op(
-            &verify,
-            json!({ "manufacturer": "NSK", "mpn": "6204ZZ", "evidence": "" }),
-        )
+        .post_op(&verify, json!({ "product_id": Uuid::now_v7() }))
         .await;
-    assert_eq!(r.status, StatusCode::UNPROCESSABLE_ENTITY);
+    assert_eq!(r.status, StatusCode::NOT_FOUND);
     f.ok(f.post_op(&verify, body).await);
     let r = f
         .post_op(&format!("requests/{request}/start-sourcing"), json!({}))
@@ -744,7 +779,7 @@ async fn draft_items_can_be_edited_and_reset_verification(pool: PgPool) {
     f.ok(f
         .post_op(
             &format!("requests/{request}/items/{item}/verification"),
-            json!({ "mpn": "M-1", "manufacturer": "", "evidence": "label photo" }),
+            json!({ "product_id": f.product("M-1", true).await, "note": "label photo" }),
         )
         .await);
     f.ok(f
@@ -1100,4 +1135,435 @@ async fn staff_see_their_assigned_customer_orgs(pool: PgPool) {
     assert_eq!(r.status, StatusCode::NO_CONTENT);
     let me = f.w.app.get("/api/v1/me", &f.operator).await.body;
     assert_eq!(me["memberships"].as_array().unwrap().len(), 1);
+}
+
+#[sqlx::test(migrator = "procure_server::MIGRATOR")]
+async fn product_catalogue_rules(pool: PgPool) {
+    let f = Flow::new(pool).await;
+    let app = &f.w.app;
+    // Customers neither read nor write the catalogue directly.
+    let r = app.get("/api/v1/products", &f.manager1).await;
+    assert_eq!(r.status, StatusCode::FORBIDDEN);
+    let r = app
+        .post(
+            "/api/v1/products",
+            &f.w.admin_a,
+            json!({ "manufacturer": "X", "mpn": "Y" }),
+        )
+        .await;
+    assert_eq!(r.status, StatusCode::FORBIDDEN);
+
+    let id = f.product("6204ZZ", false).await;
+    // One record per manufacturer + part number, ignoring case and spaces.
+    let r = app
+        .post(
+            "/api/v1/products",
+            &f.operator,
+            json!({ "manufacturer": " nsk ", "mpn": "6204zz" }),
+        )
+        .await;
+    assert_eq!(r.status, StatusCode::CONFLICT);
+    // Verification needs evidence; evidence must be a public https source or a note.
+    let status = format!("/api/v1/products/{id}/status");
+    let r = app
+        .post(&status, &f.operator, json!({ "status": "verified" }))
+        .await;
+    assert_eq!(r.body["error"]["detail"], "evidence_required");
+    let evidence = format!("/api/v1/products/{id}/evidence");
+    for bad in [
+        json!({ "kind": "datasheet", "url": "http://insecure.test/x.pdf" }),
+        json!({ "kind": "rumour", "url": "https://a.test" }),
+        json!({ "kind": "other" }),
+        json!({ "kind": "other", "url": "javascript:alert(1)" }),
+    ] {
+        let r = app.post(&evidence, &f.operator, bad.clone()).await;
+        assert_eq!(r.status, StatusCode::UNPROCESSABLE_ENTITY, "{bad}");
+    }
+    let r = app
+        .post(
+            &evidence,
+            &f.operator,
+            json!({ "kind": "catalogue", "url": "https://nsk.test/p12" }),
+        )
+        .await;
+    assert_eq!(r.status, StatusCode::CREATED);
+    assert_eq!(
+        app.post(&status, &f.operator, json!({ "status": "verified" }))
+            .await
+            .status,
+        StatusCode::NO_CONTENT
+    );
+    let r = app.get("/api/v1/products?q=6204", &f.operator).await;
+    assert_eq!(r.body[0]["status"], "verified");
+    assert_eq!(r.body[0]["evidence_count"], 1);
+    assert_eq!(r.body[0]["specs"]["bore_mm"], "20");
+
+    // Customers see a record only once one of their items is linked to it.
+    let in_a = f.url(&format!("products/{id}"));
+    assert_eq!(
+        app.get(&in_a, &f.manager1).await.status,
+        StatusCode::NOT_FOUND
+    );
+    let (request, items) = f.submitted(&f.requester).await;
+    f.ok(f
+        .post_op(&format!("requests/{request}/pick-up"), json!({}))
+        .await);
+    f.ok(f
+        .post_op(
+            &format!("requests/{request}/items/{}/verification", items[0]),
+            json!({ "product_id": id, "note": "matches label" }),
+        )
+        .await);
+    let d = app
+        .get(&f.url(&format!("requests/{request}")), &f.requester)
+        .await;
+    assert_eq!(d.body["items"][0]["product_identity_id"], json!(id));
+    assert_eq!(d.body["items"][0]["verified_mpn"], "6204ZZ");
+    let ev = d.body["items"][0]["verification_evidence"]
+        .as_str()
+        .unwrap();
+    assert!(
+        ev.contains("matches label") && ev.contains("https://nsk.test/p12"),
+        "{ev}"
+    );
+    let r = app.get(&in_a, &f.requester).await;
+    assert_eq!(r.status, StatusCode::OK, "{:?}", r.body);
+    assert_eq!(r.body["evidence"][0]["url"], "https://nsk.test/p12");
+    // Another requester of the same org and org B still see nothing.
+    let other =
+        f.w.member(f.w.org_a, &f.w.admin_a, "other@a.test", "requester")
+            .await;
+    assert_eq!(app.get(&in_a, &other).await.status, StatusCode::NOT_FOUND);
+    let in_b = format!("/api/v1/orgs/{}/products/{id}", f.w.org_b);
+    assert_eq!(
+        app.get(&in_b, &f.w.admin_b).await.status,
+        StatusCode::NOT_FOUND
+    );
+    let mgr_b =
+        f.w.member(f.w.org_b, &f.w.admin_b, "mb@b.test", "procurement_manager")
+            .await;
+    assert_eq!(app.get(&in_b, &mgr_b).await.status, StatusCode::NOT_FOUND);
+
+    // Catalogue changes are audited in the platform org.
+    let r = app
+        .get(
+            &format!("/api/v1/orgs/{}/audit?limit=200", f.w.platform_org),
+            &f.w.super_admin,
+        )
+        .await;
+    let actions: Vec<_> = r.body["events"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|e| e["action"].clone())
+        .collect();
+    for a in [
+        "product.created",
+        "product.evidence_added",
+        "product.status_changed",
+    ] {
+        assert!(actions.contains(&json!(a)), "{a}");
+    }
+}
+
+fn b64(bytes: &[u8]) -> String {
+    use base64::Engine;
+    base64::engine::general_purpose::STANDARD.encode(bytes)
+}
+
+#[sqlx::test(migrator = "procure_server::MIGRATOR")]
+async fn attachments_are_typed_scoped_and_audited(pool: PgPool) {
+    let f = Flow::new(pool).await;
+    let app = &f.w.app;
+    let r = app
+        .post(
+            &f.url("requests"),
+            &f.requester,
+            json!({ "title": "With drawing", "currency": "JPY",
+                    "items": [{ "description": "Bracket", "quantity": 2 }] }),
+        )
+        .await;
+    let request = uuid(&r.body["id"]);
+    let list = f.url(&format!("requests/{request}/attachments"));
+    let pdf = b"%PDF-1.7\n1 0 obj <<>> endobj\n%%EOF".to_vec();
+
+    let r = app
+        .post(
+            &list,
+            &f.requester,
+            json!({ "file_name": "../../図面 A.pdf", "data_base64": b64(&pdf) }),
+        )
+        .await;
+    assert_eq!(r.status, StatusCode::CREATED, "{:?}", r.body);
+    let att = uuid(&r.body["id"]);
+    let r = app.get(&list, &f.requester).await;
+    assert_eq!(r.body[0]["file_name"], "図面 A.pdf");
+    assert_eq!(r.body[0]["content_type"], "application/pdf");
+    assert_eq!(r.body[0]["size_bytes"], pdf.len());
+
+    // Download: exact bytes, never rendered.
+    let content = f.url(&format!("attachments/{att}/content"));
+    let req = axum::http::Request::builder()
+        .uri(&content)
+        .header("authorization", format!("Bearer {}", f.manager1))
+        .body(axum::body::Body::empty())
+        .unwrap();
+    let res = tower::ServiceExt::oneshot(app.router.clone(), req)
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+    let h = res.headers().clone();
+    assert_eq!(h["content-type"], "application/octet-stream");
+    assert_eq!(h["x-content-type-options"], "nosniff");
+    assert!(
+        h["content-disposition"]
+            .to_str()
+            .unwrap()
+            .starts_with("attachment;")
+    );
+    let body = http_body_util::BodyExt::collect(res.into_body())
+        .await
+        .unwrap()
+        .to_bytes();
+    assert_eq!(body.as_ref(), pdf.as_slice());
+
+    // Type allowlist confirmed by content; size limits.
+    for (name, data) in [
+        ("x.pdf", b"<html><script>alert(1)</script>".to_vec()),
+        ("x.svg", b"<svg onload=alert(1)/>".to_vec()),
+        ("x.exe", b"MZ\x90\x00".to_vec()),
+        ("x.txt", b"a\0b".to_vec()),
+    ] {
+        let r = app
+            .post(
+                &list,
+                &f.requester,
+                json!({ "file_name": name, "data_base64": b64(&data) }),
+            )
+            .await;
+        assert_eq!(r.body["error"]["detail"], "file_type", "{name}");
+    }
+    let r = app
+        .post(
+            &list,
+            &f.requester,
+            json!({ "file_name": "a.pdf", "data_base64": "%%%" }),
+        )
+        .await;
+    assert_eq!(r.status, StatusCode::BAD_REQUEST);
+    let mut big = b"%PDF-".to_vec();
+    big.resize(10 * 1024 * 1024 + 1, b'0');
+    let r = app
+        .post(
+            &list,
+            &f.requester,
+            json!({ "file_name": "big.pdf", "data_base64": b64(&big) }),
+        )
+        .await;
+    assert_eq!(r.body["error"]["detail"], "file_size");
+    big.resize(12 * 1024 * 1024, b'0');
+    let r = app
+        .post(
+            &list,
+            &f.requester,
+            json!({ "file_name": "big.pdf", "data_base64": b64(&big) }),
+        )
+        .await;
+    assert_eq!(r.status, StatusCode::PAYLOAD_TOO_LARGE);
+    // Every other route keeps the 1 MB JSON limit.
+    let r = app
+        .post(
+            &f.url("requests"),
+            &f.requester,
+            json!({ "title": "x".repeat(2 * 1024 * 1024), "currency": "JPY" }),
+        )
+        .await;
+    assert_eq!(r.status, StatusCode::PAYLOAD_TOO_LARGE);
+
+    // Who may upload, see and remove.
+    let other =
+        f.w.member(f.w.org_a, &f.w.admin_a, "other@a.test", "requester")
+            .await;
+    assert_eq!(app.get(&list, &other).await.status, StatusCode::NOT_FOUND);
+    let other_dl = f.url(&format!("attachments/{att}/content"));
+    assert_eq!(
+        app.get(&other_dl, &other).await.status,
+        StatusCode::NOT_FOUND
+    );
+    let in_b = format!("/api/v1/orgs/{}/attachments/{att}/content", f.w.org_b);
+    assert_eq!(
+        app.get(&in_b, &f.w.admin_b).await.status,
+        StatusCode::NOT_FOUND
+    );
+    let png = b"\x89PNG\r\n\x1a\nrest".to_vec();
+    let r = app
+        .post(
+            &list,
+            &f.manager1,
+            json!({ "file_name": "m.png", "data_base64": b64(&png) }),
+        )
+        .await;
+    assert_eq!(r.status, StatusCode::FORBIDDEN);
+    let r = app
+        .post(
+            &list,
+            &f.operator,
+            json!({ "file_name": "datasheet.png", "data_base64": b64(&png) }),
+        )
+        .await;
+    assert_eq!(r.status, StatusCode::CREATED, "{:?}", r.body);
+    let op_att = uuid(&r.body["id"]);
+    // An item of another request cannot be targeted.
+    let (_, foreign_items) = f.submitted(&f.requester).await;
+    let r = app
+        .post(
+            &list,
+            &f.requester,
+            json!({ "file_name": "a.pdf", "data_base64": b64(&pdf), "item_id": foreign_items[0] }),
+        )
+        .await;
+    assert_eq!(r.body["error"]["detail"], "item_id");
+    // Only the uploader removes; removal hides it.
+    let r = app
+        .delete(&f.url(&format!("attachments/{op_att}")), &f.requester)
+        .await;
+    assert_eq!(r.status, StatusCode::FORBIDDEN);
+    let r = app
+        .delete(&f.url(&format!("attachments/{att}")), &f.requester)
+        .await;
+    assert_eq!(r.status, StatusCode::NO_CONTENT);
+    assert_eq!(
+        app.get(&content, &f.manager1).await.status,
+        StatusCode::NOT_FOUND
+    );
+    assert_eq!(
+        app.get(&list, &f.requester)
+            .await
+            .body
+            .as_array()
+            .unwrap()
+            .len(),
+        1
+    );
+    // Closed requests accept no new files.
+    app.post(
+        &f.url(&format!("requests/{request}/cancel")),
+        &f.requester,
+        json!({}),
+    )
+    .await;
+    let r = app
+        .post(
+            &list,
+            &f.requester,
+            json!({ "file_name": "late.pdf", "data_base64": b64(&pdf) }),
+        )
+        .await;
+    assert_eq!(r.body["error"]["detail"], "request_closed");
+
+    let (actions, chain_valid) = f.audit_actions().await;
+    assert!(chain_valid);
+    assert!(actions.iter().any(|a| a == "attachment.added"));
+    assert!(actions.iter().any(|a| a == "attachment.removed"));
+}
+
+#[sqlx::test(migrator = "procure_server::MIGRATOR")]
+async fn phase2c_review_regressions(pool: PgPool) {
+    let f = Flow::new(pool).await;
+    let app = &f.w.app;
+    // A note alone never verifies a record: a public source link is required.
+    let id = f.product("NOTE-ONLY", false).await;
+    let r = app
+        .post(
+            &format!("/api/v1/products/{id}/evidence"),
+            &f.operator,
+            json!({ "kind": "supplier_confirmation", "note": "Supplier X quoted ¥999 on the phone" }),
+        )
+        .await;
+    assert_eq!(r.status, StatusCode::CREATED);
+    let status = format!("/api/v1/products/{id}/status");
+    let r = app
+        .post(&status, &f.operator, json!({ "status": "verified" }))
+        .await;
+    assert_eq!(r.body["error"]["detail"], "evidence_required");
+    app.post(
+        &format!("/api/v1/products/{id}/evidence"),
+        &f.operator,
+        json!({ "kind": "datasheet", "url": "https://maker.test/ds.pdf", "note": "internal remark" }),
+    )
+    .await;
+    assert_eq!(
+        app.post(&status, &f.operator, json!({ "status": "verified" }))
+            .await
+            .status,
+        StatusCode::NO_CONTENT
+    );
+
+    // Customers see only public sources: no notes, no supplier confirmations.
+    let (request, items) = f.submitted(&f.requester).await;
+    f.ok(f
+        .post_op(&format!("requests/{request}/pick-up"), json!({}))
+        .await);
+    f.ok(f
+        .post_op(
+            &format!("requests/{request}/items/{}/verification", items[0]),
+            json!({ "product_id": id }),
+        )
+        .await);
+    let r = app
+        .get(&f.url(&format!("products/{id}")), &f.requester)
+        .await;
+    let text = r.body.to_string();
+    assert!(text.contains("https://maker.test/ds.pdf"), "{text}");
+    assert!(
+        !text.contains("¥999") && !text.contains("internal remark"),
+        "{text}"
+    );
+    assert_eq!(r.body["evidence"].as_array().unwrap().len(), 1);
+    let d = app
+        .get(&f.url(&format!("requests/{request}")), &f.requester)
+        .await;
+    let snapshot = d.body["items"][0]["verification_evidence"]
+        .as_str()
+        .unwrap();
+    assert_eq!(snapshot, "https://maker.test/ds.pdf");
+    // Staff still see everything.
+    let r = app
+        .get(&format!("/api/v1/products/{id}"), &f.operator)
+        .await;
+    assert_eq!(r.body["evidence"].as_array().unwrap().len(), 2);
+
+    // Deleting an item keeps its attachments on the request.
+    let r = app
+        .post(
+            &f.url("requests"),
+            &f.requester,
+            json!({ "title": "Draft", "currency": "JPY",
+                    "items": [{ "description": "A", "quantity": 1 }, { "description": "B", "quantity": 1 }] }),
+        )
+        .await;
+    let draft = uuid(&r.body["id"]);
+    let d = app
+        .get(&f.url(&format!("requests/{draft}")), &f.requester)
+        .await;
+    let item = uuid(&d.body["items"][1]["id"]);
+    let list = f.url(&format!("requests/{draft}/attachments"));
+    let r = app
+        .post(
+            &list,
+            &f.requester,
+            json!({ "file_name": "b.pdf", "data_base64": b64(b"%PDF-1.4"), "item_id": item }),
+        )
+        .await;
+    assert_eq!(r.status, StatusCode::CREATED);
+    let r = app
+        .delete(
+            &f.url(&format!("requests/{draft}/items/{item}")),
+            &f.requester,
+        )
+        .await;
+    assert_eq!(r.status, StatusCode::NO_CONTENT, "{:?}", r.body);
+    let r = app.get(&list, &f.requester).await;
+    assert_eq!(r.body.as_array().unwrap().len(), 1);
+    assert!(r.body[0]["item_id"].is_null());
 }

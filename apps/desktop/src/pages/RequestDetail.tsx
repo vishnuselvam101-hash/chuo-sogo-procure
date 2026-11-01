@@ -8,9 +8,13 @@ import { ErrorText, Loading, PageHeader, StatusBadge } from "../components/ui";
 import { ItemFields, emptyItem, toItemInput } from "./ItemFields";
 import { RecommendationPanel } from "./RecommendationPanel";
 import { RfqPanel } from "./RfqPanel";
+import { Attachments } from "./Attachments";
+import { ProductPanel } from "./Products";
+import { VerifyItem } from "./VerifyItem";
 import { P } from "../lib/perm";
 
 const EDITABLE = ["draft", "needs_clarification"];
+const CLOSED = ["cancelled", "rejected", "closed"];
 const RFQ_STATES = ["sourcing", "rfq_sent", "quotes_received", "under_comparison"];
 
 interface Props {
@@ -113,9 +117,12 @@ export function RequestDetail({ active, selfId, requestId, onBack }: Props) {
             <ItemRow
               key={item.id}
               item={item}
+              orgId={active.org_id}
               canVerify={operator && has(P.verifyProducts) && r.status === "identifying"}
               canDelete={editable}
-              onVerify={(body) => post(`/items/${item.id}/verification`, body)}
+              onVerify={(productId, note) =>
+                post(`/items/${item.id}/verification`, { product_id: productId, note })
+              }
               onDelete={async () => {
                 if (await action.run("DELETE", `${base}/items/${item.id}`)) reload();
               }}
@@ -196,6 +203,14 @@ export function RequestDetail({ active, selfId, requestId, onBack }: Props) {
         </div>
       )}
 
+      <Attachments
+        active={active}
+        requestId={r.id}
+        selfId={selfId}
+        items={data.items}
+        canUpload={(owner || (operator && has(P.operateRequests))) && !CLOSED.includes(r.status)}
+      />
+
       {(data.rfqs.length > 0 || (operator && RFQ_STATES.includes(r.status))) && (
         <h2>{t("procurement:rfq.heading")}</h2>
       )}
@@ -242,16 +257,17 @@ export function RequestDetail({ active, selfId, requestId, onBack }: Props) {
 
 interface ItemRowProps {
   item: ItemView;
+  orgId: string;
   canVerify: boolean;
   canDelete: boolean;
-  onVerify: (body: { manufacturer: string; mpn: string; evidence: string }) => Promise<void>;
+  onVerify: (productId: string, note: string) => Promise<void>;
   onDelete: () => Promise<void>;
 }
 
-function ItemRow({ item, canVerify, canDelete, onVerify, onDelete }: ItemRowProps) {
+function ItemRow({ item, orgId, canVerify, canDelete, onVerify, onDelete }: ItemRowProps) {
   const { t, i18n } = useTranslation();
   const [verifying, setVerifying] = useState(false);
-  const [form, setForm] = useState({ manufacturer: item.manufacturer, mpn: item.mpn, evidence: "" });
+  const [showProduct, setShowProduct] = useState(false);
   const verified = item.verification_status === "verified";
   return (
     <>
@@ -270,6 +286,11 @@ function ItemRow({ item, canVerify, canDelete, onVerify, onDelete }: ItemRowProp
           )}
         </td>
         <td className="row-actions">
+          {item.product_identity_id && (
+            <button type="button" onClick={() => setShowProduct(!showProduct)}>
+              {t("procurement:item.productRecord")}
+            </button>
+          )}
           {canVerify && (
             <button type="button" onClick={() => setVerifying(!verifying)}>
               {t("procurement:item.verify")}
@@ -282,43 +303,20 @@ function ItemRow({ item, canVerify, canDelete, onVerify, onDelete }: ItemRowProp
           )}
         </td>
       </tr>
+      {showProduct && item.product_identity_id && (
+        <tr>
+          <td colSpan={7}>
+            <ProductPanel productId={item.product_identity_id} orgId={orgId} canEdit={false} />
+          </td>
+        </tr>
+      )}
       {verifying && (
         <tr>
           <td colSpan={7}>
-            <div className="item-fields">
-              <label>
-                {t("procurement:item.manufacturer")}
-                <input
-                  value={form.manufacturer}
-                  onChange={(e) => setForm({ ...form, manufacturer: e.target.value })}
-                />
-              </label>
-              <label>
-                {t("procurement:item.mpn")}
-                <input
-                  required
-                  value={form.mpn}
-                  onChange={(e) => setForm({ ...form, mpn: e.target.value })}
-                />
-              </label>
-              <label className="grow">
-                {t("procurement:item.evidence")}
-                <input
-                  required
-                  placeholder={t("procurement:item.evidenceHint")}
-                  value={form.evidence}
-                  onChange={(e) => setForm({ ...form, evidence: e.target.value })}
-                />
-              </label>
-              <button
-                type="button"
-                className="primary"
-                disabled={!form.mpn.trim() || !form.evidence.trim()}
-                onClick={() => void onVerify(form).then(() => setVerifying(false))}
-              >
-                {t("procurement:item.confirmVerified")}
-              </button>
-            </div>
+            <VerifyItem
+              item={item}
+              onVerify={(productId, note) => onVerify(productId, note).then(() => setVerifying(false))}
+            />
           </td>
         </tr>
       )}

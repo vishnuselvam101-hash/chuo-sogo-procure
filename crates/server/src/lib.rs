@@ -9,6 +9,7 @@ pub mod openapi;
 pub mod principal;
 pub mod ratelimit;
 pub mod security;
+pub mod storage;
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -36,6 +37,10 @@ pub struct AppState {
     pub limiter: Arc<ratelimit::RateLimiter>,
     /// Bounds concurrent argon2 work (CPU + ~19 MiB each).
     pub hash_permits: Arc<tokio::sync::Semaphore>,
+    /// Attachment files (`PROCURE_STORAGE_DIR`, default `./var/storage`).
+    pub storage: Arc<storage::Storage>,
+    /// Bounds concurrent attachment uploads (each holds ~25 MB while being processed).
+    pub upload_permits: Arc<tokio::sync::Semaphore>,
 }
 
 impl AppState {
@@ -45,6 +50,10 @@ impl AppState {
             mailer,
             limiter: Arc::new(ratelimit::RateLimiter::default()),
             hash_permits: Arc::new(tokio::sync::Semaphore::new(4)),
+            storage: Arc::new(storage::Storage::new(
+                std::env::var("PROCURE_STORAGE_DIR").unwrap_or_else(|_| "./var/storage".into()),
+            )),
+            upload_permits: Arc::new(tokio::sync::Semaphore::new(4)),
         }
     }
 }
@@ -216,20 +225,63 @@ pub fn router(state: AppState) -> Router {
         .route(
             "/suppliers/{supplier_id}/status",
             post(api::suppliers::set_supplier_status),
-        );
+        )
+        .route(
+            "/products",
+            get(api::products::list_products).post(api::products::create_product),
+        )
+        .route("/products/{product_id}", get(api::products::get_product))
+        .route(
+            "/products/{product_id}/evidence",
+            post(api::products::add_evidence),
+        )
+        .route(
+            "/products/{product_id}/status",
+            post(api::products::set_product_status),
+        )
+        .route(
+            "/orgs/{org_id}/products/{product_id}",
+            get(api::products::get_org_product),
+        )
+        .route(
+            "/orgs/{org_id}/attachments/{attachment_id}",
+            axum::routing::delete(api::attachments::remove),
+        )
+        .route(
+            "/orgs/{org_id}/attachments/{attachment_id}/content",
+            get(api::attachments::download),
+        )
+        .layer(RequestBodyLimitLayer::new(MAX_JSON_BODY))
+        .layer(TimeoutLayer::with_status_code(
+            StatusCode::REQUEST_TIMEOUT,
+            Duration::from_secs(30),
+        ));
+
+    // The only route that accepts large bodies (base64 file uploads, at most 10 MB of file).
+    let uploads = Router::new()
+        .route(
+            "/orgs/{org_id}/requests/{request_id}/attachments",
+            get(api::attachments::list).post(api::attachments::upload),
+        )
+        .layer(axum::extract::DefaultBodyLimit::max(
+            api::attachments::MAX_UPLOAD_BODY,
+        ))
+        .layer(RequestBodyLimitLayer::new(
+            api::attachments::MAX_UPLOAD_BODY,
+        ))
+        // 10 MB over a slow uplink needs more than the default 30 s.
+        .layer(TimeoutLayer::with_status_code(
+            StatusCode::REQUEST_TIMEOUT,
+            Duration::from_secs(180),
+        ));
 
     Router::new()
         .route(
             "/health",
             get(|| async { Json(serde_json::json!({ "status": "ok" })) }),
         )
-        .nest("/api/v1", api)
+        .nest("/api/v1", api.merge(uploads))
         .with_state(state)
-        .layer(RequestBodyLimitLayer::new(MAX_JSON_BODY))
-        .layer(TimeoutLayer::with_status_code(
-            StatusCode::REQUEST_TIMEOUT,
-            Duration::from_secs(30),
-        ))
         .layer(
             TraceLayer::new_for_http()
                 // Path only (no query string), plus the correlation id set by the outer layer.

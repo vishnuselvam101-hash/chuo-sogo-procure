@@ -33,7 +33,8 @@
     "verify": "確認する",
     "evidence": "根拠",
     "evidenceHint": "データシートURL、カタログのページ、またはサプライヤーの確認",
-    "confirmVerified": "確認済みにする"
+    "confirmVerified": "確認済みにする",
+    "productRecord": "製品記録"
   },
   "clarification": {
     "question": "Chuo-Sogo からの質問",
@@ -134,5 +135,49 @@
     "reasonRequired": "先に理由を入力してください",
     "propose": "確認済みサプライヤーを提案",
     "proposeButton": "提案する"
+  },
+  "attachment": {
+    "heading": "添付ファイル",
+    "file": "ファイル",
+    "item": "品目",
+    "size": "サイズ",
+    "uploadedBy": "登録者",
+    "download": "ダウンロードに保存",
+    "add": "ファイルを追加",
+    "wholeRequest": "依頼全体",
+    "savedTo": "{{path}} に保存しました",
+    "allowed": "PDF・PNG・JPEG・WebP・TXT・CSV・XLSX・DOCX（10 MBまで）。ファイルは保存のみで、アプリ内では開きません。表計算・CSVファイルには数式が含まれる場合があります。信頼できるファイルのみ開いてください。"
+  },
+  "product": {
+    "new": "新しい製品記録",
+    "create": "記録を作成",
+    "category": "分類",
+    "specs": "仕様",
+    "specsHint": "1行に1つ：項目=値",
+    "evidence": "根拠",
+    "evidenceCount": "根拠数",
+    "evidenceKind": "根拠の種類",
+    "evidenceUrl": "出典（https）",
+    "evidenceNote": "メモ",
+    "addEvidence": "根拠を追加",
+    "markVerified": "確認済みにする",
+    "retire": "廃止する",
+    "noEvidence": "根拠がまだありません。確認済みにするには根拠が必要です。",
+    "search": "型番・メーカー・説明で検索",
+    "visibility": "顧客に表示されるのはhttpsの出典リンクのみです。メモとサプライヤーの確認は社内限定です。"
+  },
+  "evidence": {
+    "datasheet": "データシート",
+    "catalogue": "カタログ",
+    "manufacturer_page": "メーカーのページ",
+    "supplier_confirmation": "サプライヤーの確認",
+    "other": "その他"
+  },
+  "verify": {
+    "search": "確認済みの製品記録を検索",
+    "noMatch": "一致する確認済みの記録はありません。",
+    "createRecord": "新しい記録を作成",
+    "createAndVerify": "記録を作成して確認済みにする",
+    "note": "一致すると判断した理由（任意）"
   }
 }

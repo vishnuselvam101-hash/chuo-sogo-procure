@@ -304,6 +304,8 @@ pub struct ItemView {
     pub verified_mpn: Option<String>,
     pub verification_evidence: Option<String>,
     pub verified_at: Option<DateTime<Utc>>,
+    /// The catalogue record the item was verified against.
+    pub product_identity_id: Option<Uuid>,
 }
 
 #[derive(Serialize, sqlx::FromRow, utoipa::ToSchema)]
@@ -394,7 +396,7 @@ pub async fn get_request(
     let items = sqlx::query_as::<_, ItemView>(
         "SELECT id, line_no, description, manufacturer, mpn, quantity, unit, notes,
                 verification_status, verified_manufacturer, verified_mpn, verification_evidence,
-                verified_at
+                verified_at, product_identity_id
          FROM request_items WHERE request_id = $1 ORDER BY line_no",
     )
     .bind(request_id)
@@ -599,7 +601,7 @@ pub async fn replace_item(
     let row = lock_own_editable(&mut tx, &p, view, request_id).await?;
     let updated = sqlx::query(
         "UPDATE request_items SET description = $3, manufacturer = $4, mpn = $5, quantity = $6,
-                unit = $7, notes = $8, verification_status = 'unverified',
+                unit = $7, notes = $8, verification_status = 'unverified', product_identity_id = NULL,
                 verified_manufacturer = NULL, verified_mpn = NULL, verification_evidence = NULL,
                 verified_by = NULL, verified_at = NULL
          WHERE id = $1 AND request_id = $2",
@@ -664,6 +666,14 @@ pub async fn delete_item(
         // Quotations reference it; the record of what was quoted must stay intact.
         return Err(ApiError::Conflict("item_quoted"));
     }
+    // Files attached to this item stay on the request.
+    let detached =
+        sqlx::query("UPDATE attachments SET item_id = NULL WHERE item_id = $1 AND request_id = $2")
+            .bind(item_id)
+            .bind(row.id)
+            .execute(&mut *tx)
+            .await?
+            .rows_affected();
     let deleted = sqlx::query("DELETE FROM request_items WHERE id = $1 AND request_id = $2")
         .bind(item_id)
         .bind(row.id)
@@ -678,7 +688,7 @@ pub async fn delete_item(
             "item.removed",
             "request_item",
             item_id,
-            json!({ "request": row.id, "number": row.number }),
+            json!({ "request": row.id, "number": row.number, "attachments_detached": detached }),
         )
         .await?;
     tx.commit().await?;
@@ -969,10 +979,19 @@ pub async fn request_clarification(
 
 #[derive(Deserialize, utoipa::ToSchema)]
 pub struct VerifyItemBody {
-    pub manufacturer: String,
-    pub mpn: String,
-    /// What the operator relied on: datasheet URL, catalogue page, supplier confirmation.
-    pub evidence: String,
+    /// A verified record from Chuo-Sogo's product catalogue (`/api/v1/products`).
+    pub product_id: Uuid,
+    /// Why this record matches the customer's item (optional).
+    #[serde(default)]
+    pub note: String,
+}
+
+#[derive(sqlx::FromRow)]
+struct VerifiedProduct {
+    manufacturer: String,
+    mpn: String,
+    status: String,
+    evidence: Option<String>,
 }
 
 #[utoipa::path(
@@ -983,11 +1002,11 @@ pub struct VerifyItemBody {
     request_body = VerifyItemBody,
     security(("bearer" = [])),
     responses(
-        (status = 204, description = "Product identity verified by the operator"),
+        (status = 204, description = "Item linked to a verified product record by the operator"),
         (status = 403, description = "Not permitted", body = ErrorBody),
-        (status = 404, description = "Unknown or not assigned", body = ErrorBody),
-        (status = 409, description = "Request is not being identified", body = ErrorBody),
-        (status = 422, description = "Missing part number or evidence", body = ErrorBody),
+        (status = 404, description = "Unknown item, product or not assigned", body = ErrorBody),
+        (status = 409, description = "Request is not being identified, or product not verified", body = ErrorBody),
+        (status = 422, description = "Invalid note", body = ErrorBody),
         (status = 400, description = "Malformed request", body = ErrorBody),
         (status = 401, description = "No valid session", body = ErrorBody),
     )
@@ -1004,23 +1023,47 @@ pub async fn verify_item(
     if side(access)? != Side::Operator {
         return Err(ApiError::Forbidden);
     }
-    let manufacturer = common::text(&body.manufacturer, 200, false, "manufacturer")?;
-    let mpn = common::required(&body.mpn, 100, false, "mpn")?;
-    let evidence = common::required(&body.evidence, 2000, true, "evidence")?;
+    let note = common::text(&body.note, 1000, true, "note")?;
     let mut tx = db::tenant_tx(&state.pool, p.user_id, org_id).await?;
     let row = lock_request(&mut tx, request_id, View::All).await?;
     if row.status()? != RequestStatus::Identifying {
         return Err(ApiError::Conflict("invalid_transition"));
     }
+    // The catalogue is platform-level: read it in staff scope (caller is assigned staff).
+    db::enable_staff_scope(&mut tx).await?;
+    let product = sqlx::query_as::<_, VerifiedProduct>(
+        "SELECT p.manufacturer, p.mpn, p.status,
+                (SELECT string_agg(e.url, ' | ' ORDER BY e.created_at)
+                 FROM product_evidence e
+                 WHERE e.product_id = p.id AND e.url IS NOT NULL
+                   AND e.kind <> 'supplier_confirmation') AS evidence
+         FROM product_identities p WHERE p.id = $1 FOR SHARE",
+    )
+    .bind(body.product_id)
+    .fetch_optional(&mut *tx)
+    .await?
+    .ok_or(ApiError::NotFound)?;
+    if product.status != "verified" {
+        return Err(ApiError::Conflict("product_not_verified"));
+    }
+    // Snapshot of what the decision rested on, kept with the item and shown to the customer:
+    // the operator's note plus public sources only.
+    let mut evidence = product.evidence.unwrap_or_default();
+    if !note.is_empty() {
+        evidence = format!("{note} | {evidence}");
+    }
+    let evidence: String = evidence.chars().take(2000).collect();
     let updated = sqlx::query(
-        "UPDATE request_items SET verification_status = 'verified', verified_manufacturer = $3,
-                verified_mpn = $4, verification_evidence = $5, verified_by = $6, verified_at = now()
+        "UPDATE request_items SET verification_status = 'verified', product_identity_id = $3,
+                verified_manufacturer = $4, verified_mpn = $5, verification_evidence = $6,
+                verified_by = $7, verified_at = now()
          WHERE id = $1 AND request_id = $2",
     )
     .bind(item_id)
     .bind(row.id)
-    .bind(&manufacturer)
-    .bind(&mpn)
+    .bind(body.product_id)
+    .bind(&product.manufacturer)
+    .bind(&product.mpn)
     .bind(&evidence)
     .bind(p.user_id)
     .execute(&mut *tx)
@@ -1034,8 +1077,8 @@ pub async fn verify_item(
             "item.verified",
             "request_item",
             item_id,
-            json!({ "request": row.id, "number": row.number, "manufacturer": manufacturer,
-                    "mpn": mpn, "evidence": evidence }),
+            json!({ "request": row.id, "number": row.number, "product": body.product_id,
+                    "manufacturer": product.manufacturer, "mpn": product.mpn, "note": note }),
         )
         .await?;
     tx.commit().await?;

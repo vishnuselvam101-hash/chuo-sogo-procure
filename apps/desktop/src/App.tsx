@@ -16,6 +16,7 @@ import { Placeholder } from "./pages/Placeholder";
 import { Requests } from "./pages/Requests";
 import { Suppliers } from "./pages/Suppliers";
 import { Approvals } from "./pages/Approvals";
+import { Products } from "./pages/Products";
 
 const HOME: PageId = "dashboard";
 const HOME_LABEL = "nav.dashboard";
@@ -116,6 +117,9 @@ export function App() {
       break;
     case "suppliers":
       body = <Suppliers key={active.org_id} active={active} />;
+      break;
+    case "products":
+      body = <Products key={active.org_id} active={active} />;
       break;
     case "approvals":
       body = <Approvals key={active.org_id} active={active} selfId={me.user.id} />;

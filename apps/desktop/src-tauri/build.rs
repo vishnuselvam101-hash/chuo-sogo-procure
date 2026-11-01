@@ -8,6 +8,7 @@ fn main() {
         "auth_login",
         "auth_logout",
         "api_request",
+        "api_download",
         "client_log",
     ]);
     if let Err(e) = tauri_build::try_build(tauri_build::Attributes::new().app_manifest(manifest)) {

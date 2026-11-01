@@ -33,7 +33,8 @@
     "verify": "Verify",
     "evidence": "Evidence",
     "evidenceHint": "Datasheet URL, catalogue page or supplier confirmation",
-    "confirmVerified": "Confirm verified"
+    "confirmVerified": "Confirm verified",
+    "productRecord": "Product record"
   },
   "clarification": {
     "question": "Question from Chuo-Sogo",
@@ -134,5 +135,49 @@
     "reasonRequired": "Enter a reason first",
     "propose": "Propose a verified supplier",
     "proposeButton": "Propose"
+  },
+  "attachment": {
+    "heading": "Attachments",
+    "file": "File",
+    "item": "Item",
+    "size": "Size",
+    "uploadedBy": "Uploaded by",
+    "download": "Save to Downloads",
+    "add": "Add a file",
+    "wholeRequest": "Whole request",
+    "savedTo": "Saved to {{path}}",
+    "allowed": "PDF, PNG, JPEG, WebP, TXT, CSV, XLSX or DOCX, up to 10 MB. Files are saved, never opened by the app. Spreadsheets and CSV files can contain formulas: open only files you trust."
+  },
+  "product": {
+    "new": "New product record",
+    "create": "Create record",
+    "category": "Category",
+    "specs": "Specifications",
+    "specsHint": "One per line: key=value",
+    "evidence": "Evidence",
+    "evidenceCount": "Evidence",
+    "evidenceKind": "Evidence type",
+    "evidenceUrl": "Source (https)",
+    "evidenceNote": "Note",
+    "addEvidence": "Add evidence",
+    "markVerified": "Mark verified",
+    "retire": "Retire",
+    "noEvidence": "No evidence yet. A record needs evidence before it can be verified.",
+    "search": "Search part number, maker or description",
+    "visibility": "Only https source links are shown to customers; notes and supplier confirmations stay internal."
+  },
+  "evidence": {
+    "datasheet": "Datasheet",
+    "catalogue": "Catalogue",
+    "manufacturer_page": "Manufacturer page",
+    "supplier_confirmation": "Supplier confirmation",
+    "other": "Other"
+  },
+  "verify": {
+    "search": "Find a verified product record",
+    "noMatch": "No verified record matches.",
+    "createRecord": "Create a new record",
+    "createAndVerify": "Create and verify record",
+    "note": "Why it matches (optional)"
   }
 }

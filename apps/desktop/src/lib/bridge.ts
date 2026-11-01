@@ -14,6 +14,9 @@ export const bridge = {
   logout: () => invoke<null>("auth_logout"),
   api: <T>(method: HttpMethod, path: string, body?: unknown) =>
     invoke<ApiResponse<T>>("api_request", { method, path, body: body ?? null }),
+  /** Saves an attachment into the user's Downloads folder; `body.saved_to` on success. */
+  download: (orgId: string, attachmentId: string, fileName: string) =>
+    invoke<ApiResponse<{ saved_to: string }>>("api_download", { orgId, attachmentId, fileName }),
   log: (level: "info" | "warn" | "error", message: string, requestId?: string) =>
     invoke<null>("client_log", { level, message, requestId: requestId ?? null }).catch(() => undefined),
 };

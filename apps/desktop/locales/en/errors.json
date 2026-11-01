@@ -44,6 +44,23 @@
     "answer": "Please answer the question.",
     "comment": "A comment is required.",
     "reason": "A reason is required.",
-    "evidence": "Evidence is required."
-  }
+    "evidence": "Evidence is required.",
+    "file_type": "This file type is not allowed, or its content does not match its extension.",
+    "file_size": "Files must be between 1 byte and 10 MB.",
+    "file_name": "This file name cannot be used.",
+    "too_many_attachments": "This request already has the maximum number of files.",
+    "request_closed": "This request is closed.",
+    "product_not_verified": "Only verified product records can be used.",
+    "evidence_required": "Add at least one https source link before verifying the record.",
+    "specs": "Write one specification per line as key=value.",
+    "url": "Sources must be https addresses.",
+    "kind": "Choose an evidence type.",
+    "item_id": "That item is not part of this request.",
+    "invalid_base64": "The file could not be read."
+  },
+  "payload_too_large": "The file or request is too large.",
+  "invalid_file_name": "This file name cannot be used.",
+  "download_too_large": "The file is too large to save.",
+  "no_download_folder": "The Downloads folder is not available.",
+  "save_failed": "The file could not be saved."
 }

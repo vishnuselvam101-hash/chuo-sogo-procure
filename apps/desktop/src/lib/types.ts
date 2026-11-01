@@ -26,6 +26,9 @@ export type OrgSupplierView = Schemas["OrgSupplierView"];
 export type PolicyView = Schemas["PolicyView"];
 export type TierView = Schemas["TierView"];
 export type Created = Schemas["Created"];
+export type AttachmentView = Schemas["AttachmentView"];
+export type ProductView = Schemas["ProductView"];
+export type ProductDetail = Schemas["ProductDetail"];
 
 /** What the Rust layer's `api_request`/`auth_login` commands return. */
 export interface ApiResponse<T = unknown> {

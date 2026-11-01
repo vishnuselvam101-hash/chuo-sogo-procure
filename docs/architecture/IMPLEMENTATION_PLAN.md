@@ -26,13 +26,13 @@ Requests + items + attachments → product identities/evidence/verification → 
 2a — backend (migration `0002_core_workflow.sql`, `procure_domain::{workflow, approval, comparison}`, `api/{requests,suppliers,rfqs,approvals}.rs`, `tests/phase2.rs`):
 1. ☑ Request lifecycle state machine (domain table, side-checked: customer vs operator), PR/RFQ numbering per org/year, audit on every transition
 2. ☑ Requests + items: draft editing by the requester only, submit/cancel, clarification round trip (question → answer required), item edits clear verification
-3. ◐ Product verification: operator confirms manufacturer + MPN + evidence per item; sourcing only when all items verified. Full `product_identities`/evidence tables and AI extraction → 2b/Phase 3
+3. ☑ Product verification (2c): platform-level product catalogue (`product_identities` + append-only `product_evidence`, https source required to verify); items verified only by linking a verified record; customers see only public sources of records linked to their own items. AI extraction → Phase 3; approved alternatives → later
 4. ☑ Supplier directory (platform-level, staff only, internal notes never shown to customers); staff propose a supplier to a customer, the customer approves/rejects (new permission `ApproveSuppliers`)
 5. ☑ RFQs to verified suppliers; dispatch = **test channel only** (outbox rows, export endpoint; nothing is sent; supplier text names Chuo-Sogo's RFQ number, never the customer)
 6. ☑ Quotations (revisions supersede), deterministic comparison runs stored as snapshots (compliance, reasons, totals in minor units, stable ranking; no FX)
 7. ☑ Recommendation: latest comparison only (stale check), compliant quotations only, customer-approved supplier only, reason required if not rank 1
 8. ☑ Approval policies per currency (versioned tiers, default 1 approval, no self-approval), snapshot at send; decisions by customer users with ApproveRecommendation only; approve/reject/clarify; append-only approval records
-9. ☐ Attachments (local storage) — 2b
+9. ☑ Attachments (2c): content-addressed local storage (0600, hash-verified reads), type allowlist confirmed by content, 10 MB, soft remove, audited; desktop saves to Downloads via a narrow native command (never rendered)
 10. ☑ Desktop screens (2b): request list/new/detail (customer edit, submit, cancel, clarification answer), operator intake (pick up, question, item verification with evidence, start sourcing), RFQ create/dispatch (test mode)/outbox, quotation entry, comparison display, recommend/send/withdraw, customer approve/reject/question, supplier directory (staff) and customer supplier decisions, approval policy editor; staff see assigned customer orgs (`/me` → `access: assigned`); ja/en/ta/hi; Vitest + `scripts/e2e-workflow.sh` (full run through the release binary)
 
 ## Phase 3 — AI layer (dep Phase 2)

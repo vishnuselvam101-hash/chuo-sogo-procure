@@ -35,7 +35,7 @@ export function navFor(m: MembershipView): NavItem[] {
   const has = (p: string) => m.permissions.includes(p);
   const items: NavItem[] = [item("dashboard", true)];
   if (m.org_kind === "platform") {
-    items.push(item("opsQueue"), item("products"));
+    items.push(item("opsQueue"), item("products", true));
     if (has("manage_suppliers")) items.push(item("suppliers", true));
     items.push(item("rfqs"), item("quotations"));
     if (has("view_reports")) items.push(item("reports"));

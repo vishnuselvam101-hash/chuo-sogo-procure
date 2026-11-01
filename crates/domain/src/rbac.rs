@@ -115,6 +115,8 @@ pub enum Permission {
     OperateRequests,
     VerifyProducts,
     ManageSuppliers,
+    /// Maintain Chuo-Sogo's product identity records (platform-level catalogue).
+    ManageProducts,
     ManageRfqs,
     RecordQuotations,
     AssignWork,
@@ -145,6 +147,7 @@ impl Permission {
             Permission::OperateRequests => "operate_requests",
             Permission::VerifyProducts => "verify_products",
             Permission::ManageSuppliers => "manage_suppliers",
+            Permission::ManageProducts => "manage_products",
             Permission::ManageRfqs => "manage_rfqs",
             Permission::RecordQuotations => "record_quotations",
             Permission::AssignWork => "assign_work",
@@ -168,10 +171,11 @@ pub fn home_permissions(role: Role) -> &'static [Permission] {
         Role::ProcurementAdmin => &[
             ManageServiceAssignments,
             ManageSuppliers,
+            ManageProducts,
             ViewReports,
             ViewAudit,
         ],
-        Role::ProcurementOperator => &[ManageSuppliers],
+        Role::ProcurementOperator => &[ManageSuppliers, ManageProducts],
         Role::CustomerAdmin => &[
             ManageOrgUsers,
             ManageOrgSettings,
@@ -326,6 +330,22 @@ mod tests {
             assert_eq!(
                 allows(Access::Member(r), Permission::ApproveSuppliers),
                 expected,
+                "{r}"
+            );
+        }
+    }
+
+    #[test]
+    fn product_catalogue_is_staff_only() {
+        for r in Role::ALL {
+            let expected = matches!(r, Role::ProcurementAdmin | Role::ProcurementOperator);
+            assert_eq!(
+                allows(Access::Member(r), Permission::ManageProducts),
+                expected,
+                "{r}"
+            );
+            assert!(
+                !allows(Access::Assigned(r), Permission::ManageProducts),
                 "{r}"
             );
         }

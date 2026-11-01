@@ -5,6 +5,7 @@
 //   operator (Chuo-Sogo, assigned): picks up, verifies the item with evidence, sources,
 //     dispatches the RFQ in test mode, records two quotations, compares, recommends, sends
 //   procurement manager (customer): approves
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { remote } from "webdriverio";
 
 const { E2E_APP, E2E_OUT, E2E_SEED } = process.env;
@@ -84,6 +85,13 @@ try {
   const heading = await (await b.$(".page-header h1")).getText();
   const number = heading.split(" — ")[0];
   check("request gets a PR number", /^PR-\d{4}-\d{6}$/.test(number));
+  // Attach a drawing (a real local file through the file picker input).
+  const drawing = `${E2E_OUT}/drawing-line3.pdf`;
+  const pdf = "%PDF-1.4\n% e2e drawing\n%%EOF\n";
+  writeFileSync(drawing, pdf);
+  await (await b.$("input[type='file']")).setValue(drawing);
+  await (await b.$("//td[normalize-space(.)='drawing-line3.pdf']")).waitForExist({ timeout: 15000 });
+  check("requester attaches a PDF to the request", true);
   await click("Submit to Chuo-Sogo");
   check("requester submits it", await headerStatus("Submitted"));
   await shot("01-requester-submitted");
@@ -101,7 +109,13 @@ try {
   await click("Pick up");
   check("operator picks the request up", await headerStatus("Identifying products"));
   await click("Verify");
-  await (await field("Evidence")).setValue("https://www.nsk.example/6204ZZ-datasheet.pdf");
+  // No catalogue record yet: create one with evidence, verified in the same step.
+  await click("Create a new record");
+  await (await field("Source (https)")).setValue("https://www.nsk.example/6204ZZ-datasheet.pdf");
+  await click("Create and verify record");
+  const radio = await b.$("input[type='radio']");
+  await radio.waitForExist({ timeout: 15000 });
+  check("new record is verified and preselected", await radio.isSelected());
   await click("Confirm verified");
   await (await b.$("//td//span[normalize-space(.)='Verified']")).waitForExist({ timeout: 15000 });
   await click("Start sourcing");
@@ -162,6 +176,14 @@ try {
   const page = await (await b.$("main")).getText();
   check("customer never sees internal supplier notes", !page.includes("INTERNAL-NOTE-DO-NOT-SHOW"));
   await shot("04-manager-approval");
+  await click("Save to Downloads");
+  const status = await b.$("p[role='status']");
+  await status.waitForExist({ timeout: 15000 });
+  const savedTo = (await status.getText()).replace(/^Saved to /, "");
+  check(
+    "attachment saved to Downloads by the native layer, byte for byte",
+    existsSync(savedTo) && readFileSync(savedTo, "utf8") === pdf && savedTo.includes("/Downloads/"),
+  );
   await click("Approve");
   check("customer approves; request approved", await headerStatus("Approved"));
   await shot("05-approved");

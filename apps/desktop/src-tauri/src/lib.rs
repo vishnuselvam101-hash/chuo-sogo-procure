@@ -64,10 +64,14 @@ async fn send(
     token: Option<String>,
 ) -> ApiResponse {
     let request_id = uuid::Uuid::new_v4().to_string();
+    let upload = method == reqwest::Method::POST && url.path().ends_with("/attachments");
     let mut req = session
         .http
         .request(method, url)
         .header("x-request-id", &request_id);
+    if upload {
+        req = req.timeout(TRANSFER_TIMEOUT);
+    }
     if let Some(t) = token {
         req = req.bearer_auth(t);
     }
@@ -195,6 +199,137 @@ async fn api_request(
     Ok(res)
 }
 
+/// Uploads and downloads of attachments (up to 10 MB) on slow links.
+const TRANSFER_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(180);
+
+/// Largest attachment the client will save (server limit is 10 MB).
+const MAX_DOWNLOAD_BYTES: usize = 12 * 1024 * 1024;
+
+/// Downloads one request attachment from the configured server and saves it into the
+/// user's Downloads folder (never opened, never handed to the webview). Only the attachment
+/// content endpoint can be reached, and only file types the server accepts can be written.
+/// Returns the saved path in `body.saved_to`, or the server's error body.
+#[tauri::command]
+async fn api_download(
+    app: tauri::AppHandle,
+    prefs: State<'_, Mutex<Prefs>>,
+    session: State<'_, Session>,
+    org_id: String,
+    attachment_id: String,
+    file_name: String,
+) -> Result<ApiResponse, String> {
+    let org = uuid::Uuid::parse_str(&org_id).map_err(|_| "invalid_id".to_string())?;
+    let attachment = uuid::Uuid::parse_str(&attachment_id).map_err(|_| "invalid_id".to_string())?;
+    let name = validate::download_name(&file_name)
+        .filter(|n| validate::is_attachment_type(n))
+        .ok_or("invalid_file_name")?;
+    let base = lock(&prefs)?.server_url.clone();
+    let url = validate::api_url(
+        &base,
+        &format!("/api/v1/orgs/{org}/attachments/{attachment}/content"),
+    )?;
+    let token = session.token_for(&base)?;
+    let request_id = uuid::Uuid::new_v4().to_string();
+    let mut req = session
+        .http
+        .get(url)
+        .timeout(TRANSFER_TIMEOUT)
+        .header("x-request-id", &request_id);
+    if let Some(t) = token {
+        req = req.bearer_auth(t);
+    }
+    let mut res = match req.send().await {
+        Ok(r) => r,
+        Err(e) => {
+            tracing::warn!(%request_id, error = %e, "download failed");
+            return Ok(network_error(request_id));
+        }
+    };
+    let status = res.status().as_u16();
+    if status != 200 {
+        if status == 401 {
+            let mut t = lock(&session.token)?;
+            if t.as_ref().is_some_and(|b| b.server == base) {
+                *t = None;
+            }
+        }
+        let body = res.json::<Value>().await.unwrap_or(Value::Null);
+        return Ok(ApiResponse {
+            status,
+            body,
+            request_id,
+        });
+    }
+    // Stream with a hard cap instead of trusting Content-Length.
+    let mut bytes = Vec::new();
+    loop {
+        match res.chunk().await {
+            Ok(Some(chunk)) => {
+                if bytes.len() + chunk.len() > MAX_DOWNLOAD_BYTES {
+                    return Err("download_too_large".into());
+                }
+                bytes.extend_from_slice(&chunk);
+            }
+            Ok(None) => break,
+            Err(e) => {
+                tracing::warn!(%request_id, error = %e, "download interrupted");
+                return Ok(network_error(request_id));
+            }
+        }
+    }
+    // The platform's Downloads folder; on Linux without XDG user dirs, ~/Downloads.
+    let dir = app
+        .path()
+        .download_dir()
+        .or_else(|_| app.path().home_dir().map(|h| h.join("Downloads")))
+        .map_err(|_| "no_download_folder".to_string())?;
+    std::fs::create_dir_all(&dir).map_err(|_| "no_download_folder".to_string())?;
+    let saved = save_unique(&dir, &name, &bytes)?;
+    tracing::info!(%request_id, "attachment saved");
+    Ok(ApiResponse {
+        status,
+        body: serde_json::json!({ "saved_to": saved.to_string_lossy() }),
+        request_id,
+    })
+}
+
+/// Writes `bytes` as `name` in `dir`, never overwriting: "a.pdf", "a (1).pdf", ...
+fn save_unique(
+    dir: &std::path::Path,
+    name: &str,
+    bytes: &[u8],
+) -> Result<std::path::PathBuf, String> {
+    let (stem, ext) = match name.rsplit_once('.') {
+        Some((s, e)) if !s.is_empty() => (s.to_string(), format!(".{e}")),
+        _ => (name.to_string(), String::new()),
+    };
+    for n in 0..1000 {
+        let candidate = if n == 0 {
+            dir.join(name)
+        } else {
+            dir.join(format!("{stem} ({n}){ext}"))
+        };
+        match std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&candidate)
+        {
+            Ok(mut f) => {
+                if std::io::Write::write_all(&mut f, bytes).is_err() {
+                    drop(f);
+                    // Never leave a partial file behind.
+                    let _ = std::fs::remove_file(&candidate);
+                    return Err("save_failed".into());
+                }
+                return Ok(candidate);
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => continue,
+            Err(_) => return Err("save_failed".into()),
+        }
+    }
+    Err("save_failed".into())
+}
+
 /// Frontend errors are forwarded here so UI failures reach the same log as native ones.
 #[tauri::command]
 fn client_log(level: String, message: String, request_id: Option<String>) -> Result<(), String> {
@@ -251,11 +386,31 @@ pub fn run() {
             auth_login,
             auth_logout,
             api_request,
+            api_download,
             client_log
         ])
         .run(tauri::generate_context!());
     if let Err(e) = result {
         eprintln!("application error: {e}");
         std::process::exit(1);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::save_unique;
+
+    #[test]
+    fn saving_never_overwrites() {
+        // Unique random name per run; test-only scratch directory.
+        // nosemgrep: rust.lang.security.temp-dir.temp-dir
+        let dir = std::env::temp_dir().join(format!("procure-dl-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let a = save_unique(&dir, "見積.pdf", b"1").unwrap();
+        let b = save_unique(&dir, "見積.pdf", b"2").unwrap();
+        assert_eq!(a.file_name().unwrap(), "見積.pdf");
+        assert_eq!(b.file_name().unwrap(), "見積 (1).pdf");
+        assert_eq!(std::fs::read(&a).unwrap(), b"1");
+        std::fs::remove_dir_all(dir).unwrap();
     }
 }

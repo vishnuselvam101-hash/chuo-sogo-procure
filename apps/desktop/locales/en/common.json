@@ -100,7 +100,8 @@
     "withdrawn": "Withdrawn",
     "approve": "Approved",
     "reject": "Rejected",
-    "clarify": "Asked a question"
+    "clarify": "Asked a question",
+    "retired": "Retired"
   },
   "orgs": {
     "create": "Create customer organisation",

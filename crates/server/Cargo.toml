@@ -13,7 +13,7 @@ path = "src/main.rs"
 [dependencies]
 procure-domain = { path = "../domain" }
 axum = { version = "0.8", features = ["macros"] }
-tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal", "net", "sync"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal", "net", "sync", "fs", "io-util"] }
 tower = { version = "0.5", features = ["util"] }
 tower-http = { version = "0.6", features = ["trace", "request-id", "limit", "timeout", "sensitive-headers"] }
 sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "tls-rustls", "postgres", "uuid", "chrono", "json", "migrate", "macros"] }
@@ -25,6 +25,7 @@ argon2 = { version = "0.5", features = ["std"] }
 rand = "0.9"
 sha2 = "0.10"
 hex = "0.4"
+base64 = "0.22"
 thiserror = "2"
 utoipa = { version = "5.5", features = ["uuid", "chrono"] }
 tracing = "0.1"
