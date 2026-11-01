@@ -1,0 +1,75 @@
+# Android and iOS test builds. Manual trigger only (macOS minutes are expensive on private
+# repos). Nothing is signed for distribution:
+#   Android: debug APK (Android debug key) for internal installs only.
+#   iOS: simulator build only; device/TestFlight builds need an Apple Developer account and
+#   signing identity the founder has not provisioned.
+# The generated mobile projects (src-tauri/gen) are recreated here from tauri.conf.json.
+name: mobile-build
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  android:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master
+        with:
+          toolchain: "1.95"
+          targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android,i686-linux-android
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 12
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+      - name: Android NDK
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;28.2.13676358" >/dev/null
+          echo "NDK_HOME=$ANDROID_HOME/ndk/28.2.13676358" >> "$GITHUB_ENV"
+      - run: pnpm -C apps/desktop install --frozen-lockfile
+      - run: cargo install tauri-cli --version "=2.12.4" --locked
+      - working-directory: apps/desktop
+        run: |
+          cargo tauri android init --ci
+          cargo tauri android build --debug --apk --target aarch64
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: chuo-sogo-procure-android-debug
+          path: apps/desktop/src-tauri/gen/android/app/build/outputs/apk/**/*.apk
+          retention-days: 14
+
+  ios-simulator:
+    runs-on: macos-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master
+        with:
+          toolchain: "1.95"
+          targets: aarch64-apple-ios-sim,aarch64-apple-ios
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 12
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+      - run: pnpm -C apps/desktop install --frozen-lockfile
+      - run: cargo install tauri-cli --version "=2.12.4" --locked
+      - working-directory: apps/desktop
+        run: |
+          cargo tauri ios init --ci
+          cargo tauri ios build --debug --target aarch64-sim
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: chuo-sogo-procure-ios-simulator
+          path: |
+            apps/desktop/src-tauri/gen/apple/build/**/*.app
+            apps/desktop/src-tauri/gen/apple/build/**/*.zip
+          retention-days: 14
