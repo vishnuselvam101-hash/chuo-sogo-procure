@@ -27,6 +27,9 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 [features]
 # Enabled by `cargo tauri dev` only; release builds never include devtools.
 devtools = ["tauri/devtools"]
+# The Chuo-Sogo admin console: only /api/admin/v1/, authenticator sign-in, no file access.
+# Built with `--config tauri.admin.conf.json --features admin`.
+admin = []
 
 [lints]
 workspace = true

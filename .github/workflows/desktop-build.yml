@@ -3,8 +3,15 @@
 # certificates the founder has not provisioned yet; outputs are for internal testing.
 # No build cache here: installers are built from a clean state (cache-poisoning risk).
 name: desktop-build
+# `app: admin` builds the staff-only admin console (separate identifier, /api/admin/v1 only).
 on:
   workflow_dispatch:
+    inputs:
+      app:
+        description: Which app to build
+        type: choice
+        options: [business, admin]
+        default: business
 permissions:
   contents: read
 jobs:
@@ -43,10 +50,18 @@ jobs:
       - run: pnpm -C apps/desktop install --frozen-lockfile
       - run: cargo install tauri-cli --version "=2.12.4" --locked
       - working-directory: apps/desktop
-        run: cargo tauri build --bundles ${{ matrix.bundles }}
+        if: inputs.app != 'admin'
+        env:
+          BUNDLES: ${{ matrix.bundles }}
+        run: cargo tauri build --bundles "$BUNDLES"
+      - working-directory: apps/desktop
+        if: inputs.app == 'admin'
+        env:
+          BUNDLES: ${{ matrix.bundles }}
+        run: cargo tauri build --config src-tauri/tauri.admin.conf.json --features admin --bundles "$BUNDLES"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: chuo-sogo-procure-${{ matrix.os }}
+          name: chuo-sogo-procure-${{ inputs.app }}-${{ matrix.os }}
           path: |
             target/release/bundle/**/*.deb
             target/release/bundle/**/*.AppImage

@@ -12,6 +12,13 @@ export const bridge = {
   login: (email: string, password: string) =>
     invoke<ApiResponse<Me & { expires_at: string }>>("auth_login", { email, password }),
   logout: () => invoke<null>("auth_logout"),
+  /** Admin console: password check; the next step token stays in the native layer. */
+  adminLogin: (email: string, password: string) =>
+    invoke<ApiResponse<{ step: "mfa" | "enroll" }>>("auth_login", { email, password }),
+  /** Admin console, first sign-in: a new authenticator secret to type into the app. */
+  adminEnroll: () => invoke<ApiResponse<{ secret: string; otpauth_uri: string }>>("auth_enroll"),
+  /** Admin console: the 6-digit authenticator code; starts the admin session. */
+  adminCode: (code: string) => invoke<ApiResponse<{ expires_at: string }>>("auth_code", { code }),
   api: <T>(method: HttpMethod, path: string, body?: unknown) =>
     invoke<ApiResponse<T>>("api_request", { method, path, body: body ?? null }),
   /** Saves an attachment into the user's Downloads folder; `body.saved_to` on success. */

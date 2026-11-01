@@ -1,0 +1,122 @@
+{
+  "app": {
+    "name": "Chuo-Sogo Admin"
+  },
+  "noSections": "Your role has no administration sections. Ask a platform super administrator.",
+  "saved": "Saved.",
+  "login": {
+    "staffOnly": "Chuo-Sogo staff only. Sign-in needs your password and an authenticator app.",
+    "codeTitle": "Authenticator code",
+    "codeHint": "Enter the 6-digit code from your authenticator app.",
+    "code": "6-digit code",
+    "verify": "Verify",
+    "enrollTitle": "Set up your authenticator",
+    "enrollHint": "First sign-in: add this key to an authenticator app (e.g. Google Authenticator, Microsoft Authenticator, 1Password) as a time-based key, then enter the code it shows. The key is shown only now.",
+    "enrollUri": "Setup link (otpauth)"
+  },
+  "nav": {
+    "overview": "Overview",
+    "orgs": "Organisations",
+    "accounts": "Accounts",
+    "settings": "Settings"
+  },
+  "health": {
+    "server": "Server version",
+    "schema": "Database schema",
+    "database": "Database size",
+    "ai": "AI provider",
+    "sessions": "Active sessions",
+    "accounts": "Active accounts",
+    "locked": "{{count}} locked",
+    "overdueTasks": "Overdue tasks",
+    "disputedInvoices": "Disputed invoices",
+    "failedAi": "AI failures (24 h)",
+    "auditChain": "Audit log",
+    "chainOk": "Intact",
+    "chainBroken": "BROKEN"
+  },
+  "orgs": {
+    "name": "Organisation",
+    "create": "New organisation",
+    "createSubmit": "Create and invite administrator",
+    "createHint": "The administrator receives an invitation to set a password. No email is sent while the server is in test mode.",
+    "adminName": "Administrator name",
+    "adminEmail": "Administrator email",
+    "locale": "Default language",
+    "timezone": "Time zone",
+    "filter": "Filter by name",
+    "kind": "Type",
+    "status": "Status",
+    "members": "Members",
+    "openRequests": "Open requests",
+    "staff": "Assigned staff",
+    "access": "Access",
+    "suspend": "Suspend organisation",
+    "suspendHint": "A suspended organisation's members cannot sign in or work until it is reactivated. Nothing is deleted.",
+    "confirmSuspend": "Confirm: suspend {{name}}",
+    "reactivate": "Reactivate organisation"
+  },
+  "kind": {
+    "platform": "Chuo-Sogo (platform)",
+    "customer": "Customer"
+  },
+  "status": {
+    "active": "Active",
+    "suspended": "Suspended",
+    "pending": "Not activated",
+    "deactivated": "Deactivated",
+    "invited": "Invited",
+    "declined": "Declined",
+    "locked": "Locked"
+  },
+  "tab": {
+    "members": "Members",
+    "rules": "Rules",
+    "staff": "Staff",
+    "audit": "Audit log",
+    "profile": "Profile"
+  },
+  "rules": {
+    "identifySla": "Product identification target (hours)",
+    "chaseDefault": "Supplier chase after (hours)",
+    "taxRate": "Default consumption tax rate (%)",
+    "aiEnabled": "AI assistance enabled for this organisation",
+    "hint": "Rules apply to new work from now on; existing tasks keep their deadlines. Every change is recorded in both audit logs."
+  },
+  "staff": {
+    "pick": "Choose a staff member",
+    "assign": "Assign",
+    "none": "No staff assigned yet.",
+    "since": "Assigned",
+    "unassign": "Remove",
+    "confirmUnassign": "Confirm: remove"
+  },
+  "audit": {
+    "details": "Details"
+  },
+  "accounts": {
+    "search": "Name or email",
+    "find": "Search",
+    "none": "No accounts found.",
+    "email": "Email",
+    "kind": "Account type",
+    "mfa": "Authenticator",
+    "mfaOn": "Set up",
+    "created": "Created",
+    "self": "Your own account",
+    "deactivate": "Deactivate",
+    "confirmDeactivate": "Confirm: deactivate {{name}}",
+    "deactivated": "Account deactivated; all its sessions ended.",
+    "reactivate": "Reactivate",
+    "reactivated": "Account reactivated.",
+    "unlock": "Unlock",
+    "unlocked": "Account unlocked.",
+    "resetMfa": "Reset authenticator",
+    "confirmResetMfa": "Confirm: reset authenticator",
+    "mfaReset": "Authenticator removed; the person sets up a new one at the next admin sign-in."
+  },
+  "accountKind": {
+    "internal": "Chuo-Sogo staff",
+    "customer": "Customer"
+  }
+}

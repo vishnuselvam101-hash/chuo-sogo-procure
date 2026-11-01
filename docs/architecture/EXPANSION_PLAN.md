@@ -1,7 +1,8 @@
 # Expansion plan — admin console, invoice generation, product listings with AI, consumer side
 
-Status: **PROPOSAL** (2026-11-01). Nothing in this document is built yet. Decisions marked
-**[D#]** need the founder; each has a recommended default so work can start once confirmed.
+Status (2026-11-01): founder accepted the defaults. **Phase A (admin console) implemented and
+tested** — see `docs/engineering/gates/phaseA.md`; phases B–F not started. Decisions marked
+**[D#]** use the recommended defaults unless the founder says otherwise.
 
 ## 1. What the founder asked for
 

@@ -1,0 +1,17 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "admin",
+  "description": "Admin console window: only the console's own commands. No attachment download, no core:default, no shell, filesystem, HTTP or opener plugins.",
+  "windows": ["main"],
+  "permissions": [
+    "allow-prefs-get",
+    "allow-prefs-set-language",
+    "allow-prefs-set-server",
+    "allow-auth-login",
+    "allow-auth-logout",
+    "allow-api-request",
+    "allow-auth-enroll",
+    "allow-auth-code",
+    "allow-client-log"
+  ]
+}

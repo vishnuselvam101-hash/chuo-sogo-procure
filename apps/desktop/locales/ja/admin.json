@@ -1,0 +1,122 @@
+{
+  "app": {
+    "name": "中央総合 管理コンソール"
+  },
+  "noSections": "このロールには管理機能がありません。プラットフォーム最高管理者に依頼してください。",
+  "saved": "保存しました。",
+  "login": {
+    "staffOnly": "中央総合のスタッフ専用です。サインインにはパスワードと認証アプリが必要です。",
+    "codeTitle": "認証コード",
+    "codeHint": "認証アプリに表示される6桁のコードを入力してください。",
+    "code": "6桁のコード",
+    "verify": "確認",
+    "enrollTitle": "認証アプリの設定",
+    "enrollHint": "初回サインインです。このキーを認証アプリ（Google Authenticator、Microsoft Authenticator、1Password など）に時間ベースのキーとして追加し、表示されたコードを入力してください。キーが表示されるのは今回だけです。",
+    "enrollUri": "設定リンク（otpauth）"
+  },
+  "nav": {
+    "overview": "概要",
+    "orgs": "組織",
+    "accounts": "アカウント",
+    "settings": "設定"
+  },
+  "health": {
+    "server": "サーバーのバージョン",
+    "schema": "データベーススキーマ",
+    "database": "データベース容量",
+    "ai": "AIプロバイダー",
+    "sessions": "有効なセッション",
+    "accounts": "有効なアカウント",
+    "locked": "ロック中 {{count}} 件",
+    "overdueTasks": "期限超過のタスク",
+    "disputedInvoices": "差異のある請求書",
+    "failedAi": "AIの失敗（24時間）",
+    "auditChain": "監査ログ",
+    "chainOk": "正常",
+    "chainBroken": "破損"
+  },
+  "orgs": {
+    "name": "組織",
+    "create": "新しい組織",
+    "createSubmit": "作成して管理者を招待",
+    "createHint": "管理者にはパスワード設定の招待が届きます。サーバーがテストモードの間はメールは送信されません。",
+    "adminName": "管理者の氏名",
+    "adminEmail": "管理者のメールアドレス",
+    "locale": "既定の言語",
+    "timezone": "タイムゾーン",
+    "filter": "名前で絞り込み",
+    "kind": "種別",
+    "status": "状態",
+    "members": "メンバー",
+    "openRequests": "進行中の依頼",
+    "staff": "担当スタッフ",
+    "access": "アクセス",
+    "suspend": "組織を停止",
+    "suspendHint": "停止中の組織のメンバーは、再開されるまでサインインや作業ができません。データは削除されません。",
+    "confirmSuspend": "確認：{{name}} を停止",
+    "reactivate": "組織を再開"
+  },
+  "kind": {
+    "platform": "中央総合（プラットフォーム）",
+    "customer": "顧客"
+  },
+  "status": {
+    "active": "有効",
+    "suspended": "停止中",
+    "pending": "未有効化",
+    "deactivated": "無効",
+    "invited": "招待中",
+    "declined": "辞退",
+    "locked": "ロック中"
+  },
+  "tab": {
+    "members": "メンバー",
+    "rules": "ルール",
+    "staff": "スタッフ",
+    "audit": "監査ログ",
+    "profile": "基本情報"
+  },
+  "rules": {
+    "identifySla": "製品特定の目標時間（時間）",
+    "chaseDefault": "サプライヤーへの催促（時間後）",
+    "taxRate": "既定の消費税率（%）",
+    "aiEnabled": "この組織でAI支援を有効にする",
+    "hint": "ルールはこれ以降の新しい作業に適用されます。既存のタスクの期限は変わりません。変更はすべて両方の監査ログに記録されます。"
+  },
+  "staff": {
+    "pick": "スタッフを選択",
+    "assign": "割り当て",
+    "none": "担当スタッフはまだいません。",
+    "since": "割り当て日時",
+    "unassign": "解除",
+    "confirmUnassign": "確認：解除"
+  },
+  "audit": {
+    "details": "詳細"
+  },
+  "accounts": {
+    "search": "氏名またはメールアドレス",
+    "find": "検索",
+    "none": "アカウントが見つかりません。",
+    "email": "メールアドレス",
+    "kind": "アカウント種別",
+    "mfa": "認証アプリ",
+    "mfaOn": "設定済み",
+    "created": "作成日時",
+    "self": "ご自身のアカウント",
+    "deactivate": "無効化",
+    "confirmDeactivate": "確認：{{name}} を無効化",
+    "deactivated": "アカウントを無効化し、すべてのセッションを終了しました。",
+    "reactivate": "再有効化",
+    "reactivated": "アカウントを再有効化しました。",
+    "unlock": "ロック解除",
+    "unlocked": "ロックを解除しました。",
+    "resetMfa": "認証アプリをリセット",
+    "confirmResetMfa": "確認：認証アプリをリセット",
+    "mfaReset": "認証アプリを削除しました。次回の管理サインイン時に新しく設定します。"
+  },
+  "accountKind": {
+    "internal": "中央総合スタッフ",
+    "customer": "顧客"
+  }
+}

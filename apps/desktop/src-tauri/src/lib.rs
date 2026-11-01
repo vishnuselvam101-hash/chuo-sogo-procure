@@ -2,9 +2,12 @@
 //!
 //! The webview never sees the session token: it lives only in this process's memory,
 //! bound to the server that issued it, and every API call goes through `api_request`,
-//! which only reaches that server under `/api/v1/` and never follows redirects.
+//! which only reaches that server under its own API namespace (`/api/v1/`, or
+//! `/api/admin/v1/` in the admin console build) and never follows redirects.
 //! Signing out or closing the app discards the token.
 
+#[cfg(feature = "admin")]
+mod admin;
 mod prefs;
 mod validate;
 
@@ -24,6 +27,9 @@ struct BoundToken {
 
 struct Session {
     token: Mutex<Option<BoundToken>>,
+    /// Admin console: the step token between password and authenticator code.
+    #[cfg(feature = "admin")]
+    pending: Mutex<Option<admin::Pending>>,
     http: reqwest::Client,
 }
 
@@ -141,12 +147,16 @@ async fn auth_login(
     let base = lock(&prefs)?.server_url.clone();
     // Signing in again: revoke the previous session on its own server first (best effort).
     let previous = lock(&session.token)?.take();
+    #[cfg(feature = "admin")]
+    {
+        *lock(&session.pending)? = None;
+    }
     if let Some(prev) = previous
-        && let Ok(url) = validate::api_url(&prev.server, "/api/v1/auth/logout")
+        && let Ok(url) = validate::api_url(&prev.server, &endpoint("auth/logout"))
     {
         send(&session, url, reqwest::Method::POST, None, Some(prev.token)).await;
     }
-    let url = validate::api_url(&base, "/api/v1/auth/login")?;
+    let url = validate::api_url(&base, &endpoint("auth/login"))?;
     let body = serde_json::json!({ "email": email, "password": password });
     let mut res = send(&session, url, reqwest::Method::POST, Some(body), None).await;
     if res.status == 200 {
@@ -156,20 +166,35 @@ async fn auth_login(
             .and_then(|o| o.remove("token"))
             .and_then(|t| t.as_str().map(str::to_owned));
         if let Some(token) = token {
-            *lock(&session.token)? = Some(BoundToken {
-                server: base,
-                token,
-            });
+            // Admin console: the password only unlocks the authenticator step.
+            #[cfg(feature = "admin")]
+            admin::after_password(&session, base, token, &res.body)?;
+            #[cfg(not(feature = "admin"))]
+            {
+                *lock(&session.token)? = Some(BoundToken {
+                    server: base,
+                    token,
+                });
+            }
         }
     }
     Ok(res)
 }
 
+/// `path` under this build's API namespace.
+fn endpoint(path: &str) -> String {
+    format!("{}{path}", validate::API_PREFIX)
+}
+
 #[tauri::command]
 async fn auth_logout(session: State<'_, Session>) -> Result<(), String> {
     let bound = lock(&session.token)?.take();
+    #[cfg(feature = "admin")]
+    {
+        *lock(&session.pending)? = None;
+    }
     if let Some(b) = bound
-        && let Ok(url) = validate::api_url(&b.server, "/api/v1/auth/logout")
+        && let Ok(url) = validate::api_url(&b.server, &endpoint("auth/logout"))
     {
         // Best effort: the local token is already gone either way.
         send(&session, url, reqwest::Method::POST, None, Some(b.token)).await;
@@ -202,6 +227,7 @@ async fn api_request(
 /// Uploads and downloads of attachments (up to 10 MB) on slow links.
 const TRANSFER_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(180);
 
+#[cfg(not(feature = "admin"))]
 /// Largest attachment the client will save (server limit is 10 MB).
 const MAX_DOWNLOAD_BYTES: usize = 12 * 1024 * 1024;
 
@@ -209,6 +235,7 @@ const MAX_DOWNLOAD_BYTES: usize = 12 * 1024 * 1024;
 /// user's Downloads folder (never opened, never handed to the webview). Only the attachment
 /// content endpoint can be reached, and only file types the server accepts can be written.
 /// Returns the saved path in `body.saved_to`, or the server's error body.
+#[cfg(not(feature = "admin"))]
 #[tauri::command]
 async fn api_download(
     app: tauri::AppHandle,
@@ -293,6 +320,7 @@ async fn api_download(
     })
 }
 
+#[cfg(not(feature = "admin"))]
 /// Writes `bytes` as `name` in `dir`, never overwriting: "a.pdf", "a (1).pdf", ...
 fn save_unique(
     dir: &std::path::Path,
@@ -346,6 +374,37 @@ fn client_log(level: String, message: String, request_id: Option<String>) -> Res
     Ok(())
 }
 
+/// Business app commands. Attachments are only downloaded here.
+#[cfg(not(feature = "admin"))]
+fn handlers() -> impl Fn(tauri::ipc::Invoke) -> bool + Send + Sync + 'static {
+    tauri::generate_handler![
+        prefs_get,
+        prefs_set_language,
+        prefs_set_server,
+        auth_login,
+        auth_logout,
+        api_request,
+        api_download,
+        client_log
+    ]
+}
+
+/// Admin console commands: no file access, plus the authenticator sign-in steps.
+#[cfg(feature = "admin")]
+fn handlers() -> impl Fn(tauri::ipc::Invoke) -> bool + Send + Sync + 'static {
+    tauri::generate_handler![
+        prefs_get,
+        prefs_set_language,
+        prefs_set_server,
+        auth_login,
+        auth_logout,
+        api_request,
+        admin::auth_enroll,
+        admin::auth_code,
+        client_log
+    ]
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tracing_subscriber::fmt()
@@ -373,6 +432,8 @@ pub fn run() {
     let result = tauri::Builder::default()
         .manage(Session {
             token: Mutex::new(None),
+            #[cfg(feature = "admin")]
+            pending: Mutex::new(None),
             http,
         })
         .setup(|app| {
@@ -380,16 +441,7 @@ pub fn run() {
             app.manage(Mutex::new(loaded));
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![
-            prefs_get,
-            prefs_set_language,
-            prefs_set_server,
-            auth_login,
-            auth_logout,
-            api_request,
-            api_download,
-            client_log
-        ])
+        .invoke_handler(handlers())
         .run(tauri::generate_context!());
     if let Err(e) = result {
         eprintln!("application error: {e}");
@@ -397,7 +449,7 @@ pub fn run() {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(feature = "admin")))]
 mod tests {
     use super::save_unique;
 
@@ -413,5 +465,25 @@ mod tests {
         assert_eq!(b.file_name().unwrap(), "見積 (1).pdf");
         assert_eq!(std::fs::read(&a).unwrap(), b"1");
         std::fs::remove_dir_all(dir).unwrap();
+    }
+}
+
+#[cfg(test)]
+mod capability_tests {
+    /// The business window can never call the admin sign-in steps, and the admin console can
+    /// never download files: each build's capability grants only its own commands.
+    #[test]
+    fn each_app_is_granted_only_its_own_commands() {
+        let business = include_str!("../capabilities/default.json");
+        let admin = include_str!("../capabilities/admin.json");
+        for cmd in ["allow-auth-enroll", "allow-auth-code"] {
+            assert!(!business.contains(cmd), "business grants {cmd}");
+            assert!(admin.contains(cmd), "admin lacks {cmd}");
+        }
+        assert!(business.contains("allow-api-download"));
+        assert!(!admin.contains("allow-api-download"));
+        let config = include_str!("../tauri.admin.conf.json");
+        assert!(config.contains(r#""capabilities": ["admin"]"#));
+        assert!(config.contains(r#""identifier": "net.chuo-sogo.procure.admin""#));
     }
 }

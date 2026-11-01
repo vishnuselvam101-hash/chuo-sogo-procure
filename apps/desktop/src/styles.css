@@ -11,6 +11,8 @@
   --error: #b42318;
   --focus: #2f6fdb;
   --sidebar-w: 248px;
+  /* Admin console sidebar: a different colour so staff always know where they are. */
+  --admin-brand: #4a1d2a;
   /* Japanese first, then Tamil and Devanagari faces, then system UI. */
   font-family:
     "Noto Sans JP", "Hiragino Sans", "Yu Gothic UI", "Meiryo", "Noto Sans Tamil", "Noto Sans Devanagari",
@@ -29,6 +31,7 @@
     --muted: #9aa8bb;
     --border: #2a3545;
     --brand: #0f1f3d;
+    --admin-brand: #2e1119;
   }
 }
 
@@ -572,4 +575,107 @@ button.link {
 .internal-panel {
   border-left: 4px solid var(--accent);
   padding-left: 10px;
+}
+
+/* ---- Admin console ---- */
+.shell.admin .sidebar {
+  background: var(--admin-brand);
+}
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  border-bottom: 1px solid var(--border);
+  margin: 12px 0;
+}
+
+.tabs .tab {
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: 6px 6px 0 0;
+  background: transparent;
+}
+
+.tabs .tab.active {
+  border-color: var(--border);
+  background: var(--surface);
+  font-weight: 600;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+
+.form-grid > h2,
+.form-grid > p,
+.form-grid > [role="alert"] {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.form-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.form-grid label.checkbox {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+  margin: 0 0 16px;
+}
+
+.stats > div {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.stats dt {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.stats dd {
+  margin: 2px 0 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.totp-secret {
+  display: inline-block;
+  font-size: 18px;
+  letter-spacing: 1px;
+  padding: 8px 10px;
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  user-select: all;
+}
+
+.wrap {
+  overflow-wrap: anywhere;
+}
+
+button.danger {
+  background: var(--error);
+  border-color: var(--error);
+  color: #fff;
+}
+
+.badge-suspended,
+.badge-locked {
+  background: color-mix(in srgb, var(--error) 15%, transparent);
+  color: var(--error);
 }

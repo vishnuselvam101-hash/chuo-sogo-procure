@@ -47,6 +47,8 @@ fi
 step fmt cargo fmt --all --check
 step clippy cargo clippy --workspace --all-targets -- -D warnings
 step test cargo test --workspace
+step clippy-admin cargo clippy -p procure-desktop --all-targets --features admin -- -D warnings
+step test-admin cargo test -p procure-desktop --features admin
 
 
 if [ "$MODE" = "full" ]; then

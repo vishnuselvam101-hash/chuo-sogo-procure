@@ -98,12 +98,25 @@
     "invoice_already_recorded": "This supplier invoice number is already recorded.",
     "already_invoiced": "Already invoiced: correct through the invoice differences.",
     "already_reversed": "This receipt is already reversed.",
-    "password_mismatch": "The passwords do not match."
+    "password_mismatch": "The passwords do not match.",
+    "cannot_suspend_platform": "The Chuo-Sogo platform organisation cannot be suspended.",
+    "already_enrolled": "An authenticator is already set up for this account.",
+    "not_activated": "This account was never activated; it cannot be reactivated.",
+    "admin_mfa_unavailable": "Two-step sign-in is not configured on this server.",
+    "identify_sla_hours": "Identification target must be 1–720 hours.",
+    "chase_default_hours": "Chase time must be 1–2160 hours.",
+    "default_tax_rate_bps": "Tax rate must be between 0 and 100 %.",
+    "timezone": "Unknown time zone (e.g. Asia/Tokyo).",
+    "not_internal_staff": "Only Chuo-Sogo staff can be assigned.",
+    "not_a_customer_org": "Staff can only be assigned to customer organisations."
   },
   "payload_too_large": "The file or request is too large.",
   "invalid_file_name": "This file name cannot be used.",
   "download_too_large": "The file is too large to save.",
   "no_download_folder": "The Downloads folder is not available.",
   "save_failed": "The file could not be saved.",
-  "rate_limited": "Too many requests. Please wait and try again."
+  "rate_limited": "Too many requests. Please wait and try again.",
+  "invalid_code": "Enter the 6-digit code from your authenticator app.",
+  "no_sign_in_step": "The sign-in step has expired. Please sign in again.",
+  "unexpected_response": "Unexpected answer from the server."
 }

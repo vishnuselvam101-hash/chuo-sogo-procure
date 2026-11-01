@@ -43,6 +43,13 @@
 | SF-039 | 2026-11-01 | Finance: invoicing less than received reconciled silently (the rest never billed) | High | V2 (business logic) | Fixed | `quantity_under_received` discrepancy; regression test |
 | SF-040 | 2026-11-01 | Finance: a mistaken receipt could not be undone; items billed but not ordered could not be recorded; single tax rate per invoice (false tax mismatches on 8%/10% invoices) | Medium | V2 | Fixed | receipt reversal (before invoicing), off-order invoice lines → `unknown_item`, per-rate tax computed and rounded once per rate |
 | SF-041 | 2026-11-01 | Finance: same supplier invoice bookable on two orders; PO total not cross-checked with its lines; invoice form pre-filled with PO figures (click-through "match") | Medium | V2 | Fixed | unique (org, supplier, invoice number), recompute on order (`recommendation_inconsistent`), PO figures only as hints |
+| SF-042 | 2026-11-01 | Admin console: if loading the console failed after a correct code, the screen stayed on the code step while a live admin session token remained in the native layer | Low | V3 | Fixed | failed load ends the session (`auth_logout`) and shows the reason; Vitest regression |
+| SF-043 | 2026-11-01 | Admin console: "back to sign-in" left the password step token in native memory until the next sign-in | Low | V3 | Fixed | back clears it (`auth_logout`); capability isolation test for both builds |
+
+## Residual risk (Phase A)
+- No re-authentication before dangerous admin actions yet (idle limit 30 min + two-click confirm).
+- The admin network allow-list trusts the reverse proxy's X-Forwarded-For only from loopback (`PROCURE_TRUST_LOCAL_PROXY=1`); a different proxy layout must be reviewed.
+- Losing `PROCURE_SECRET_KEY` makes every enrolled authenticator unusable (reset per account in the console by another super administrator).
 
 ## Residual risk (Phase 5)
 - One invoice per order (no partial invoicing / multiple invoices yet); a short invoice becomes a discrepancy instead.

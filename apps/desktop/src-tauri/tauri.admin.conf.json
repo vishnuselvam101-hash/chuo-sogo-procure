@@ -1,0 +1,31 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Chuo-Sogo Procure Admin",
+  "identifier": "net.chuo-sogo.procure.admin",
+  "build": {
+    "beforeDevCommand": "pnpm dev:admin",
+    "devUrl": "http://127.0.0.1:1421",
+    "beforeBuildCommand": "pnpm build:admin",
+    "frontendDist": "../dist-admin"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Chuo-Sogo Procure Admin",
+        "width": 1320,
+        "height": 840,
+        "minWidth": 1024,
+        "minHeight": 680
+      }
+    ],
+    "security": {
+      "capabilities": ["admin"]
+    }
+  },
+  "bundle": {
+    "shortDescription": "Chuo-Sogo platform administration (staff only)",
+    "longDescription": "Chuo-Sogo Procure Admin: organisations, accounts, rules, staff assignments, audit and system health for Chuo-Sogo administrators. Staff machines only.",
+    "targets": ["deb", "appimage", "msi", "nsis", "dmg", "app"]
+  }
+}

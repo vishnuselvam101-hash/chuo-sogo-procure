@@ -1,6 +1,5 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { App } from "./App";
 import { initI18n, isLanguage } from "./i18n";
 import { bridge } from "./lib/bridge";
 import "./styles.css";
@@ -14,9 +13,15 @@ async function start() {
   await initI18n(isLanguage(prefs?.language) ? prefs.language : undefined);
   const root = document.getElementById("root");
   if (!root) return;
+  // Each build contains only its own app: the condition is a build-time constant.
+  const Root =
+    import.meta.env.VITE_APP_KIND === "admin"
+      ? (await import("./admin/AdminApp")).AdminApp
+      : (await import("./App")).App;
+  if (import.meta.env.VITE_APP_KIND === "admin") document.title = "Chuo-Sogo Procure Admin";
   createRoot(root).render(
     <StrictMode>
-      <App />
+      <Root />
     </StrictMode>,
   );
 }

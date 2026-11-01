@@ -98,12 +98,25 @@
     "invoice_already_recorded": "このサプライヤー請求書番号はすでに記録されています。",
     "already_invoiced": "請求済みです。請求書の差異で訂正してください。",
     "already_reversed": "この受領はすでに取り消されています。",
-    "password_mismatch": "パスワードが一致しません。"
+    "password_mismatch": "パスワードが一致しません。",
+    "cannot_suspend_platform": "中央総合のプラットフォーム組織は停止できません。",
+    "already_enrolled": "このアカウントには認証アプリが設定済みです。",
+    "not_activated": "このアカウントは一度も有効化されていないため、再有効化できません。",
+    "admin_mfa_unavailable": "このサーバーでは2段階サインインが設定されていません。",
+    "identify_sla_hours": "製品特定の目標時間は1〜720時間で指定してください。",
+    "chase_default_hours": "催促までの時間は1〜2160時間で指定してください。",
+    "default_tax_rate_bps": "税率は0〜100%で指定してください。",
+    "timezone": "不明なタイムゾーンです（例：Asia/Tokyo）。",
+    "not_internal_staff": "割り当てられるのは中央総合のスタッフのみです。",
+    "not_a_customer_org": "スタッフは顧客組織にのみ割り当てられます。"
   },
   "payload_too_large": "ファイルまたはリクエストが大きすぎます。",
   "invalid_file_name": "このファイル名は使用できません。",
   "download_too_large": "ファイルが大きすぎて保存できません。",
   "no_download_folder": "ダウンロードフォルダーを使用できません。",
   "save_failed": "ファイルを保存できませんでした。",
-  "rate_limited": "リクエストが多すぎます。しばらくしてからもう一度お試しください。"
+  "rate_limited": "リクエストが多すぎます。しばらくしてからもう一度お試しください。",
+  "invalid_code": "認証アプリの6桁のコードを入力してください。",
+  "no_sign_in_step": "サインインの手順の有効期限が切れました。もう一度サインインしてください。",
+  "unexpected_response": "サーバーから予期しない応答がありました。"
 }

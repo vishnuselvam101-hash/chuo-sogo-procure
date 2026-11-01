@@ -40,10 +40,17 @@ pub fn method(m: &str) -> Result<reqwest::Method, String> {
     }
 }
 
-/// Only relative paths under /api/v1/ on the configured server; no traversal,
+/// The only API namespace this build can reach: the business app talks to `/api/v1/`,
+/// the admin console (feature `admin`) only to `/api/admin/v1/`.
+#[cfg(not(feature = "admin"))]
+pub const API_PREFIX: &str = "/api/v1/";
+#[cfg(feature = "admin")]
+pub const API_PREFIX: &str = "/api/admin/v1/";
+
+/// Only relative paths under `prefix` on the configured server; no traversal,
 /// no scheme or authority smuggling, no fragments.
-pub fn api_path(p: &str) -> Result<(), String> {
-    let ok = p.starts_with("/api/v1/")
+fn api_path_in(prefix: &str, p: &str) -> Result<(), String> {
+    let ok = p.starts_with(prefix)
         && p.len() <= 512
         && !p.contains("..")
         && !p.contains("//")
@@ -59,21 +66,36 @@ pub fn api_path(p: &str) -> Result<(), String> {
 }
 
 /// Full request URL for `path` on `base`, checked **after** URL normalisation:
-/// same origin as `base` and still under `/api/v1/`. Catches encoded dot-segments
+/// same origin as `base` and still under [`API_PREFIX`]. Catches encoded dot-segments
 /// (`%2e%2e`) that a plain string check would miss.
 pub fn api_url(base: &str, path: &str) -> Result<reqwest::Url, String> {
-    api_path(path)?;
+    api_url_in(API_PREFIX, base, path)
+}
+
+fn api_url_in(prefix: &str, base: &str, path: &str) -> Result<reqwest::Url, String> {
+    api_path_in(prefix, path)?;
     let base = reqwest::Url::parse(base).map_err(|_| "invalid_url".to_string())?;
     let url = base.join(path).map_err(|_| "invalid_path".to_string())?;
     let lower = url.path().to_ascii_lowercase();
     if url.origin() != base.origin()
-        || !url.path().starts_with("/api/v1/")
+        || !url.path().starts_with(prefix)
         || lower.contains("%2e")
         || lower.contains("%2f")
     {
         return Err("invalid_path".into());
     }
     Ok(url)
+}
+
+/// A 6-digit authenticator code (admin console).
+#[cfg_attr(not(feature = "admin"), allow(dead_code))]
+pub fn totp_code(raw: &str) -> Result<String, String> {
+    let code: String = raw.chars().filter(|c| !c.is_whitespace()).collect();
+    if code.len() == 6 && code.bytes().all(|b| b.is_ascii_digit()) {
+        Ok(code)
+    } else {
+        Err("invalid_code".into())
+    }
 }
 
 /// Log text from the webview: bounded and free of control characters, so it cannot
@@ -85,6 +107,7 @@ pub fn log_text(raw: &str) -> String {
         .collect()
 }
 
+#[cfg_attr(feature = "admin", allow(dead_code))]
 /// A file name safe to create in the user's Downloads folder: no path components, no
 /// control or reserved characters, not hidden, at most 150 characters. `None` if nothing
 /// usable remains.
@@ -115,6 +138,7 @@ pub fn download_name(raw: &str) -> Option<String> {
     }
 }
 
+#[cfg_attr(feature = "admin", allow(dead_code))]
 /// File types the server accepts as attachments; nothing else is ever written to disk.
 pub fn is_attachment_type(name: &str) -> bool {
     name.rsplit_once('.').is_some_and(|(_, ext)| {
@@ -128,6 +152,9 @@ pub fn is_attachment_type(name: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    const V1: &str = "/api/v1/";
+    const ADMIN: &str = "/api/admin/v1/";
 
     #[test]
     fn only_attachment_types_are_saved() {
@@ -169,7 +196,7 @@ mod tests {
     fn api_urls_stay_on_origin_and_prefix() {
         let base = "https://procure.example.jp";
         assert_eq!(
-            api_url(base, "/api/v1/me").unwrap().as_str(),
+            api_url_in(V1, base, "/api/v1/me").unwrap().as_str(),
             "https://procure.example.jp/api/v1/me"
         );
         for bad in [
@@ -180,7 +207,7 @@ mod tests {
             "/api/v1/..%2fadmin",
             "/api/v1/a%2F..%2F..%2Fhealth",
         ] {
-            assert!(api_url(base, bad).is_err(), "{bad}");
+            assert!(api_url_in(V1, base, bad).is_err(), "{bad}");
         }
     }
 
@@ -223,9 +250,13 @@ mod tests {
 
     #[test]
     fn api_paths() {
-        assert!(api_path("/api/v1/me").is_ok());
+        assert!(api_path_in(V1, "/api/v1/me").is_ok());
         assert!(
-            api_path("/api/v1/orgs/0192f0aa-1111-7222-8333-444455556666/audit?limit=50").is_ok()
+            api_path_in(
+                V1,
+                "/api/v1/orgs/0192f0aa-1111-7222-8333-444455556666/audit?limit=50"
+            )
+            .is_ok()
         );
         for bad in [
             "/health",
@@ -237,7 +268,7 @@ mod tests {
             "/api/v1/me\r\nX-Injected: 1",
             "/api/v1/ me",
         ] {
-            assert!(api_path(bad).is_err(), "{bad}");
+            assert!(api_path_in(V1, bad).is_err(), "{bad}");
         }
     }
 
@@ -249,5 +280,23 @@ mod tests {
         assert!(method("put").is_err());
         assert!(is_supported_language("ta"));
         assert!(!is_supported_language("xx"));
+    }
+
+    #[test]
+    fn each_build_reaches_only_its_own_namespace() {
+        let base = "https://procure.example.jp";
+        assert!(api_url_in(ADMIN, base, "/api/admin/v1/orgs").is_ok());
+        assert!(api_url_in(ADMIN, base, "/api/v1/me").is_err());
+        assert!(api_url_in(V1, base, "/api/admin/v1/orgs").is_err());
+        assert!(api_url_in(ADMIN, base, "/api/admin/v1/%2e%2e/%2e%2e/v1/me").is_err());
+        assert!(api_url(base, &format!("{API_PREFIX}me")).is_ok());
+    }
+
+    #[test]
+    fn totp_codes() {
+        assert_eq!(totp_code("123 456"), Ok("123456".into()));
+        for bad in ["12345", "1234567", "12345a", "", "１２３４５６"] {
+            assert!(totp_code(bad).is_err(), "{bad}");
+        }
     }
 }

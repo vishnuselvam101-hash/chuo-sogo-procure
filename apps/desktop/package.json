@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:admin": "vite --mode admin",
     "build": "tsc -b && vite build",
+    "build:admin": "tsc -b && vite build --mode admin",
     "typecheck": "tsc -b --noEmit",
     "lint": "eslint . --max-warnings 0",
     "format": "prettier --write .",
