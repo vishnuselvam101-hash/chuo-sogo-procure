@@ -12,6 +12,10 @@ on:
         type: choice
         options: [business, admin, shop]
         default: business
+      server:
+        description: Server address new installations connect to (empty = none preset)
+        type: string
+        default: ""
 permissions:
   contents: read
 jobs:
@@ -53,6 +57,7 @@ jobs:
         if: inputs.app == 'business'
         env:
           BUNDLES: ${{ matrix.bundles }}
+          PROCURE_DEFAULT_SERVER: ${{ inputs.server || null }}
         run: cargo tauri build --bundles "$BUNDLES"
       - working-directory: apps/desktop
         if: inputs.app == 'admin'
@@ -63,6 +68,7 @@ jobs:
         if: inputs.app == 'shop'
         env:
           BUNDLES: ${{ matrix.bundles }}
+          PROCURE_DEFAULT_SERVER: ${{ inputs.server || null }}
         run: cargo tauri build --config src-tauri/tauri.shop.conf.json --bundles "$BUNDLES"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:

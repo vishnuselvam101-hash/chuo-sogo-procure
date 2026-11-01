@@ -11,11 +11,19 @@ pub struct Prefs {
     pub server_url: String,
 }
 
+/// Server a fresh installation connects to: set at build time with `PROCURE_DEFAULT_SERVER`
+/// (e.g. the demo server for trial installers); a local development server otherwise. Users
+/// can change it on the sign-in screen.
+const DEFAULT_SERVER: &str = match option_env!("PROCURE_DEFAULT_SERVER") {
+    Some(url) if !url.is_empty() => url,
+    _ => "http://127.0.0.1:8088",
+};
+
 impl Default for Prefs {
     fn default() -> Self {
         Prefs {
             language: None,
-            server_url: "http://127.0.0.1:8088".into(),
+            server_url: DEFAULT_SERVER.into(),
         }
     }
 }

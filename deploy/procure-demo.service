@@ -1,0 +1,40 @@
+# DEMO server (sample data only). Installed by scripts/demo/install-demo.sh.
+# Listens on 127.0.0.1:8090; published for trial users with Tailscale Funnel (public HTTPS).
+[Unit]
+Description=Chuo-Sogo Procure DEMO server
+After=network-online.target postgresql.service
+Wants=network-online.target
+Requires=postgresql.service
+
+[Service]
+Type=simple
+User=procure
+Group=procure
+EnvironmentFile=/etc/procure/demo.env
+# Schema migrations run as the owner role before the restricted server starts.
+ExecStartPre=/opt/procure/bin/procure-server migrate
+ExecStart=/opt/procure/bin/procure-server serve
+Restart=on-failure
+RestartSec=5
+
+# Hardening: no privileges, read-only system, only its data directory writable.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+RestrictNamespaces=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+CapabilityBoundingSet=
+ReadWritePaths=/var/lib/procure-demo
+UMask=0077
+MemoryMax=1G
+
+[Install]
+WantedBy=multi-user.target

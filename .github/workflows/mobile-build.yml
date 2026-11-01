@@ -14,6 +14,10 @@ on:
         type: choice
         options: [business, shop]
         default: business
+      server:
+        description: Server address new installations connect to (empty = none preset)
+        type: string
+        default: ""
 permissions:
   contents: read
 jobs:
@@ -48,6 +52,7 @@ jobs:
       - working-directory: apps/desktop
         env:
           CONFIG: ${{ inputs.app == 'shop' && '--config src-tauri/tauri.shop.conf.json' || '' }}
+          PROCURE_DEFAULT_SERVER: ${{ inputs.server || null }}
         run: |
           cargo tauri android init --ci $CONFIG
           cargo tauri android build --debug --apk --target aarch64 $CONFIG
@@ -79,6 +84,7 @@ jobs:
       - working-directory: apps/desktop
         env:
           CONFIG: ${{ inputs.app == 'shop' && '--config src-tauri/tauri.shop.conf.json' || '' }}
+          PROCURE_DEFAULT_SERVER: ${{ inputs.server || null }}
         run: |
           cargo tauri ios init --ci $CONFIG
           cargo tauri ios build --debug --target aarch64-sim $CONFIG
