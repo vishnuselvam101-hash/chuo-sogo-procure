@@ -44,7 +44,11 @@ LangString Failed ${LANG_JAPANESE} "インストールに失敗しました: "
 LangString Failed ${LANG_ENGLISH} "Installation failed: "
 
 Function OpenGuide
-  ExecShell "open" "$INSTDIR\START-HERE.html"
+  ${If} $LANGUAGE == ${LANG_JAPANESE}
+    ExecShell "open" "$INSTDIR\START-HERE.html"
+  ${Else}
+    ExecShell "open" "$INSTDIR\START-HERE-EN.html"
+  ${EndIf}
 FunctionEnd
 
 !macro InstallApp FILE LABEL
@@ -61,9 +65,14 @@ Section "Install"
   InitPluginsDir
   SetOutPath "$INSTDIR"
   File "/oname=START-HERE.html" "${PKG}/START-HERE.html"
+  File "/oname=START-HERE-EN.html" "${PKG}/START-HERE-EN.html"
   !insertmacro InstallApp "ChuoSogo-Procure-Setup.exe" "Chuo-Sogo Procure"
   !insertmacro InstallApp "ChuoSogo-Shop-Setup.exe" "Chuo-Sogo Shop"
-  CreateShortCut "$DESKTOP\$(GuideName).lnk" "$INSTDIR\START-HERE.html"
+  ${If} $LANGUAGE == ${LANG_JAPANESE}
+    CreateShortCut "$DESKTOP\$(GuideName).lnk" "$INSTDIR\START-HERE.html"
+  ${Else}
+    CreateShortCut "$DESKTOP\$(GuideName).lnk" "$INSTDIR\START-HERE-EN.html"
+  ${EndIf}
   ; Removes only the guide and its shortcut; each app has its own entry in Apps & features.
   WriteUninstaller "$INSTDIR\uninstall.exe"
   WriteRegStr HKCU "${UNINST_KEY}" "DisplayName" "$(GuideName)"
@@ -77,6 +86,7 @@ SectionEnd
 Section "Uninstall"
   Delete "$DESKTOP\$(GuideName).lnk"
   Delete "$INSTDIR\START-HERE.html"
+  Delete "$INSTDIR\START-HERE-EN.html"
   Delete "$INSTDIR\uninstall.exe"
   RMDir "$INSTDIR"
   DeleteRegKey HKCU "${UNINST_KEY}"

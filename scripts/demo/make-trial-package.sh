@@ -24,7 +24,7 @@ gh run download "$4" -D "$DL/mob-shop"
 
 PKG="$OUT/ChuoSogo-Trial-$VERSION"
 rm -rf "$OUT"
-mkdir -p "$PKG/Windows" "$PKG/Mac" "$PKG/Android"
+mkdir -p "$PKG/Windows" "$PKG/Mac" "$PKG/Android" "$PKG/Linux"
 one() { # exactly one file matching the pattern under a directory
   local found
   mapfile -t found < <(find "$1" -type f -name "$2")
@@ -36,11 +36,16 @@ for app in business:Procure shop:Shop; do
   cp "$(one "$DL/desk-$kind" '*-setup.exe')" "$PKG/Windows/ChuoSogo-$name-Setup.exe"
   cp "$(one "$DL/desk-$kind" '*.dmg')" "$PKG/Mac/ChuoSogo-$name.dmg"
   cp "$(one "$DL/mob-$kind" '*.apk')" "$PKG/Android/ChuoSogo-$name.apk"
+  cp "$(one "$DL/desk-$kind" '*.AppImage')" "$PKG/Linux/ChuoSogo-$name.AppImage"
 done
-cp scripts/demo/trial-guide.html "$PKG/START-HERE.html"
+# Guides in Japanese and English (HTML to open, PDF to print or forward).
+python3 scripts/demo/make-guides.py "$DL/guides" >/dev/null
+cp "$DL/guides/guide-ja.html" "$PKG/START-HERE.html"
+cp "$DL/guides/guide-en.html" "$PKG/START-HERE-EN.html"
+cp "$DL/guides/"ChuoSogo-Trial-Guide-*.pdf "$PKG/"
 
 # The demo address must be inside every app (an installer without it would connect nowhere).
-for f in "$PKG"/Windows/*.exe "$PKG"/Mac/*.dmg "$PKG"/Android/*.apk; do
+for f in "$PKG"/Windows/*.exe "$PKG"/Mac/*.dmg "$PKG"/Android/*.apk "$PKG"/Linux/*.AppImage; do
   x="$(mktemp -d "$DL/x.XXXXXX")"
   7z x -y -o"$x" "$f" >/dev/null
   # The Windows setup holds the app exe in its own archive layer.
@@ -60,13 +65,15 @@ out, top = sys.argv[1], sys.argv[2]
 root = os.path.join(out, top)
 def pack(name, parts):
     with zipfile.ZipFile(os.path.join(out, name), "w", zipfile.ZIP_DEFLATED) as z:
-        z.write(os.path.join(root, "START-HERE.html"), f"{top}/START-HERE.html")
+        for f in sorted(os.listdir(root)):
+            if os.path.isfile(os.path.join(root, f)):
+                z.write(os.path.join(root, f), f"{top}/{f}")
         for part in parts:
             for f in sorted(os.listdir(os.path.join(root, part))):
                 z.write(os.path.join(root, part, f), f"{top}/{part}/{f}")
-for part in ("Windows", "Mac", "Android"):
+for part in ("Windows", "Mac", "Android", "Linux"):
     pack(f"{top}-{part}.zip", [part])
-pack(f"{top}-All.zip", ["Windows", "Mac", "Android"])
+pack(f"{top}-All.zip", ["Windows", "Mac", "Android", "Linux"])
 EOF
 # Windows: one installer for both apps and the guide.
 makensis -V2 -DVERSION="$VERSION" -DPKG="$PWD/$PKG" -DOUTFILE="$PWD/$OUT/ChuoSogo-Trial-$VERSION-Setup.exe" \
