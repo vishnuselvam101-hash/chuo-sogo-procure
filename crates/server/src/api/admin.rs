@@ -37,7 +37,7 @@ const ISSUER: &str = "Chuo-Sogo Procure Admin";
 /// network, caller holds a role in the platform (Chuo-Sogo) organisation.
 pub struct AdminPrincipal(pub Principal);
 
-fn network_allowed(state: &AppState, ip: &str) -> bool {
+pub(crate) fn network_allowed(state: &AppState, ip: &str) -> bool {
     match &state.admin_networks {
         // Only for in-process tests (no peer address); production always has a list.
         None => true,

@@ -3,12 +3,15 @@
 // a supplier with approved products and photos, an open shop with a consumer order and
 // invoices. Everything is fictional and marked as demo. Prints the demo accounts as JSON.
 //   DEMO_API (http://127.0.0.1:8090), DEMO_OUTBOX, DEMO_ROOT_TOKEN, DEMO_PHOTOS, DEMO_PASSWORD
-import { createHmac } from "node:crypto";
+import { createHmac, randomBytes } from "node:crypto";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const { DEMO_API, DEMO_OUTBOX, DEMO_ROOT_TOKEN, DEMO_PHOTOS, DEMO_PASSWORD } = process.env;
 const PASSWORD = DEMO_PASSWORD;
+// The platform super-admin never shares the trial password: its own random one, kept only in
+// the owner-only accounts file (and app sign-in for it only works from the admin networks).
+const ROOT_PASSWORD = `Root-${randomBytes(18).toString("base64url")}`;
 
 async function call(method, path, token, body) {
   const res = await fetch(`${DEMO_API}${path}`, {
@@ -34,9 +37,9 @@ function mailedToken(email) {
   }
   throw new Error(`no activation mail for ${email}`);
 }
-async function activate(email, token = mailedToken(email)) {
-  await v1("POST", "/auth/set-password", null, { token, password: PASSWORD });
-  return (await v1("POST", "/auth/login", null, { email, password: PASSWORD })).token;
+async function activate(email, token = mailedToken(email), password = PASSWORD) {
+  await v1("POST", "/auth/set-password", null, { token, password });
+  return (await v1("POST", "/auth/login", null, { email, password })).token;
 }
 async function member(org, by, email, name, role) {
   await v1("POST", `/orgs/${org}/members`, by, { email, display_name: name, role });
@@ -67,9 +70,9 @@ const photo = (f) => readFileSync(join(DEMO_PHOTOS, f)).toString("base64");
 
 // --- Chuo-Sogo (platform) ---------------------------------------------------------------
 const ROOT = "admin@demo.chuo-sogo.example";
-const root = await activate(ROOT, DEMO_ROOT_TOKEN);
+const root = await activate(ROOT, DEMO_ROOT_TOKEN, ROOT_PASSWORD);
 const platform = (await v1("GET", "/me", root)).memberships[0].org_id;
-const step = await admin("POST", "/auth/login", null, { email: ROOT, password: PASSWORD });
+const step = await admin("POST", "/auth/login", null, { email: ROOT, password: ROOT_PASSWORD });
 const { secret, otpauth_uri } = await admin("POST", "/auth/totp/enroll", null, { token: step.token });
 const staff = (await admin("POST", "/auth/totp/confirm", null, { token: step.token, code: totp(secret) })).token;
 const operator = await member(platform, root, "operator@demo.chuo-sogo.example", "調達担当 鈴木", "procurement_operator");
@@ -217,7 +220,7 @@ await admin("POST", `/shop/orders/${order.id}/action`, staff, { action: "confirm
 console.log(
   JSON.stringify({
     password: PASSWORD,
-    admin: { email: ROOT, authenticator: otpauth_uri, secret },
+    admin: { email: ROOT, password: ROOT_PASSWORD, authenticator: otpauth_uri, secret },
     business: {
       company: "サンプル精機株式会社",
       ceo: "ceo@demo-customer.example",

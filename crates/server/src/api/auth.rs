@@ -4,7 +4,7 @@ use axum::Json;
 use axum::extract::State;
 use axum::http::StatusCode;
 use chrono::{DateTime, Duration, Utc};
-use procure_domain::rbac::{self, OrgKind};
+use procure_domain::rbac::{self, OrgKind, Role};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use uuid::Uuid;
@@ -178,12 +178,12 @@ pub async fn check_password(
     if email.len() > 254 || password.len() > security::MAX_PASSWORD_BYTES {
         return Err(ApiError::InvalidCredentials);
     }
-    if !state
+    if !state.limiter.check(
+        &format!("login-ip:{}", ratelimit::ip_key(ip)),
+        &ratelimit::LOGIN_PER_IP,
+    ) || !state
         .limiter
-        .check(&format!("login-ip:{ip}"), &ratelimit::LOGIN_PER_IP)
-        || !state
-            .limiter
-            .check(&format!("login-email:{email}"), &ratelimit::LOGIN_PER_EMAIL)
+        .check(&format!("login-email:{email}"), &ratelimit::LOGIN_PER_EMAIL)
     {
         return Err(ApiError::RateLimited);
     }
@@ -256,6 +256,18 @@ pub async fn login(
     let user_id = check_password(&state, &ip, &req.email, req.password).await?;
     let now = Utc::now();
     let mut tx = db::auth_tx(&state.pool).await?;
+    let memberships = load_memberships(&mut tx, user_id).await?;
+    // The platform super-admin signs in to the apps only from the admin networks (the same
+    // ones the admin console is limited to), so a leaked or shared password used from the
+    // internet cannot act on every organisation. Same answer as a wrong password.
+    if memberships
+        .iter()
+        .any(|m| m.role == Role::PlatformSuperAdmin)
+        && !super::admin::network_allowed(&state, &ip)
+    {
+        tracing::warn!(%user_id, "super-admin app login refused outside the admin networks");
+        return Err(ApiError::InvalidCredentials);
+    }
     let (token, token_hash) = security::new_token();
     let expires_at = now + SESSION_TTL;
     sqlx::query(
@@ -267,7 +279,6 @@ pub async fn login(
     .bind(expires_at)
     .execute(&mut *tx)
     .await?;
-    let memberships = load_memberships(&mut tx, user_id).await?;
     let me = me_view(&mut tx, user_id, &memberships).await?;
     tx.commit().await?;
     tracing::info!(%user_id, "login");
@@ -392,10 +403,10 @@ pub async fn request_password_reset(
     ApiJson(req): ApiJson<ResetRequest>,
 ) -> ApiResult<StatusCode> {
     let email = req.email.trim().to_lowercase();
-    if !state
-        .limiter
-        .check(&format!("reset-ip:{ip}"), &ratelimit::RESET_PER_IP)
-    {
+    if !state.limiter.check(
+        &format!("reset-ip:{}", ratelimit::ip_key(&ip)),
+        &ratelimit::RESET_PER_IP,
+    ) {
         return Err(ApiError::RateLimited);
     }
     // Per-email limit is silent (still 202) so it does not confirm the address exists.
@@ -484,10 +495,10 @@ pub async fn set_password(
     ClientIp(ip): ClientIp,
     ApiJson(req): ApiJson<SetPasswordRequest>,
 ) -> ApiResult<StatusCode> {
-    if !state
-        .limiter
-        .check(&format!("setpw-ip:{ip}"), &ratelimit::SET_PASSWORD_PER_IP)
-    {
+    if !state.limiter.check(
+        &format!("setpw-ip:{}", ratelimit::ip_key(&ip)),
+        &ratelimit::SET_PASSWORD_PER_IP,
+    ) {
         return Err(ApiError::RateLimited);
     }
     security::validate_password(&req.password).map_err(ApiError::Validation)?;

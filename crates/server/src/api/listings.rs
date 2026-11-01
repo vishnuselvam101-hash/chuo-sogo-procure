@@ -741,6 +741,7 @@ pub async fn upload_media(
     .fetch_one(&mut *tx)
     .await?;
     let position = position.ok_or(ApiError::Validation("too_many_files"))?;
+    storage::check_org_quota(&state, &mut tx, org_id, bytes.len()).await?;
     mark_edited(&mut tx, id, from).await?;
     let hash = state
         .storage

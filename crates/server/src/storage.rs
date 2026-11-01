@@ -110,6 +110,33 @@ impl Storage {
     }
 }
 
+/// Refuses an upload of `adding` bytes that would take the organisation over its storage quota
+/// (request attachments plus listing photos and documents). Runs in the caller's tenant
+/// transaction, so it counts exactly what that organisation holds.
+pub async fn check_org_quota(
+    state: &crate::AppState,
+    tx: &mut crate::db::Tx,
+    org_id: uuid::Uuid,
+    adding: usize,
+) -> Result<(), crate::error::ApiError> {
+    let Some(quota) = state.org_storage_quota else {
+        return Ok(());
+    };
+    let used: i64 = sqlx::query_scalar(
+        "SELECT (SELECT coalesce(sum(size_bytes), 0) FROM attachments
+                 WHERE org_id = $1 AND removed_at IS NULL)::bigint
+              + (SELECT coalesce(sum(size_bytes), 0) FROM listing_media WHERE org_id = $1)::bigint",
+    )
+    .bind(org_id)
+    .fetch_one(&mut **tx)
+    .await?;
+    let adding = i64::try_from(adding).unwrap_or(i64::MAX);
+    if used.saturating_add(adding) > quota {
+        return Err(crate::error::ApiError::Validation("storage_quota"));
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

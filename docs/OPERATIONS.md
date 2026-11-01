@@ -66,3 +66,19 @@ not configured (external communication needs the founder's approval).
 `scripts/gate.sh full` (Semgrep, Gitleaks, Trivy, cargo/pnpm audit, all tests) and
 `scripts/zap-api-scan.sh` (OWASP ZAP authenticated API scan). A clean scan is not proof of
 security; see `docs/security/`.
+
+## Trial demo server
+
+A separate, public instance for trial users (`scripts/demo/install-demo.sh`, as root): unit
+`procure-demo.service` on 127.0.0.1:8090, published with
+`tailscale funnel --bg --https=8443 http://127.0.0.1:8090`. It runs as its own user
+(`procure-demo`) with its own database (`procure_demo`) and logins, which cannot connect to
+`procure_live`; it cannot see `/var/lib/procure` or `/etc/procure/procure.env`. No speech-to-text,
+200 MB of files per organisation, no shop self sign-up, CPU and task limits.
+
+- Accounts: `/root/procure-demo-accounts.json` (0600). Trial accounts share one password; the
+  super-admin has its own and signs in only from Tailscale or this machine.
+- Every night at 03:00 JST `procure-demo-reset.timer` wipes and re-seeds the data, keeping the
+  shared password. By hand: `install-demo.sh --reset` (add `--new-password` to rotate it).
+- Trial package: `scripts/demo/make-trial-package.sh <desktop-business> <desktop-shop>
+  <mobile-business> <mobile-shop>` (GitHub run ids dispatched with `server=<demo address>`).

@@ -125,6 +125,7 @@
     "listing_incomplete": "The listing is not complete yet (see the checklist).",
     "photo_too_small": "Photo too small: at least 1200 px on the long side (and not a narrow strip).",
     "too_many_files": "Too many files: at most 5 photos and 5 documents.",
+    "storage_quota": "Your organisation's file storage is full. Remove files you no longer need.",
     "not_draft": "Only drafts that were never reviewed can be deleted; retire it instead.",
     "condition": "Choose a condition.",
     "stock": "Stock must be a whole number (at most 1 with a serial number).",

@@ -50,6 +50,18 @@ impl RateLimiter {
     }
 }
 
+/// The rate-limit key for a client address: IPv6 clients are counted per /64 (one customer
+/// network usually owns a whole /64, so per-address limits alone are easy to sidestep).
+pub fn ip_key(ip: &str) -> String {
+    match ip.parse::<std::net::IpAddr>() {
+        Ok(std::net::IpAddr::V6(v6)) => {
+            let s = v6.segments();
+            format!("{:x}:{:x}:{:x}:{:x}::/64", s[0], s[1], s[2], s[3])
+        }
+        _ => ip.to_string(),
+    }
+}
+
 pub const LOGIN_PER_IP: Limit = Limit {
     max: 20,
     window: Duration::from_secs(60),
@@ -109,5 +121,16 @@ mod tests {
         assert!(!rl.check_at("k", &limit, t0));
         assert!(rl.check_at("other", &limit, t0));
         assert!(rl.check_at("k", &limit, t0 + Duration::from_secs(11)));
+    }
+
+    #[test]
+    fn ipv6_clients_share_their_64() {
+        assert_eq!(
+            ip_key("2001:db8:1:2:aaaa::1"),
+            ip_key("2001:db8:1:2:ffff::9")
+        );
+        assert_ne!(ip_key("2001:db8:1:2::1"), ip_key("2001:db8:1:3::1"));
+        assert_eq!(ip_key("203.0.113.7"), "203.0.113.7");
+        assert_eq!(ip_key("unknown"), "unknown");
     }
 }

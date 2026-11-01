@@ -63,6 +63,20 @@
 | SF-059 | 2026-11-01 | ZAP: some responses without `X-Content-Type-Options` / `Cross-Origin-Resource-Policy` | Low | V14 | Fixed | headers on every response (plus `Cache-Control: no-store` unless set); re-scan clean |
 | SF-060 | 2026-11-01 | Backups held only the database (no stored files) and were never verified | Medium | V8 | Fixed | files + checksums in every backup; restore drill + `procure-server verify`; daily integrity timer |
 | SF-061 | 2026-11-01 | Backups could not succeed: row-level security is forced for the table owner, so the nightly `pg_dump` as owner fails (no backup existed) | High | V8 | Fixed (needs install) | dedicated read-only `procure_backup` role with BYPASSRLS for dumps; restore as superuser; drill + verify |
+| SF-062 | 2026-11-01 | Public demo: the shared trial password was also the platform super-admin's, and app sign-in (`/api/v1`) needs no second factor, so anyone with the guide could act on every organisation | High | V6/V8 | Fixed (needs demo reinstall) | super-admin app sign-in refused outside `PROCURE_ADMIN_ALLOWED_CIDRS`; demo super-admin gets its own random password; test `demo_hardening` |
+| SF-063 | 2026-11-01 | Demo shared the live database logins (could connect to `procure_live`) and Unix user (could read live files) | Medium | V14 | Fixed (needs demo reinstall) | own roles `procure_demo_owner`/`procure_demo_app`; CONNECT on `procure_live` revoked from PUBLIC; user `procure-demo`; `InaccessiblePaths` |
+| SF-064 | 2026-11-01 | Uploads unbounded per organisation; a demo account could fill the disk shared with production | Medium | V12 | Fixed | `PROCURE_ORG_STORAGE_QUOTA_MB` (demo: 200 MB); test `demo_hardening` |
+| SF-065 | 2026-11-01 | Demo ran speech-to-text (ffmpeg + whisper) on internet input with no CPU limit | Medium | V12 | Fixed | STT not configured on the demo; `CPUQuota=150%`, `TasksMax=256` |
+| SF-066 | 2026-11-01 | Per-IP limits counted single IPv6 addresses (easy to rotate); demo shop sign-up open to the internet | Low | V2 | Fixed | limits keyed per IPv6 /64; `PROCURE_SHOP_SIGNUP=off` on the demo |
+| SF-067 | 2026-11-01 | No HSTS on HTTPS responses | Low | V9 | Fixed | `Strict-Transport-Security: max-age=31536000` on every response |
+| SF-068 | 2026-11-01 | Build-time server preset not validated (newline could inject cargo directives; http accepted) | Low | V14 | Fixed | `build.rs` accepts only one-line `https://` (or local http) |
+| SF-069 | 2026-11-01 | Trial package could ship installers without the demo address or from an unknown commit | Low | V14 | Fixed | package script checks every installer for the address and records run, branch and commit |
+
+## Residual risk (trial demo)
+- Trial accounts share one password; anyone holding it can lock an account for 15 minutes (10 failures) or change shared demo data. Mitigation: nightly reset at 03:00 JST; one account set per trial user if abuse appears.
+- The demo admin console's authenticator secret changes with every nightly reset (re-enrol from the accounts file).
+- Installers are unsigned (Windows SmartScreen, macOS Gatekeeper warnings); Android builds are debug APKs. SHA256SUMS proves integrity only when sent over a separate channel.
+- Demo review was static plus a handful of read-only probes of the public address; no dynamic test of write paths on the public demo.
 
 ## Residual risk (Phases E–F)
 - Consumer sign-up is open to the internet once the server is public (D8): limits are per address and global; there is no CAPTCHA. Watch sign-up volume in the audit log.

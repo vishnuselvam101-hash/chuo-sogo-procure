@@ -118,6 +118,7 @@ pub async fn upload(
     if count >= MAX_ATTACHMENTS_PER_REQUEST {
         return Err(ApiError::Validation("too_many_attachments"));
     }
+    storage::check_org_quota(&state, &mut tx, org_id, bytes.len()).await?;
     // Bytes first (content-addressed, idempotent): a failed transaction leaves at most an
     // unreferenced file, never a row pointing at nothing.
     let hash = state

@@ -1,0 +1,10 @@
+# Nightly clean slate for the public DEMO (procure-demo-reset.timer): wipes and re-seeds the
+# sample data, keeping the shared trial password. Installed by scripts/demo/install-demo.sh,
+# which fills in the repository path.
+[Unit]
+Description=Chuo-Sogo Procure DEMO nightly reset
+After=postgresql.service procure-demo.service
+
+[Service]
+Type=oneshot
+ExecStart=@REPO@/scripts/demo/install-demo.sh --reset

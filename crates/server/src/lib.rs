@@ -62,6 +62,12 @@ pub struct AppState {
     /// Speech-to-text for voice notes (`PROCURE_STT_COMMAND` + `PROCURE_STT_MODEL`); voice
     /// input is unavailable without it.
     pub transcriber: Option<Arc<dyn intake::Transcriber>>,
+    /// Total bytes of uploaded files one organisation may keep (`PROCURE_ORG_STORAGE_QUOTA_MB`);
+    /// unlimited when unset. Set on the public demo so one account cannot fill the disk.
+    pub org_storage_quota: Option<i64>,
+    /// Consumer self sign-up in the shop (`PROCURE_SHOP_SIGNUP=off` turns it off, e.g. on the
+    /// public demo, where nobody can receive the activation mail anyway).
+    pub shop_signup: bool,
 }
 
 impl AppState {
@@ -84,6 +90,12 @@ impl AppState {
             )),
             pdf_font: None,
             transcriber: None,
+            org_storage_quota: std::env::var("PROCURE_ORG_STORAGE_QUOTA_MB")
+                .ok()
+                .and_then(|v| v.trim().parse::<i64>().ok())
+                .filter(|mb| *mb > 0)
+                .map(|mb| mb.saturating_mul(1024 * 1024)),
+            shop_signup: std::env::var("PROCURE_SHOP_SIGNUP").as_deref() != Ok("off"),
         }
     }
 }
@@ -626,6 +638,12 @@ pub fn router(state: AppState) -> Router {
         .layer(SetResponseHeaderLayer::if_not_present(
             header::CACHE_CONTROL,
             HeaderValue::from_static("no-store"),
+        ))
+        // HTTPS only from now on when served through a TLS proxy (Tailscale, Caddy); browsers
+        // ignore it on plain-HTTP responses, so local development is unaffected.
+        .layer(SetResponseHeaderLayer::if_not_present(
+            header::STRICT_TRANSPORT_SECURITY,
+            HeaderValue::from_static("max-age=31536000"),
         ))
         .layer(SetSensitiveRequestHeadersLayer::new([
             header::AUTHORIZATION,

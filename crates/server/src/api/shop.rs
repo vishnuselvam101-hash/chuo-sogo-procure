@@ -264,10 +264,13 @@ pub async fn signup(
     ClientIp(ip): ClientIp,
     ApiJson(b): ApiJson<SignupBody>,
 ) -> ApiResult<(StatusCode, Json<SignupResponse>)> {
-    if !state
-        .limiter
-        .check(&format!("signup:{ip}"), &ratelimit::SIGNUP_PER_IP)
-        || !state.limiter.check("signup:all", &ratelimit::SIGNUP_GLOBAL)
+    if !state.shop_signup {
+        return Err(ApiError::Forbidden);
+    }
+    if !state.limiter.check(
+        &format!("signup:{}", ratelimit::ip_key(&ip)),
+        &ratelimit::SIGNUP_PER_IP,
+    ) || !state.limiter.check("signup:all", &ratelimit::SIGNUP_GLOBAL)
     {
         return Err(ApiError::RateLimited);
     }

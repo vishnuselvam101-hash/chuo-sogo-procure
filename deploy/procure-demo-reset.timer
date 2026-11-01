@@ -1,0 +1,9 @@
+[Unit]
+Description=Reset the Chuo-Sogo Procure DEMO every night (03:00 JST)
+
+[Timer]
+OnCalendar=*-*-* 18:00:00 UTC
+Persistent=false
+
+[Install]
+WantedBy=timers.target
