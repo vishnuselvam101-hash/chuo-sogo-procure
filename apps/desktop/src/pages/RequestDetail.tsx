@@ -12,6 +12,8 @@ import { Attachments } from "./Attachments";
 import { ProductPanel } from "./Products";
 import { VerifyItem } from "./VerifyItem";
 import { AiItems } from "./AiItems";
+import { Comments } from "./Comments";
+import { StaffPanel } from "./StaffPanel";
 import { P } from "../lib/perm";
 
 const EDITABLE = ["draft", "needs_clarification"];
@@ -204,6 +206,9 @@ export function RequestDetail({ active, selfId, requestId, onBack }: Props) {
           <ErrorText code={action.error} />
         </div>
       )}
+
+      <Comments active={active} requestId={r.id} />
+      {operator && has(P.operateRequests) && <StaffPanel active={active} requestId={r.id} selfId={selfId} />}
 
       <Attachments
         active={active}

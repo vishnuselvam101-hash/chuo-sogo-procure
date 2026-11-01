@@ -101,7 +101,14 @@
     "approve": "Approved",
     "reject": "Rejected",
     "clarify": "Asked a question",
-    "retired": "Retired"
+    "retired": "Retired",
+    "open": "Open",
+    "in_progress": "In progress",
+    "done": "Done",
+    "low": "Low",
+    "normal": "Normal",
+    "high": "High",
+    "urgent": "Urgent"
   },
   "orgs": {
     "create": "Create customer organisation",

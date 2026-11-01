@@ -17,8 +17,10 @@ import { Requests } from "./pages/Requests";
 import { Suppliers } from "./pages/Suppliers";
 import { Approvals } from "./pages/Approvals";
 import { Products } from "./pages/Products";
+import { OpsQueue } from "./pages/OpsQueue";
 
 const HOME: PageId = "dashboard";
+const PROCUREMENT: PageId = "procurement";
 const HOME_LABEL = "nav.dashboard";
 
 /** Stand-in context while the user only has pending invitations. */
@@ -55,6 +57,7 @@ export function App() {
   const [me, setMe] = useState<Me | null>(null);
   const [activeOrgId, setActiveOrgId] = useState<string | null>(null);
   const [page, setPage] = useState<PageId>(HOME);
+  const [openRequest, setOpenRequest] = useState<string | null>(null);
 
   useEffect(() => {
     void bridge.prefsGet().then(setPrefs);
@@ -113,10 +116,30 @@ export function App() {
       body = <Dashboard me={me} active={active} onChanged={() => void refreshMe()} />;
       break;
     case "procurement":
-      body = <Requests key={active.org_id} active={active} selfId={me.user.id} />;
+      body = (
+        <Requests
+          key={`${active.org_id}-${openRequest ?? ""}`}
+          active={active}
+          selfId={me.user.id}
+          initialOpen={openRequest}
+        />
+      );
       break;
     case "suppliers":
       body = <Suppliers key={active.org_id} active={active} />;
+      break;
+    case "opsQueue":
+      body = (
+        <OpsQueue
+          selfId={me.user.id}
+          timezone={active.timezone}
+          onOpen={(orgId, requestId) => {
+            setActiveOrgId(orgId);
+            setOpenRequest(requestId);
+            setPage(PROCUREMENT);
+          }}
+        />
+      );
       break;
     case "products":
       body = <Products key={active.org_id} active={active} />;
@@ -155,7 +178,10 @@ export function App() {
         active={active}
         page={current?.id ?? HOME}
         language={language}
-        onNavigate={setPage}
+        onNavigate={(p) => {
+          setOpenRequest(null);
+          setPage(p);
+        }}
         onSwitchOrg={(id) => {
           setActiveOrgId(id);
           setPage(HOME);

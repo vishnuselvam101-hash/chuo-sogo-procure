@@ -103,6 +103,22 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/ops/queue": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["queue"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/orgs/{org_id}/ai/suggestions/{suggestion_id}": {
     parameters: {
       query?: never;
@@ -487,6 +503,38 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/orgs/{org_id}/requests/{request_id}/comments": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["list_comments"];
+    put?: never;
+    post: operations["add_comment"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/orgs/{org_id}/requests/{request_id}/communications": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["list_communications"];
+    put?: never;
+    post: operations["log_communication"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/orgs/{org_id}/requests/{request_id}/items": {
     parameters: {
       query?: never;
@@ -609,6 +657,38 @@ export interface paths {
     get?: never;
     put?: never;
     post: operations["submit"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/orgs/{org_id}/requests/{request_id}/tasks": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["request_tasks"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/orgs/{org_id}/requests/{request_id}/time": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["list_time"];
+    put?: never;
+    post: operations["log_time"];
     delete?: never;
     options?: never;
     head?: never;
@@ -757,6 +837,38 @@ export interface paths {
     options?: never;
     head?: never;
     patch?: never;
+    trace?: never;
+  };
+  "/api/v1/orgs/{org_id}/tasks": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["create_task"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/orgs/{org_id}/tasks/{task_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch: operations["update_task"];
     trace?: never;
   };
   "/api/v1/platform/organisations": {
@@ -932,6 +1044,47 @@ export interface components {
     ClarificationBody: {
       question: string;
     };
+    CommentInput: {
+      body: string;
+      /** @description `customer` (default) or `internal` (staff only). */
+      visibility?: string;
+    };
+    CommentView: {
+      /** Format: uuid */
+      author_id: string;
+      author_name?: string | null;
+      body: string;
+      /** Format: date-time */
+      created_at: string;
+      /** Format: uuid */
+      id: string;
+      /** @description `customer` (shared) or `internal` (Chuo-Sogo only). */
+      visibility: string;
+    };
+    CommunicationInput: {
+      /** @description `email`, `phone`, `meeting`, `chat` or `other`. */
+      channel: string;
+      /** @description `inbound` or `outbound`. */
+      direction: string;
+      /** Format: date-time */
+      occurred_at?: string | null;
+      summary: string;
+      /** Format: uuid */
+      supplier_id?: string | null;
+    };
+    CommunicationView: {
+      channel: string;
+      direction: string;
+      /** Format: uuid */
+      id: string;
+      /** Format: date-time */
+      occurred_at: string;
+      recorded_by_name?: string | null;
+      summary: string;
+      /** Format: uuid */
+      supplier_id?: string | null;
+      supplier_name?: string | null;
+    };
     /** @description One quotation's evaluation inside a stored comparison run. */
     ComparisonResult: {
       /** @description `compliant`, `needs_review`, `incomplete` or `non_compliant`. */
@@ -1062,6 +1215,21 @@ export interface components {
       /** Format: uuid */
       supplier_id: string;
       text: string;
+    };
+    FollowUp: {
+      /** Format: uuid */
+      org_id: string;
+      org_name: string;
+      /** Format: uuid */
+      request_id: string;
+      request_number: string;
+      /** Format: date */
+      response_due: string;
+      /** Format: uuid */
+      rfq_id: string;
+      rfq_number: string;
+      /** @description Suppliers that have not answered yet. */
+      waiting_on: string[];
     };
     IdResponse: {
       /** Format: uuid */
@@ -1235,6 +1403,17 @@ export interface components {
       status: string;
       /** Format: date-time */
       verified_at?: string | null;
+    };
+    Queue: {
+      /** @description Sent RFQs past their response date with suppliers still silent. */
+      follow_ups: components["schemas"]["FollowUp"][];
+      /** @description Open tasks, overdue first, then by due time. */
+      tasks: components["schemas"]["QueueTask"][];
+    };
+    QueueTask: components["schemas"]["TaskView"] & {
+      org_name: string;
+      /** @description The customer's timezone, for showing due times as the customer counts them. */
+      org_timezone: string;
     };
     QuotationInput: {
       /**
@@ -1527,6 +1706,58 @@ export interface components {
       updated_at: string;
       website?: string | null;
     };
+    TaskInput: {
+      /** Format: uuid */
+      assignee_id?: string | null;
+      /** Format: date-time */
+      due_at?: string | null;
+      /**
+       * Format: date
+       * @description Alternative to `due_at`: end of this day in the customer's timezone.
+       */
+      due_date?: string | null;
+      kind: string;
+      priority?: string;
+      /** Format: uuid */
+      request_id?: string | null;
+      title: string;
+    };
+    TaskUpdate: {
+      /**
+       * Format: uuid
+       * @description Use `assign_to_me` to take a task; assigning someone else needs AssignWork.
+       */
+      assignee_id?: string | null;
+      /** Format: date-time */
+      due_at?: string | null;
+      priority?: string | null;
+      status?: string | null;
+      unassign?: boolean;
+    };
+    TaskView: {
+      /** Format: uuid */
+      assignee_id?: string | null;
+      assignee_name?: string | null;
+      /** Format: date-time */
+      completed_at?: string | null;
+      /** Format: date-time */
+      created_at: string;
+      /** Format: date-time */
+      due_at?: string | null;
+      /** Format: uuid */
+      id: string;
+      kind: string;
+      /** Format: uuid */
+      org_id: string;
+      /** @description Open and past its due time. */
+      overdue: boolean;
+      priority: string;
+      /** Format: uuid */
+      request_id?: string | null;
+      request_number?: string | null;
+      status: string;
+      title: string;
+    };
     TierView: {
       /** Format: int32 */
       approvals: number;
@@ -1535,6 +1766,34 @@ export interface components {
        * @description Threshold in minor units of the policy currency (inclusive).
        */
       min_minor: number;
+    };
+    TimeEntryView: {
+      /** Format: uuid */
+      id: string;
+      /** Format: int32 */
+      minutes: number;
+      note: string;
+      /** Format: uuid */
+      task_id?: string | null;
+      /** Format: uuid */
+      user_id: string;
+      user_name?: string | null;
+      /** Format: date */
+      work_date: string;
+    };
+    TimeInput: {
+      /** Format: int32 */
+      minutes: number;
+      note?: string;
+      /** Format: uuid */
+      task_id?: string | null;
+      /** Format: date */
+      work_date?: string | null;
+    };
+    TimeSheet: {
+      entries: components["schemas"]["TimeEntryView"][];
+      /** Format: int64 */
+      total_minutes: number;
     };
     UpdateMemberRequest: {
       role?: string | null;
@@ -1838,6 +2097,56 @@ export interface operations {
       };
       /** @description No valid session */
       401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  queue: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Only tasks assigned to me (default: mine and unassigned). */
+        mine: boolean;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Work queue across assigned customer organisations */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Queue"];
+        };
+      };
+      /** @description Malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not internal staff */
+      403: {
         headers: {
           [name: string]: unknown;
         };
@@ -3764,6 +4073,268 @@ export interface operations {
       };
     };
   };
+  list_comments: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+        request_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Comments visible to the caller, oldest first */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CommentView"][];
+        };
+      };
+      /** @description Malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown or not visible */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  add_comment: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+        request_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CommentInput"];
+      };
+    };
+    responses: {
+      /** @description Comment added */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["IdResponse"];
+        };
+      };
+      /** @description Malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Internal notes are for Chuo-Sogo staff only */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown or not visible */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Empty or too long */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  list_communications: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+        request_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Supplier communications (staff) */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CommunicationView"][];
+        };
+      };
+      /** @description Malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not assigned staff */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown request */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  log_communication: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+        request_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CommunicationInput"];
+      };
+    };
+    responses: {
+      /** @description Communication logged */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["IdResponse"];
+        };
+      };
+      /** @description Malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not assigned staff */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown request */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
   add_item: {
     parameters: {
       query?: never;
@@ -4445,6 +5016,196 @@ export interface operations {
       };
     };
   };
+  request_tasks: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+        request_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Tasks of the request (staff) */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["TaskView"][];
+        };
+      };
+      /** @description Malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not assigned staff */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown request */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  list_time: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+        request_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Service time on the request (staff) */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["TimeSheet"];
+        };
+      };
+      /** @description Malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not assigned staff */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown request */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  log_time: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+        request_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["TimeInput"];
+      };
+    };
+    responses: {
+      /** @description Time recorded */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["IdResponse"];
+        };
+      };
+      /** @description Malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not assigned staff */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown request */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Invalid minutes, date or task */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
   get_rfq: {
     parameters: {
       query?: never;
@@ -5063,6 +5824,156 @@ export interface operations {
         };
       };
       /** @description Supplier is not verified */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  create_task: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["TaskInput"];
+      };
+    };
+    responses: {
+      /** @description Task created */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["IdResponse"];
+        };
+      };
+      /** @description Malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not assigned staff, or may not assign others */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown request or organisation */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Invalid input or assignee */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  update_task: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+        task_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["TaskUpdate"];
+      };
+    };
+    responses: {
+      /** @description Updated */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown task */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Task already closed */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Invalid input or assignee */
       422: {
         headers: {
           [name: string]: unknown;

@@ -180,6 +180,13 @@ pub async fn transition(
     .bind(to.code())
     .execute(&mut **tx)
     .await?;
+    // Out of Chuo-Sogo's hands: open automatic tasks (and their deadlines) stop.
+    if matches!(
+        to,
+        RequestStatus::Cancelled | RequestStatus::Rejected | RequestStatus::NeedsClarification
+    ) {
+        crate::api::ops::cancel_auto_tasks(tx, req.id).await?;
+    }
     if let Value::Object(m) = &mut data {
         m.insert("from".into(), from.code().into());
         m.insert("to".into(), to.code().into());

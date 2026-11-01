@@ -1847,3 +1847,507 @@ async fn ai_calls_are_rate_limited_per_user(pool: PgPool) {
             .await;
     assert_eq!(r.status, StatusCode::TOO_MANY_REQUESTS);
 }
+
+// ------------------------------------------------------------------------------------
+// Phase 4: managed operations
+
+#[sqlx::test(migrator = "procure_server::MIGRATOR")]
+async fn ops_queue_auto_tasks_and_follow_ups(pool: PgPool) {
+    let f = Flow::new(pool).await;
+    let app = &f.w.app;
+    let (request, items) = f.submitted(&f.requester).await;
+    // Submitting opened an "identify" task with a 24 h service level.
+    let q = app.get("/api/v1/ops/queue", &f.operator).await;
+    assert_eq!(q.status, StatusCode::OK, "{:?}", q.body);
+    let tasks = q.body["tasks"].as_array().unwrap();
+    assert_eq!(tasks.len(), 1);
+    assert_eq!(tasks[0]["kind"], "identify");
+    assert_eq!(tasks[0]["org_name"], "株式会社エー製作所");
+    assert_eq!(tasks[0]["overdue"], false);
+    // Customers have no work queue; unassigned staff see nothing of org A.
+    assert_eq!(
+        app.get("/api/v1/ops/queue", &f.manager1).await.status,
+        StatusCode::FORBIDDEN
+    );
+    let op2 =
+        f.w.member(
+            f.w.platform_org,
+            &f.w.super_admin,
+            "op2@chuo-sogo.test",
+            "procurement_operator",
+        )
+        .await;
+    assert_eq!(
+        app.get("/api/v1/ops/queue", &op2).await.body["tasks"]
+            .as_array()
+            .unwrap()
+            .len(),
+        0
+    );
+
+    // Starting sourcing completes it.
+    f.sourcing(request, &items).await;
+    let t = app
+        .get(&f.url(&format!("requests/{request}/tasks")), &f.operator)
+        .await;
+    assert_eq!(t.body[0]["status"], "done");
+
+    // An RFQ whose response date has passed: overdue chase task + follow-up entry.
+    let r = f
+        .post_op(
+            &format!("requests/{request}/rfqs"),
+            json!({ "supplier_ids": [f.s1, f.s2], "response_due": "2026-10-01" }),
+        )
+        .await;
+    let rfq = uuid(&r.body["id"]);
+    f.ok(f.post_op(&format!("rfqs/{rfq}/dispatch"), json!({})).await);
+    let q = app.get("/api/v1/ops/queue", &f.operator).await;
+    let chase = q.body["tasks"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|t| t["kind"] == "chase_quotes")
+        .unwrap()
+        .clone();
+    assert_eq!(chase["overdue"], true);
+    assert_eq!(q.body["tasks"][0]["kind"], "chase_quotes", "overdue first");
+    let fu = &q.body["follow_ups"][0];
+    assert_eq!(fu["rfq_id"], json!(rfq));
+    assert_eq!(
+        fu["waiting_on"],
+        json!(["Osaka Motion Ltd", "Tokyo Bearings KK"])
+    );
+    // One supplier answers: only the other one is still awaited.
+    f.quote(rfq, f.s1, &items, [1200, 45_000]).await;
+    let q = app.get("/api/v1/ops/queue", &f.operator).await;
+    assert_eq!(
+        q.body["follow_ups"][0]["waiting_on"],
+        json!(["Osaka Motion Ltd"])
+    );
+    // Comparing closes the chase task.
+    f.compare(rfq).await;
+    let t = app
+        .get(&f.url(&format!("requests/{request}/tasks")), &f.operator)
+        .await;
+    assert!(
+        t.body
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|t| t["status"] == "done")
+    );
+}
+
+#[sqlx::test(migrator = "procure_server::MIGRATOR")]
+async fn ops_task_assignment_rules(pool: PgPool) {
+    let f = Flow::new(pool).await;
+    let app = &f.w.app;
+    let admin =
+        f.w.member(
+            f.w.platform_org,
+            &f.w.super_admin,
+            "padmin@chuo-sogo.test",
+            "procurement_admin",
+        )
+        .await;
+    let admin_id = f.w.user_id(&admin).await;
+    app.post(
+        &format!("/api/v1/orgs/{}/assignments", f.w.org_a),
+        &f.w.super_admin,
+        json!({ "user_id": admin_id }),
+    )
+    .await;
+    let op_id = f.w.user_id(&f.operator).await;
+    let tasks = f.url("tasks");
+    // Customers cannot create tasks.
+    let r = app
+        .post(
+            &tasks,
+            &f.w.admin_a,
+            json!({ "kind": "other", "title": "x" }),
+        )
+        .await;
+    assert_eq!(r.status, StatusCode::FORBIDDEN);
+    assert_eq!(
+        f.post_op("tasks", json!({ "kind": "nap", "title": "x" }))
+            .await
+            .status,
+        StatusCode::UNPROCESSABLE_ENTITY
+    );
+    // Operators assign themselves, not others (AssignWork is admin-only).
+    let r = f
+        .post_op(
+            "tasks",
+            json!({ "kind": "exception", "title": "Supplier bankrupt", "priority": "urgent",
+                                       "assignee_id": admin_id }),
+        )
+        .await;
+    assert_eq!(r.status, StatusCode::FORBIDDEN);
+    let r = f
+        .post_op(
+            "tasks",
+            json!({ "kind": "exception", "title": "Supplier bankrupt", "priority": "urgent",
+                                       "assignee_id": op_id }),
+        )
+        .await;
+    assert_eq!(r.status, StatusCode::CREATED, "{:?}", r.body);
+    let task = uuid(&r.body["id"]);
+    // Only assigned staff can hold tasks.
+    let r = app.post(&tasks, &admin, json!({ "kind": "other", "title": "y", "assignee_id": f.w.user_id(&f.requester).await })).await;
+    assert_eq!(r.body["error"]["detail"], "assignee");
+    let r = app
+        .patch(
+            &f.url(&format!("tasks/{task}")),
+            &admin,
+            json!({ "assignee_id": admin_id }),
+        )
+        .await;
+    assert_eq!(r.status, StatusCode::NO_CONTENT);
+    let mine = app.get("/api/v1/ops/queue?mine=true", &f.operator).await;
+    assert_eq!(mine.body["tasks"].as_array().unwrap().len(), 0);
+    let r = app
+        .patch(
+            &f.url(&format!("tasks/{task}")),
+            &admin,
+            json!({ "status": "done" }),
+        )
+        .await;
+    assert_eq!(r.status, StatusCode::NO_CONTENT);
+    let r = app
+        .patch(
+            &f.url(&format!("tasks/{task}")),
+            &admin,
+            json!({ "status": "open" }),
+        )
+        .await;
+    assert_eq!(r.body["error"]["detail"], "task_closed");
+    // Task changes are internal: audited in Chuo-Sogo's log, not the customer's.
+    let (actions, _) = f.audit_actions().await;
+    assert!(!actions.iter().any(|a| a.starts_with("task.")));
+    let r = app
+        .get(
+            &format!("/api/v1/orgs/{}/audit?limit=200", f.w.platform_org),
+            &f.w.super_admin,
+        )
+        .await;
+    let platform: Vec<_> = r.body["events"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|e| e["action"].clone())
+        .collect();
+    assert!(platform.contains(&json!("task.created")) && platform.contains(&json!("task.updated")));
+}
+
+#[sqlx::test(migrator = "procure_server::MIGRATOR")]
+async fn internal_notes_never_reach_customers(pool: PgPool) {
+    let f = Flow::new(pool).await;
+    let app = &f.w.app;
+    let (request, _) = f.submitted(&f.requester).await;
+    let comments = f.url(&format!("requests/{request}/comments"));
+    let r = app
+        .post(
+            &comments,
+            &f.requester,
+            json!({ "body": "Need these by Friday please" }),
+        )
+        .await;
+    assert_eq!(r.status, StatusCode::CREATED, "{:?}", r.body);
+    // Customers cannot write internal notes.
+    let r = app
+        .post(
+            &comments,
+            &f.manager1,
+            json!({ "body": "x", "visibility": "internal" }),
+        )
+        .await;
+    assert_eq!(r.status, StatusCode::FORBIDDEN);
+    let r = f
+        .post_op(
+            &format!("requests/{request}/comments"),
+            json!({ "body": "SECRET: supplier margin is thin", "visibility": "internal" }),
+        )
+        .await;
+    assert_eq!(r.status, StatusCode::CREATED, "{:?}", r.body);
+    f.ok(f
+        .post_op(
+            &format!("requests/{request}/comments"),
+            json!({ "body": "Working on it" }),
+        )
+        .await);
+
+    for who in [&f.requester, &f.manager1, &f.w.admin_a] {
+        let r = app.get(&comments, who).await;
+        assert_eq!(r.body.as_array().unwrap().len(), 2, "{:?}", r.body);
+        assert!(!r.body.to_string().contains("SECRET"));
+    }
+    let r = app.get(&comments, &f.operator).await;
+    assert_eq!(r.body.as_array().unwrap().len(), 3);
+    // Other requesters and other orgs see nothing.
+    let other =
+        f.w.member(f.w.org_a, &f.w.admin_a, "o@a.test", "requester")
+            .await;
+    assert_eq!(
+        app.get(&comments, &other).await.status,
+        StatusCode::NOT_FOUND
+    );
+    assert_eq!(
+        app.get(&comments, &f.w.admin_b).await.status,
+        StatusCode::NOT_FOUND
+    );
+    // Defence in depth: a customer-context transaction cannot read internal rows at all.
+    let mut tx =
+        procure_server::db::tenant_tx(&app.pool, f.w.user_id(&f.w.admin_a).await, f.w.org_a)
+            .await
+            .unwrap();
+    let n: i64 = sqlx::query_scalar("SELECT count(*) FROM comments WHERE visibility = 'internal'")
+        .fetch_one(&mut *tx)
+        .await
+        .unwrap();
+    assert_eq!(n, 0);
+    for table in ["tasks", "communications", "time_entries"] {
+        let n: i64 = sqlx::query_scalar(&format!("SELECT count(*) FROM {table}"))
+            .fetch_one(&mut *tx)
+            .await
+            .unwrap();
+        assert_eq!(n, 0, "{table}");
+    }
+    drop(tx);
+    // The customer's audit log holds the shared comments only, never comment text.
+    let r = app.get(&f.url("audit?limit=500"), &f.w.admin_a).await;
+    let text = r.body.to_string();
+    assert!(!text.contains("SECRET") && !text.contains("Friday"));
+    let added = r.body["events"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|e| e["action"] == "comment.added")
+        .count();
+    assert_eq!(added, 2);
+}
+
+#[sqlx::test(migrator = "procure_server::MIGRATOR")]
+async fn communications_and_service_time_are_internal(pool: PgPool) {
+    let f = Flow::new(pool).await;
+    let app = &f.w.app;
+    let (request, _) = f.submitted(&f.requester).await;
+    let comms = format!("requests/{request}/communications");
+    let r = f
+        .post_op(
+            &comms,
+            json!({ "supplier_id": f.s1, "direction": "outbound", "channel": "phone",
+                                      "summary": "Asked for a better price" }),
+        )
+        .await;
+    assert_eq!(r.status, StatusCode::CREATED, "{:?}", r.body);
+    for bad in [
+        json!({ "direction": "sideways", "channel": "phone", "summary": "x" }),
+        json!({ "direction": "inbound", "channel": "pigeon", "summary": "x" }),
+        json!({ "direction": "inbound", "channel": "email", "summary": " " }),
+        json!({ "direction": "inbound", "channel": "email", "summary": "x", "occurred_at": "2099-01-01T00:00:00Z" }),
+    ] {
+        assert_eq!(
+            f.post_op(&comms, bad.clone()).await.status,
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "{bad}"
+        );
+    }
+    let r = app.get(&f.url(&comms), &f.operator).await;
+    assert_eq!(r.body[0]["supplier_name"], "Tokyo Bearings KK");
+    assert_eq!(
+        app.get(&f.url(&comms), &f.manager1).await.status,
+        StatusCode::FORBIDDEN
+    );
+
+    let time = format!("requests/{request}/time");
+    for m in [45, 30] {
+        f.ok(f
+            .post_op(&time, json!({ "minutes": m, "note": "identification" }))
+            .await);
+    }
+    for bad in [
+        json!({ "minutes": 0 }),
+        json!({ "minutes": 2000 }),
+        json!({ "minutes": 10, "work_date": "2099-01-01" }),
+    ] {
+        assert_eq!(
+            f.post_op(&time, bad.clone()).await.status,
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "{bad}"
+        );
+    }
+    let r = app.get(&f.url(&time), &f.operator).await;
+    assert_eq!(r.body["total_minutes"], 75);
+    assert_eq!(
+        app.get(&f.url(&time), &f.w.admin_a).await.status,
+        StatusCode::FORBIDDEN
+    );
+}
+
+#[sqlx::test(migrator = "procure_server::MIGRATOR")]
+async fn ops_review_regressions(pool: PgPool) {
+    let f = Flow::new(pool).await;
+    let app = &f.w.app;
+    let open_kinds = |q: &Value| -> Vec<String> {
+        q["tasks"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|t| t["kind"].as_str().unwrap().to_string())
+            .collect()
+    };
+    // Cancelling stops the automatic task.
+    let r = app.post(&f.url("requests"), &f.requester,
+                     json!({ "title": "x", "currency": "JPY", "items": [{ "description": "a", "quantity": 1 }] })).await;
+    let cancelled = uuid(&r.body["id"]);
+    app.post(
+        &f.url(&format!("requests/{cancelled}/submit")),
+        &f.requester,
+        json!({}),
+    )
+    .await;
+    app.post(
+        &f.url(&format!("requests/{cancelled}/cancel")),
+        &f.requester,
+        json!({}),
+    )
+    .await;
+    let q = app.get("/api/v1/ops/queue", &f.operator).await;
+    assert!(open_kinds(&q.body).is_empty(), "{:?}", q.body);
+
+    // Clarification pauses the clock; the answer opens a fresh task.
+    let (request, items) = f.submitted(&f.requester).await;
+    f.ok(f
+        .post_op(
+            &format!("requests/{request}/clarification"),
+            json!({ "question": "Which grade?" }),
+        )
+        .await);
+    let q = app.get("/api/v1/ops/queue", &f.operator).await;
+    assert!(open_kinds(&q.body).is_empty());
+    app.post(
+        &f.url(&format!("requests/{request}/submit")),
+        &f.requester,
+        json!({ "answer": "Grade A" }),
+    )
+    .await;
+    let q = app.get("/api/v1/ops/queue", &f.operator).await;
+    assert_eq!(open_kinds(&q.body), vec!["identify"]);
+    assert_eq!(q.body["tasks"][0]["overdue"], false);
+
+    // One chase task per RFQ, due at the end of the response day in the customer's timezone
+    // (Asia/Tokyo: 23:59:59 JST = 14:59:59 UTC); comparing one RFQ closes only its task.
+    f.sourcing(request, &items).await;
+    let mut rfqs = vec![];
+    for (suppliers, due) in [(vec![f.s1], "2099-12-01"), (vec![f.s2], "2099-12-02")] {
+        let r = f
+            .post_op(
+                &format!("requests/{request}/rfqs"),
+                json!({ "supplier_ids": suppliers, "response_due": due }),
+            )
+            .await;
+        let rfq = uuid(&r.body["id"]);
+        f.ok(f.post_op(&format!("rfqs/{rfq}/dispatch"), json!({})).await);
+        rfqs.push(rfq);
+    }
+    let t = app
+        .get(&f.url(&format!("requests/{request}/tasks")), &f.operator)
+        .await;
+    let chase: Vec<_> = t
+        .body
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|t| t["kind"] == "chase_quotes")
+        .cloned()
+        .collect();
+    assert_eq!(chase.len(), 2);
+    assert!(
+        chase.iter().any(|t| t["due_at"]
+            .as_str()
+            .unwrap()
+            .starts_with("2099-12-01T14:59:59")),
+        "{chase:?}"
+    );
+    f.quote(rfqs[0], f.s1, &items, [1200, 45_000]).await;
+    f.compare(rfqs[0]).await;
+    let t = app
+        .get(&f.url(&format!("requests/{request}/tasks")), &f.operator)
+        .await;
+    let open_chase = t
+        .body
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|t| t["kind"] == "chase_quotes" && t["status"] == "open")
+        .count();
+    assert_eq!(open_chase, 1, "the other RFQ is still waiting");
+
+    // The platform super administrator has no operations queue.
+    let sa = app.get("/api/v1/ops/queue", &f.w.super_admin).await;
+    assert_eq!(sa.status, StatusCode::FORBIDDEN);
+
+    // Operators cannot take or drop a colleague's task; tasks of revoked staff resurface.
+    let op2 =
+        f.w.member(
+            f.w.platform_org,
+            &f.w.super_admin,
+            "op2@chuo-sogo.test",
+            "procurement_operator",
+        )
+        .await;
+    let op2_id = f.w.user_id(&op2).await;
+    app.post(
+        &format!("/api/v1/orgs/{}/assignments", f.w.org_a),
+        &f.w.super_admin,
+        json!({ "user_id": op2_id }),
+    )
+    .await;
+    let r = app
+        .post(
+            &f.url("tasks"),
+            &op2,
+            json!({ "kind": "other", "title": "op2's task", "assignee_id": op2_id }),
+        )
+        .await;
+    let task = uuid(&r.body["id"]);
+    let me = f.w.user_id(&f.operator).await;
+    let steal = app
+        .patch(
+            &f.url(&format!("tasks/{task}")),
+            &f.operator,
+            json!({ "assignee_id": me }),
+        )
+        .await;
+    assert_eq!(steal.status, StatusCode::FORBIDDEN);
+    let drop = app
+        .patch(
+            &f.url(&format!("tasks/{task}")),
+            &f.operator,
+            json!({ "unassign": true }),
+        )
+        .await;
+    assert_eq!(drop.status, StatusCode::FORBIDDEN);
+    app.delete(
+        &format!("/api/v1/orgs/{}/assignments/{op2_id}", f.w.org_a),
+        &f.w.super_admin,
+    )
+    .await;
+    let q = app.get("/api/v1/ops/queue", &f.operator).await;
+    assert!(
+        q.body["tasks"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|t| t["id"] == json!(task)),
+        "orphaned task resurfaces"
+    );
+    let take = app
+        .patch(
+            &f.url(&format!("tasks/{task}")),
+            &f.operator,
+            json!({ "assignee_id": me }),
+        )
+        .await;
+    assert_eq!(take.status, StatusCode::NO_CONTENT);
+}

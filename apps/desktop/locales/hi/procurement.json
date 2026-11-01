@@ -44,7 +44,32 @@
   },
   "ops": {
     "pickUp": "ज़िम्मेदारी लें",
-    "startSourcing": "आपूर्तिकर्ता खोज शुरू करें"
+    "startSourcing": "आपूर्तिकर्ता खोज शुरू करें",
+    "onlyMine": "केवल मेरे कार्य",
+    "tasks": "कार्य",
+    "followUps": "उत्तर की प्रतीक्षा में कोटेशन अनुरोध",
+    "due": "नियत समय",
+    "customer": "ग्राहक",
+    "task": "कार्य",
+    "priority": "प्राथमिकता",
+    "assignee": "सौंपा गया",
+    "take": "लें",
+    "done": "पूर्ण",
+    "overdue": "समय सीमा पार",
+    "waitingOn": "प्रतीक्षा",
+    "internalPanel": "Chuo-Sogo आंतरिक: कार्य, संचार, समय",
+    "kind": "प्रकार",
+    "addTask": "कार्य जोड़ें",
+    "communications": "आपूर्तिकर्ता संचार",
+    "direction": "दिशा",
+    "channel": "माध्यम",
+    "summary": "सारांश",
+    "log": "दर्ज करें",
+    "time": "सेवा समय",
+    "totalTime": "कुल: {{minutes}} मिनट",
+    "minutes": "{{minutes}} मिनट",
+    "minutesLabel": "मिनट",
+    "note": "टिप्पणी"
   },
   "rfq": {
     "heading": "कोटेशन अनुरोध (RFQ)",
@@ -212,5 +237,33 @@
     "currency_differs": "अनुरोध से अलग मुद्रा (कोई रूपांतरण नहीं)",
     "shipping_not_in_source": "शिपिंग पाठ में नहीं मिली",
     "lead_time_not_in_source": "डिलीवरी समय पाठ में नहीं मिला"
+  },
+  "comment": {
+    "heading": "टिप्पणियाँ",
+    "add": "टिप्पणी जोड़ें",
+    "send": "भेजें",
+    "visibility": "कौन देख सकता है",
+    "shared": "ग्राहक और Chuo-Sogo",
+    "internal": "आंतरिक (केवल Chuo-Sogo)"
+  },
+  "taskKind": {
+    "identify": "उत्पाद पहचान",
+    "source": "आपूर्तिकर्ता खोज",
+    "chase_quotes": "कोटेशन एकत्र करें",
+    "compare": "तुलना",
+    "follow_up": "अनुवर्ती",
+    "exception": "अपवाद",
+    "other": "अन्य"
+  },
+  "direction": {
+    "inbound": "आने वाला",
+    "outbound": "जाने वाला"
+  },
+  "channel": {
+    "email": "ईमेल",
+    "phone": "फ़ोन",
+    "meeting": "बैठक",
+    "chat": "चैट",
+    "other": "अन्य"
   }
 }

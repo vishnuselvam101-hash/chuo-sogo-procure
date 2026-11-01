@@ -35,7 +35,7 @@ export function navFor(m: MembershipView): NavItem[] {
   const has = (p: string) => m.permissions.includes(p);
   const items: NavItem[] = [item("dashboard", true)];
   if (m.org_kind === "platform") {
-    items.push(item("opsQueue"), item("products", true));
+    items.push(item("opsQueue", true), item("products", true));
     if (has("manage_suppliers")) items.push(item("suppliers", true));
     items.push(item("rfqs"), item("quotations"));
     if (has("view_reports")) items.push(item("reports"));
@@ -44,6 +44,8 @@ export function navFor(m: MembershipView): NavItem[] {
   } else {
     if (has("submit_request") || has("view_all_requests")) items.push(item("procurement", true));
     if (has("approve_suppliers") || has("manage_rfqs")) items.push(item("suppliers", true));
+    // Staff working inside a customer keep their work queue one click away.
+    if (m.access === "assigned" && has("operate_requests")) items.push(item("opsQueue", true));
     if (m.access !== "assigned") items.push(item("products"));
     if (has("approve_recommendation") || has("manage_approval_policy")) items.push(item("approvals", true));
     if (has("view_orders")) items.push(item("orders"));

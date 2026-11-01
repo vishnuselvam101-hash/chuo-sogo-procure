@@ -249,6 +249,28 @@ pub fn router(state: AppState) -> Router {
             "/orgs/{org_id}/products/{product_id}",
             get(api::products::get_org_product),
         )
+        .route("/ops/queue", get(api::ops::queue))
+        .route("/orgs/{org_id}/tasks", post(api::ops::create_task))
+        .route(
+            "/orgs/{org_id}/tasks/{task_id}",
+            patch(api::ops::update_task),
+        )
+        .route(
+            "/orgs/{org_id}/requests/{request_id}/tasks",
+            get(api::ops::request_tasks),
+        )
+        .route(
+            "/orgs/{org_id}/requests/{request_id}/comments",
+            get(api::ops::list_comments).post(api::ops::add_comment),
+        )
+        .route(
+            "/orgs/{org_id}/requests/{request_id}/communications",
+            get(api::ops::list_communications).post(api::ops::log_communication),
+        )
+        .route(
+            "/orgs/{org_id}/requests/{request_id}/time",
+            get(api::ops::list_time).post(api::ops::log_time),
+        )
         .route(
             "/orgs/{org_id}/attachments/{attachment_id}",
             axum::routing::delete(api::attachments::remove),

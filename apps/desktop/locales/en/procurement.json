@@ -44,7 +44,32 @@
   },
   "ops": {
     "pickUp": "Pick up",
-    "startSourcing": "Start sourcing"
+    "startSourcing": "Start sourcing",
+    "onlyMine": "Only my tasks",
+    "tasks": "Tasks",
+    "followUps": "RFQs waiting for answers",
+    "due": "Due",
+    "customer": "Customer",
+    "task": "Task",
+    "priority": "Priority",
+    "assignee": "Assigned to",
+    "take": "Take",
+    "done": "Done",
+    "overdue": "Overdue",
+    "waitingOn": "Waiting on",
+    "internalPanel": "Chuo-Sogo internal: tasks, communications, time",
+    "kind": "Type",
+    "addTask": "Add task",
+    "communications": "Supplier communications",
+    "direction": "Direction",
+    "channel": "Channel",
+    "summary": "Summary",
+    "log": "Log",
+    "time": "Service time",
+    "totalTime": "Total: {{minutes}} min",
+    "minutes": "{{minutes}} min",
+    "minutesLabel": "Minutes",
+    "note": "Note"
   },
   "rfq": {
     "heading": "Requests for quotation",
@@ -212,5 +237,33 @@
     "currency_differs": "different currency from the request (no conversion)",
     "shipping_not_in_source": "shipping not found in the text",
     "lead_time_not_in_source": "lead time not found in the text"
+  },
+  "comment": {
+    "heading": "Comments",
+    "add": "Add a comment",
+    "send": "Send",
+    "visibility": "Visible to",
+    "shared": "Customer and Chuo-Sogo",
+    "internal": "Internal (Chuo-Sogo only)"
+  },
+  "taskKind": {
+    "identify": "Identify products",
+    "source": "Sourcing",
+    "chase_quotes": "Collect quotations",
+    "compare": "Compare",
+    "follow_up": "Follow-up",
+    "exception": "Exception",
+    "other": "Other"
+  },
+  "direction": {
+    "inbound": "Inbound",
+    "outbound": "Outbound"
+  },
+  "channel": {
+    "email": "Email",
+    "phone": "Phone",
+    "meeting": "Meeting",
+    "chat": "Chat",
+    "other": "Other"
   }
 }

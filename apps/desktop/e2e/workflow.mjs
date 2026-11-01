@@ -116,13 +116,29 @@ try {
 
   // --- Operator ----------------------------------------------------------------------
   await signIn("operator@chuo-sogo.e2e");
-  await (await b.$(".org-switch select")).selectByVisibleText(seed.orgName);
+  // The work queue shows the automatic "identify" task and opens the request in its org.
+  await nav("Operations queue");
+  const taskRow = await b.$(`//tr[.//button[normalize-space(.)='${number}']]`);
+  await taskRow.waitForExist({ timeout: 15000 });
+  check(
+    "submitting created an identify task in the operator's queue",
+    (await taskRow.getText()).includes("Identify products"),
+  );
+  await click(number);
   check(
     "operator switches into the assigned customer org",
     (await (await b.$(".brand-workspace")).getText()) === "Serving customer",
   );
-  await nav("Procurement");
-  await click(number);
+  // An internal note and a shared comment.
+  for (const [visibility, text] of [
+    ["Internal (Chuo-Sogo only)", "INTERNAL-OPS-NOTE margin is thin"],
+    ["Customer and Chuo-Sogo", "We are identifying the parts now."],
+  ]) {
+    await (await field("Add a comment", "textarea")).setValue(text);
+    await (await field("Visible to", "select")).selectByVisibleText(visibility);
+    await click("Send");
+    await (await b.$(`//li//div[contains(., '${text.slice(0, 20)}')]`)).waitForExist({ timeout: 15000 });
+  }
   await click("Pick up");
   check("operator picks the request up", await headerStatus("Identifying products"));
   // No catalogue records yet: create each with evidence, verified in the same step.
@@ -167,7 +183,7 @@ try {
   await click("Dispatch (test mode)");
   check("RFQ dispatched in test mode", await headerStatus("RFQ sent"));
   await click("Show messages");
-  await b.waitUntil(async () => (await b.$$("details")).length === 2, { timeout: 15000 });
+  await b.waitUntil(async () => (await b.$$("details pre")).length === 2, { timeout: 15000 });
   const messages = await b.execute(() =>
     Array.from(document.querySelectorAll("details pre")).map((e) => e.textContent ?? ""),
   );
@@ -240,8 +256,16 @@ try {
   await signIn("manager@customer.e2e");
   await nav("Approvals");
   await click(number);
+  // Comments load separately: wait for the shared one before reading the page.
+  await (
+    await b.$("//li//div[contains(., 'We are identifying the parts now.')]")
+  ).waitForExist({ timeout: 15000 });
   const page = await (await b.$("main")).getText();
   check("customer never sees internal supplier notes", !page.includes("INTERNAL-NOTE-DO-NOT-SHOW"));
+  check(
+    "customer sees the shared comment but never the internal note",
+    page.includes("We are identifying the parts now.") && !page.includes("INTERNAL-OPS-NOTE"),
+  );
   await shot("04-manager-approval");
   await click("Save to Downloads");
   const status = await b.$("p[role='status']");

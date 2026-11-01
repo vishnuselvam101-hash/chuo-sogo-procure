@@ -760,6 +760,17 @@ pub async fn submit(
         json!({ "answer": answer }),
     )
     .await?;
+    // Chuo-Sogo's service level starts now: identify the products.
+    crate::api::ops::open_auto_task(
+        &mut tx,
+        org_id,
+        row.id,
+        None,
+        "identify",
+        &format!("Identify products for {}", row.number),
+        chrono::Utc::now() + crate::api::ops::IDENTIFY_SLA,
+    )
+    .await?;
     tx.commit().await?;
     Ok(StatusCode::NO_CONTENT)
 }
@@ -852,6 +863,9 @@ async fn operator_step(
         json!({}),
     )
     .await?;
+    if to == RequestStatus::Sourcing {
+        crate::api::ops::close_auto_tasks(&mut tx, row.id, None, "identify").await?;
+    }
     tx.commit().await?;
     Ok(StatusCode::NO_CONTENT)
 }

@@ -30,12 +30,14 @@ interface Props {
   /** Fixed status filter (e.g. the Approvals page shows only `awaiting_approval`). */
   status?: string;
   title?: string;
+  /** Open this request immediately (e.g. from the operations queue). */
+  initialOpen?: string | null;
 }
 
 /** Request list for customers (own or all, as the backend decides) and assigned operators. */
-export function Requests({ active, selfId, status, title }: Props) {
+export function Requests({ active, selfId, status, title, initialOpen }: Props) {
   const { t, i18n } = useTranslation();
-  const [open, setOpen] = useState<string | null>(null);
+  const [open, setOpen] = useState<string | null>(initialOpen ?? null);
   const [creating, setCreating] = useState(false);
   const [filter, setFilter] = useState(status ?? "");
   const query = filter ? `?status=${encodeURIComponent(filter)}` : "";

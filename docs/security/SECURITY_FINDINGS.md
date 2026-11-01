@@ -37,6 +37,15 @@
 | SF-033 | 2026-11-01 | AI: customer-typed item descriptions sent to the quotation model outside any fence; fence tags matched case-sensitively | Low | V5 (injection) | Fixed | reference data fenced and cleaned; case-insensitive tag neutralisation; prompt v2 |
 | SF-034 | 2026-11-01 | UI kept one supplier's AI-prefilled prices after switching supplier; low-confidence item suggestions pre-ticked | Low | — | Fixed | form cleared on supplier change; only `needs_review = false` pre-ticked |
 | SF-035 | 2026-11-01 | AI: no global concurrency bound, long timeout on all AI routes, unbounded provider response, remote provider usable without approval, limiter evicted long buckets early | Low | V13 | Fixed | 4 concurrent model calls, 300 s only on extraction routes, 2 MB response cap, `PROCURE_AI_REMOTE_APPROVED=yes` required for remote, `local` must be loopback, per-bucket expiry |
+| SF-036 | 2026-11-01 | Ops queue readable by assigned staff without OperateRequests (platform super admin) | Low | V8 (authorization) | Fixed | queue requires a role that may operate requests; 403 test |
+| SF-037 | 2026-11-01 | Operators could take or drop a colleague's task without AssignWork | Low | V8 | Fixed | changing an active holder's task needs AssignWork; regression test |
+| SF-038 | 2026-11-01 | Automatic tasks: not closed on cancel/clarification/reject; one chase task per request instead of per RFQ (closing the wrong one); due dates in UTC; tasks of revoked staff invisible | Low | — (operations correctness) | Fixed | cancellation on leaving Chuo-Sogo's hands, per-RFQ chase tasks, end of day in the customer's timezone, orphaned tasks shown as unassigned |
+
+## Residual risk (Phase 4)
+- Automatic task opening/closing is not audited separately (the workflow transition that causes it is).
+- Due dates cannot be cleared once set (only changed).
+- Service level is a fixed 24 h for identification; per-customer SLA configuration is not implemented.
+- Follow-ups for overdue RFQs are shown in the queue but no reminder is sent anywhere (no external messaging without approval).
 
 ## Residual risk (Phase 3)
 - Hallucination guards are heuristics (presence of the same number/part number in the source text); a model can still pick the wrong number that does appear in the text. Every AI output is a suggestion a human must check; low-confidence items are not pre-selected.

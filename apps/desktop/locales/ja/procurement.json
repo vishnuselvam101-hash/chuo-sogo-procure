@@ -44,7 +44,32 @@
   },
   "ops": {
     "pickUp": "担当する",
-    "startSourcing": "調達先選定を開始"
+    "startSourcing": "調達先選定を開始",
+    "onlyMine": "自分のタスクのみ",
+    "tasks": "タスク",
+    "followUps": "回答待ちの見積依頼",
+    "due": "期限",
+    "customer": "顧客",
+    "task": "タスク",
+    "priority": "優先度",
+    "assignee": "担当者",
+    "take": "担当する",
+    "done": "完了",
+    "overdue": "期限超過",
+    "waitingOn": "回答待ち",
+    "internalPanel": "Chuo-Sogo 社内：タスク・連絡記録・作業時間",
+    "kind": "種類",
+    "addTask": "タスクを追加",
+    "communications": "サプライヤーとの連絡記録",
+    "direction": "方向",
+    "channel": "手段",
+    "summary": "要約",
+    "log": "記録",
+    "time": "作業時間",
+    "totalTime": "合計：{{minutes}}分",
+    "minutes": "{{minutes}}分",
+    "minutesLabel": "分",
+    "note": "メモ"
   },
   "rfq": {
     "heading": "見積依頼 (RFQ)",
@@ -212,5 +237,33 @@
     "currency_differs": "依頼と異なる通貨（換算なし）",
     "shipping_not_in_source": "送料が文面にありません",
     "lead_time_not_in_source": "納期が文面にありません"
+  },
+  "comment": {
+    "heading": "コメント",
+    "add": "コメントを追加",
+    "send": "送信",
+    "visibility": "公開範囲",
+    "shared": "顧客とChuo-Sogo",
+    "internal": "社内（Chuo-Sogoのみ）"
+  },
+  "taskKind": {
+    "identify": "製品特定",
+    "source": "調達先選定",
+    "chase_quotes": "見積回収",
+    "compare": "比較",
+    "follow_up": "フォローアップ",
+    "exception": "例外対応",
+    "other": "その他"
+  },
+  "direction": {
+    "inbound": "受信",
+    "outbound": "発信"
+  },
+  "channel": {
+    "email": "メール",
+    "phone": "電話",
+    "meeting": "打合せ",
+    "chat": "チャット",
+    "other": "その他"
   }
 }

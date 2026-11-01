@@ -12,6 +12,7 @@ export const P = {
   manageApprovalPolicy: "manage_approval_policy",
   manageSuppliers: "manage_suppliers",
   manageProducts: "manage_products",
+  viewInternalNotes: "view_internal_notes",
 } as const;
 
 export const AWAITING_APPROVAL = "awaiting_approval";

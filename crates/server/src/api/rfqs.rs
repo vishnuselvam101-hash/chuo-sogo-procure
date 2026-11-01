@@ -326,6 +326,22 @@ pub async fn dispatch_rfq(
         "request.rfq_sent",
     )
     .await?;
+    // Chase the suppliers by the response date (end of that day in the customer's
+    // timezone), or in 72 hours.
+    let chase_due = match due {
+        Some(d) => crate::api::ops::end_of_local_day(&mut tx, org_id, d).await?,
+        None => chrono::Utc::now() + crate::api::ops::CHASE_DEFAULT,
+    };
+    crate::api::ops::open_auto_task(
+        &mut tx,
+        org_id,
+        req.id,
+        Some(rfq.id),
+        "chase_quotes",
+        &format!("Collect quotations for {}", rfq.number),
+        chase_due,
+    )
+    .await?;
     tx.commit().await?;
     Ok(Json(DispatchResponse {
         channel: "test",
@@ -909,6 +925,7 @@ pub async fn run_comparison(
         json!({ "comparison": view.id, "rfq": rfq.number, "quotations": view.results.0.len() }),
     )
     .await?;
+    crate::api::ops::close_auto_tasks(&mut tx, req.id, Some(rfq.id), "chase_quotes").await?;
     tx.commit().await?;
     Ok((StatusCode::CREATED, Json(view)))
 }

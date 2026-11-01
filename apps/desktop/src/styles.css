@@ -567,3 +567,9 @@ button.link {
     color: #f0b35c;
   }
 }
+
+.internal-note,
+.internal-panel {
+  border-left: 4px solid var(--accent);
+  padding-left: 10px;
+}

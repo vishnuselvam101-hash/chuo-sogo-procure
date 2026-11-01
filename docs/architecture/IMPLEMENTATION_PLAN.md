@@ -43,6 +43,8 @@ Status (2026-11-01): ☑ `crates/ai` — `Provider` trait, offline deterministic
 ## Phase 4 — Managed operations (dep Phase 2; parallel with Phase 3)
 Task queues, assignment, SLA/overdue, comments vs internal notes, communications log, follow-up jobs, exceptions, service time.
 
+Status (2026-11-01): ☑ migration `0006`; API `ops` — staff work queue across assigned customers (overdue first, orphaned tasks shown as unassigned), tasks (manual + automatic: `identify` on submit with 24 h SLA, `chase_quotes` per RFQ due at the end of the response day in the customer's timezone; closed by the next workflow step, cancelled on cancel/clarification/reject), assignment rules (self vs AssignWork), comments shared vs internal (RLS-enforced), supplier communications log, service time; internal events audited in the platform log. Follow-ups = sent RFQs past their response date with silent suppliers (derived, no background job). UI: Operations queue, comments, staff panel (ja/en/ta/hi).
+
 ## Phase 5 — Orders and finance (dep Phase 2)
 PO reference, order items, deliveries/receiving, invoice entry (+ extraction via Phase 3), 3-way match, discrepancies, resolution.
 
