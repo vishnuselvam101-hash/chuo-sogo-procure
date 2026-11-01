@@ -53,7 +53,9 @@ jobs:
         env:
           CONFIG: ${{ inputs.app == 'shop' && '--config src-tauri/tauri.shop.conf.json' || '' }}
           PROCURE_DEFAULT_SERVER: ${{ inputs.server || null }}
+        # Xcode/Gradle drop the environment before cargo runs; build.rs reads this file instead.
         run: |
+          if [ -n "${PROCURE_DEFAULT_SERVER:-}" ]; then printf '%s' "$PROCURE_DEFAULT_SERVER" > src-tauri/default-server.txt; fi
           cargo tauri android init --ci $CONFIG
           cargo tauri android build --debug --apk --target aarch64 $CONFIG
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -85,7 +87,9 @@ jobs:
         env:
           CONFIG: ${{ inputs.app == 'shop' && '--config src-tauri/tauri.shop.conf.json' || '' }}
           PROCURE_DEFAULT_SERVER: ${{ inputs.server || null }}
+        # Xcode/Gradle drop the environment before cargo runs; build.rs reads this file instead.
         run: |
+          if [ -n "${PROCURE_DEFAULT_SERVER:-}" ]; then printf '%s' "$PROCURE_DEFAULT_SERVER" > src-tauri/default-server.txt; fi
           cargo tauri ios init --ci $CONFIG
           cargo tauri ios build --debug --target aarch64-sim $CONFIG
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
