@@ -3,6 +3,7 @@
 
 pub mod approval;
 pub mod comparison;
+pub mod history;
 pub mod invoicing;
 pub mod listing;
 pub mod matching;

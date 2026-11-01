@@ -4486,6 +4486,156 @@
         ]
       }
     },
+    "/api/v1/orgs/{org_id}/buying-criteria": {
+      "get": {
+        "tags": [
+          "purchase_history"
+        ],
+        "operationId": "buying_criteria_get",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The organisation's buying criteria (empty until written)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CriteriaView"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown organisation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "purchase_history"
+        ],
+        "operationId": "buying_criteria_put",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CriteriaInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Saved (audited with the previous version)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CriteriaView"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown organisation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid priority, list or limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/orgs/{org_id}/catalogue": {
       "get": {
         "tags": [
@@ -6962,6 +7112,439 @@
           },
           "404": {
             "description": "Unknown, or not linked to this organisation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/orgs/{org_id}/purchase-history": {
+      "get": {
+        "tags": [
+          "purchase_history"
+        ],
+        "operationId": "purchase_history_search",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "q",
+            "in": "path",
+            "description": "Words found in the description, part number, maker or supplier.",
+            "required": true,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Past purchases, newest first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/HistoryRowView"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown organisation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Search text too long",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/orgs/{org_id}/purchase-history/imports": {
+      "get": {
+        "tags": [
+          "purchase_history"
+        ],
+        "operationId": "purchase_history_imports",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Imports, newest first (withdrawn ones included)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ImportView"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown organisation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "purchase_history"
+        ],
+        "operationId": "purchase_history_import",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Readable rows stored as one import; unreadable rows skipped and counted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportView"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown organisation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Larger than 10 MB"
+          },
+          "422": {
+            "description": "As for preview, or no readable rows",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/orgs/{org_id}/purchase-history/imports/{id}/withdraw": {
+      "post": {
+        "tags": [
+          "purchase_history"
+        ],
+        "operationId": "purchase_history_withdraw",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The import's rows are removed; the import stays listed as withdrawn",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportView"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown import",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Already withdrawn",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/orgs/{org_id}/purchase-history/preview": {
+      "post": {
+        "tags": [
+          "purchase_history"
+        ],
+        "operationId": "purchase_history_preview",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "How the file would be read; nothing is stored",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreviewView"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown organisation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Larger than 10 MB"
+          },
+          "422": {
+            "description": "Unsupported file, no header found, incomplete or invalid column mapping, too many rows",
             "content": {
               "application/json": {
                 "schema": {
@@ -9513,6 +10096,84 @@
           },
           "409": {
             "description": "Not in a state that allows this",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/orgs/{org_id}/requests/{request_id}/price-reference": {
+      "get": {
+        "tags": [
+          "purchase_history"
+        ],
+        "operationId": "request_price_reference",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "request_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Per request line: what was paid before, to whom, and when (matched on the verified or given part number, else the description)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ItemReferenceView"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not permitted (requesters see their requests but not past prices)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown request",
             "content": {
               "application/json": {
                 "schema": {
@@ -13652,6 +14313,121 @@
           }
         }
       },
+      "CriteriaInput": {
+        "type": "object",
+        "properties": {
+          "excluded_suppliers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "max_lead_time_days": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          },
+          "notes": {
+            "type": "string"
+          },
+          "preferred_suppliers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "price_alert_bps": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "Flag quotes this much above the last price paid (basis points, 1000 = 10 %)."
+          },
+          "priorities": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Most important first; each of `price`, `lead_time`, `quality`, `existing_supplier`,\n`domestic` at most once."
+          },
+          "required_certifications": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "E.g. ISO 9001, RoHS, JIS."
+          }
+        }
+      },
+      "CriteriaView": {
+        "type": "object",
+        "required": [
+          "priorities",
+          "preferred_suppliers",
+          "excluded_suppliers",
+          "required_certifications",
+          "notes"
+        ],
+        "properties": {
+          "excluded_suppliers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "max_lead_time_days": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          },
+          "notes": {
+            "type": "string"
+          },
+          "preferred_suppliers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "price_alert_bps": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          },
+          "priorities": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "required_certifications": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "updated_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "updated_by_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
       "DecisionBody": {
         "type": "object",
         "required": [
@@ -14156,6 +14932,79 @@
           }
         }
       },
+      "HistoryRowView": {
+        "type": "object",
+        "required": [
+          "id",
+          "import_id",
+          "purchased_on",
+          "supplier_name",
+          "description",
+          "manufacturer",
+          "mpn",
+          "quantity_milli",
+          "unit",
+          "unit_price_milli",
+          "price_derived",
+          "currency",
+          "notes"
+        ],
+        "properties": {
+          "currency": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "import_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "lead_time_days": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          },
+          "manufacturer": {
+            "type": "string"
+          },
+          "mpn": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "string"
+          },
+          "price_derived": {
+            "type": "boolean"
+          },
+          "purchased_on": {
+            "type": "string",
+            "format": "date"
+          },
+          "quantity_milli": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Thousandths of a unit."
+          },
+          "supplier_name": {
+            "type": "string"
+          },
+          "unit": {
+            "type": "string"
+          },
+          "unit_price_milli": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Thousandths of a minor currency unit."
+          }
+        }
+      },
       "IdResponse": {
         "type": "object",
         "required": [
@@ -14165,6 +15014,95 @@
           "id": {
             "type": "string",
             "format": "uuid"
+          }
+        }
+      },
+      "ImportBody": {
+        "type": "object",
+        "required": [
+          "file_name",
+          "data_base64"
+        ],
+        "properties": {
+          "currency": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Currency for rows without one; the organisation's usual currency, default `JPY`."
+          },
+          "data_base64": {
+            "type": "string",
+            "description": "File content, standard base64."
+          },
+          "file_name": {
+            "type": "string",
+            "description": "`.xlsx`, `.csv` or `.tsv` (UTF-8 or Shift_JIS)."
+          },
+          "header_row": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Header row (0-based); detected when omitted.",
+            "minimum": 0
+          },
+          "mapping": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "description": "Field code per column (`date`, `supplier`, `description`, `manufacturer`, `mpn`,\n`quantity`, `unit`, `unit_price`, `line_total`, `currency`, `lead_time_days`, `notes`;\nnull = ignore). Detected from the header when omitted."
+          }
+        }
+      },
+      "ImportView": {
+        "type": "object",
+        "required": [
+          "id",
+          "file_name",
+          "rows_imported",
+          "rows_skipped",
+          "imported_at"
+        ],
+        "properties": {
+          "file_name": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "imported_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "imported_by_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "rows_imported": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "rows_skipped": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "withdrawn_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
           }
         }
       },
@@ -14628,6 +15566,48 @@
           "unit": {
             "type": "string",
             "description": "Unit code, e.g. `pcs`, `box`, `m` (lowercase letters and `_`)."
+          }
+        }
+      },
+      "ItemReferenceView": {
+        "type": "object",
+        "required": [
+          "item_id",
+          "line_no",
+          "recent"
+        ],
+        "properties": {
+          "item_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "line_no": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "matched_on": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`mpn` or `description`: what the past purchases were matched on; null = nothing to match."
+          },
+          "recent": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HistoryRowView"
+            },
+            "description": "The most recent matching purchases."
+          },
+          "summary": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PriceSummaryView"
+              }
+            ]
           }
         }
       },
@@ -15722,6 +16702,70 @@
           }
         }
       },
+      "ParsedRowView": {
+        "type": "object",
+        "required": [
+          "row",
+          "purchased_on",
+          "supplier_name",
+          "description",
+          "manufacturer",
+          "mpn",
+          "quantity_milli",
+          "unit",
+          "unit_price_milli",
+          "price_derived",
+          "currency"
+        ],
+        "properties": {
+          "currency": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "lead_time_days": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          },
+          "manufacturer": {
+            "type": "string"
+          },
+          "mpn": {
+            "type": "string"
+          },
+          "price_derived": {
+            "type": "boolean"
+          },
+          "purchased_on": {
+            "type": "string",
+            "format": "date"
+          },
+          "quantity_milli": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Thousandths of a unit."
+          },
+          "row": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "supplier_name": {
+            "type": "string"
+          },
+          "unit": {
+            "type": "string"
+          },
+          "unit_price_milli": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Thousandths of a minor currency unit."
+          }
+        }
+      },
       "PaymentUpdate": {
         "type": "object",
         "required": [
@@ -15820,6 +16864,134 @@
             "type": "integer",
             "format": "int32",
             "description": "0 for the built-in default (one approval, never by the requester)."
+          }
+        }
+      },
+      "PreviewView": {
+        "type": "object",
+        "required": [
+          "header_row",
+          "headers",
+          "mapping",
+          "data_rows",
+          "valid_rows",
+          "error_counts",
+          "errors",
+          "sample"
+        ],
+        "properties": {
+          "data_rows": {
+            "type": "integer",
+            "description": "Non-blank data rows in the file.",
+            "minimum": 0
+          },
+          "error_counts": {
+            "type": "object",
+            "description": "Count per reason code.",
+            "additionalProperties": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RowErrorView"
+            },
+            "description": "The first rows that could not be read."
+          },
+          "header_row": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "headers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "mapping": {
+            "type": "array",
+            "items": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "sample": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ParsedRowView"
+            },
+            "description": "The first rows as they would be stored."
+          },
+          "valid_rows": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "PricePointView": {
+        "type": "object",
+        "required": [
+          "purchased_on",
+          "supplier_name",
+          "unit_price_milli",
+          "currency"
+        ],
+        "properties": {
+          "currency": {
+            "type": "string"
+          },
+          "purchased_on": {
+            "type": "string",
+            "format": "date"
+          },
+          "supplier_name": {
+            "type": "string"
+          },
+          "unit_price_milli": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "PriceSummaryView": {
+        "type": "object",
+        "required": [
+          "purchases",
+          "last",
+          "min_price_milli",
+          "max_price_milli",
+          "cheapest",
+          "suppliers"
+        ],
+        "properties": {
+          "cheapest": {
+            "$ref": "#/components/schemas/PricePointView"
+          },
+          "last": {
+            "$ref": "#/components/schemas/PricePointView"
+          },
+          "max_price_milli": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "min_price_milli": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "purchases": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "suppliers": {
+            "type": "integer",
+            "minimum": 0
           }
         }
       },
@@ -16803,6 +17975,23 @@
           },
           "status": {
             "type": "string"
+          }
+        }
+      },
+      "RowErrorView": {
+        "type": "object",
+        "required": [
+          "row",
+          "code"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "row": {
+            "type": "integer",
+            "description": "1-based row number in the file, as the spreadsheet shows it.",
+            "minimum": 0
           }
         }
       },

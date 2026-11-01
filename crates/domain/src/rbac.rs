@@ -156,6 +156,8 @@ pub enum Permission {
     Shop,
     /// Chuo-Sogo: run the consumer shop (orders, payment, shipping, shop rules).
     ManageShop,
+    /// Import, view and remove the organisation's past-purchase records and buying criteria.
+    ManagePurchaseHistory,
 }
 
 impl Permission {
@@ -195,6 +197,7 @@ impl Permission {
             Permission::ViewCatalogue => "view_catalogue",
             Permission::Shop => "shop",
             Permission::ManageShop => "manage_shop",
+            Permission::ManagePurchaseHistory => "manage_purchase_history",
         }
     }
 }
@@ -231,6 +234,7 @@ pub fn home_permissions(role: Role) -> &'static [Permission] {
             ManageOrgSettings,
             ManageApprovalPolicy,
             ApproveSuppliers,
+            ManagePurchaseHistory,
             ViewAudit,
             SubmitRequest,
             ViewOwnRequests,
@@ -248,6 +252,7 @@ pub fn home_permissions(role: Role) -> &'static [Permission] {
             ReviewQuotations,
             ApproveRecommendation,
             ApproveSuppliers,
+            ManagePurchaseHistory,
             RecordOrders,
             ReceiveGoods,
             ViewOrders,
@@ -279,6 +284,7 @@ pub fn service_permissions(role: Role) -> &'static [Permission] {
             ViewAllRequests,
             OperateRequests,
             VerifyProducts,
+            ManagePurchaseHistory,
             ManageSuppliers,
             ManageRfqs,
             RecordQuotations,
@@ -291,6 +297,7 @@ pub fn service_permissions(role: Role) -> &'static [Permission] {
             ViewAllRequests,
             OperateRequests,
             VerifyProducts,
+            ManagePurchaseHistory,
             ManageRfqs,
             RecordQuotations,
             ViewInternalNotes,
@@ -507,5 +514,27 @@ mod tests {
             Access::Member(Role::ProcurementOperator),
             Permission::ManageShop
         ));
+    }
+
+    #[test]
+    fn purchase_history_is_kept_by_buyers_and_the_assigned_service_team() {
+        let m = Permission::ManagePurchaseHistory;
+        for r in [Role::CustomerAdmin, Role::ProcurementManager] {
+            assert!(allows(Access::Member(r), m), "{r}");
+        }
+        for r in [Role::ProcurementAdmin, Role::ProcurementOperator] {
+            assert!(allows(Access::Assigned(r), m), "{r}");
+            // Never across all customers: only inside an assigned one.
+            assert!(!allows(Access::Member(r), m), "{r}");
+        }
+        for r in [
+            Role::Requester,
+            Role::Finance,
+            Role::SupplierAdmin,
+            Role::Consumer,
+        ] {
+            assert!(!allows(Access::Member(r), m), "{r}");
+        }
+        assert!(!allows(Access::Assigned(Role::PlatformSuperAdmin), m));
     }
 }

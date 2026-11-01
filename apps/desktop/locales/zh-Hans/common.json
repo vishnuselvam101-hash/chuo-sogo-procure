@@ -3,6 +3,7 @@
     "dashboard": "仪表板",
     "procurement": "采购",
     "settings": "设置",
-    "language": "语言"
+    "language": "语言",
+    "history": "采购记录"
   }
 }

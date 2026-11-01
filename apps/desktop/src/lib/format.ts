@@ -72,6 +72,40 @@ export function minorToInput(minor: number, currency: string): string {
   return `${s.slice(0, -digits)}.${s.slice(-digits)}`;
 }
 
+/**
+ * A unit price kept in thousandths of a minor unit (purchase history: ¥0.85 = 850), shown with
+ * the currency's own decimals plus up to three more when the price has them.
+ */
+export function formatMilliPrice(milli: number, currency: string, lang: string): string {
+  const digits = minorDigits(currency);
+  return new Intl.NumberFormat(intlLocale(lang), {
+    style: "currency",
+    currency,
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits + 3,
+  }).format(milli / 10 ** (digits + 3));
+}
+
+/** A quantity kept in thousandths of a unit (2.5 m = 2500). */
+export function formatMilliQuantity(milli: number, lang: string): string {
+  return new Intl.NumberFormat(intlLocale(lang), { maximumFractionDigits: 3 }).format(milli / 1000);
+}
+
+/** A percentage typed by the user ("10", "12.5") as basis points, exactly; null if invalid. */
+export function percentToBps(input: string): number | null {
+  const m = /^(\d{1,4})(?:\.(\d{0,2}))?$/.exec(input.trim());
+  if (!m?.[1]) return null;
+  return Number(m[1]) * 100 + Number((m[2] ?? "").padEnd(2, "0"));
+}
+
+export function bpsToPercent(bps: number): string {
+  const whole = Math.floor(bps / 100);
+  const frac = String(bps % 100)
+    .padStart(2, "0")
+    .replace(/0+$/, "");
+  return frac ? `${whole}.${frac}` : String(whole);
+}
+
 export function formatDate(iso: string, lang: string): string {
   return new Intl.DateTimeFormat(intlLocale(lang), { dateStyle: "medium", timeZone: "UTC" }).format(
     new Date(`${iso}T00:00:00Z`),

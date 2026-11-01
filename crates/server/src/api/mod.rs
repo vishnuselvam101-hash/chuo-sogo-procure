@@ -6,6 +6,7 @@ pub mod auth;
 pub mod billing;
 pub mod common;
 pub mod demo;
+pub mod history;
 pub mod listing_ai;
 pub mod listings;
 pub mod ops;

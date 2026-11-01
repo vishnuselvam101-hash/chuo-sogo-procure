@@ -1,0 +1,98 @@
+{
+  "lead": "Your past purchases and buying rules, in one place. Import the purchase records you already keep (Excel or CSV exports from your ERP or ledger). From then on, every request shows what you paid before, to whom and when, and whoever sources for you works to your own criteria. The data stays inside your organisation.",
+  "import": {
+    "heading": "Import purchase records",
+    "hint": "Excel (.xlsx) or CSV, Japanese or English headers, Shift_JIS or UTF-8. Nothing is stored until you press Import. Rows that cannot be read exactly are skipped and listed, never guessed.",
+    "file": "File",
+    "currency": "Currency when a row has none",
+    "commit": "Import {{count}} rows",
+    "done": "Imported {{imported}} rows ({{skipped}} skipped)."
+  },
+  "preview": {
+    "summary": "{{valid}} of {{total}} rows can be imported.",
+    "columns": "Columns: check what each column holds",
+    "columnOf": "Contents of column {{name}}",
+    "skipped": "Rows that will be skipped",
+    "rows": "rows",
+    "row": "Row",
+    "sample": "First rows as they will be stored",
+    "recheck": "Check again with these columns"
+  },
+  "field": {
+    "ignore": "(ignore)",
+    "date": "Date",
+    "supplier": "Supplier",
+    "description": "Item",
+    "manufacturer": "Maker",
+    "mpn": "Part number",
+    "quantity": "Quantity",
+    "unit": "Unit",
+    "unit_price": "Unit price",
+    "line_total": "Amount",
+    "currency": "Currency",
+    "lead_time_days": "Lead time (days)",
+    "notes": "Notes"
+  },
+  "reason": {
+    "date_missing": "No date",
+    "date_invalid": "Date not readable",
+    "item_missing": "No item name or part number",
+    "quantity_invalid": "Quantity not readable",
+    "price_missing": "No price or amount",
+    "price_invalid": "Price not readable",
+    "currency_invalid": "Unknown currency",
+    "lead_time_invalid": "Lead time not readable",
+    "text_too_long": "Text too long"
+  },
+  "imports": {
+    "heading": "Imports",
+    "none": "Nothing imported yet.",
+    "file": "File",
+    "rows": "Rows",
+    "skipped": "Skipped",
+    "by": "Imported by",
+    "at": "When",
+    "withdraw": "Withdraw",
+    "confirmWithdraw": "Remove its rows",
+    "withdrawn": "Withdrawn"
+  },
+  "search": {
+    "heading": "Past purchases",
+    "placeholder": "Item, part number, maker or supplier",
+    "go": "Search",
+    "none": "No past purchases found."
+  },
+  "derived": "Worked out from the amount and quantity",
+  "criteria": {
+    "heading": "Buying criteria",
+    "hint": "How your company decides. Shown to whoever sources each request, so they choose the way you would.",
+    "priority": "Priority {{n}}",
+    "priorities": "Priorities",
+    "preferred": "Preferred suppliers (one per line)",
+    "excluded": "Suppliers not to use (one per line)",
+    "certifications": "Required certifications (one per line)",
+    "maxLead": "Longest acceptable lead time (days)",
+    "alert": "Flag quotes above the last price by (%)",
+    "notes": "Other rules",
+    "saved": "Saved.",
+    "updated": "Last changed by {{who}}, {{when}}"
+  },
+  "priority": {
+    "price": "Price",
+    "lead_time": "Lead time",
+    "quality": "Quality",
+    "existing_supplier": "Existing suppliers",
+    "domestic": "Domestic products"
+  },
+  "reference": {
+    "heading": "Decision material",
+    "none": "No past purchases match these items yet. Import your purchase records under Purchase history.",
+    "noMatch": "Not bought before",
+    "last": "Last paid",
+    "range": "Price range",
+    "cheapest": "Lowest price from",
+    "count": "Purchases",
+    "on_mpn": "by part number",
+    "on_description": "by item name"
+  }
+}

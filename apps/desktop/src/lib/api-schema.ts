@@ -903,6 +903,22 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/orgs/{org_id}/buying-criteria": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["buying_criteria_get"];
+    put: operations["buying_criteria_put"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/orgs/{org_id}/catalogue": {
     parameters: {
       query?: never;
@@ -1271,6 +1287,70 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/orgs/{org_id}/purchase-history": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["purchase_history_search"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/orgs/{org_id}/purchase-history/imports": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["purchase_history_imports"];
+    put?: never;
+    post: operations["purchase_history_import"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/orgs/{org_id}/purchase-history/imports/{id}/withdraw": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["purchase_history_withdraw"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/orgs/{org_id}/purchase-history/preview": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["purchase_history_preview"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/orgs/{org_id}/recommendations/{recommendation_id}": {
     parameters: {
       query?: never;
@@ -1553,6 +1633,22 @@ export interface paths {
     get?: never;
     put?: never;
     post: operations["pick_up"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/orgs/{org_id}/requests/{request_id}/price-reference": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["request_price_reference"];
+    put?: never;
+    post?: never;
     delete?: never;
     options?: never;
     head?: never;
@@ -2351,6 +2447,39 @@ export interface components {
       /** @description Why the amount is returned (printed on the credit note). */
       reason: string;
     };
+    CriteriaInput: {
+      excluded_suppliers?: string[];
+      /** Format: int32 */
+      max_lead_time_days?: number | null;
+      notes?: string;
+      preferred_suppliers?: string[];
+      /**
+       * Format: int32
+       * @description Flag quotes this much above the last price paid (basis points, 1000 = 10 %).
+       */
+      price_alert_bps?: number | null;
+      /**
+       * @description Most important first; each of `price`, `lead_time`, `quality`, `existing_supplier`,
+       *     `domestic` at most once.
+       */
+      priorities?: string[];
+      /** @description E.g. ISO 9001, RoHS, JIS. */
+      required_certifications?: string[];
+    };
+    CriteriaView: {
+      excluded_suppliers: string[];
+      /** Format: int32 */
+      max_lead_time_days?: number | null;
+      notes: string;
+      preferred_suppliers: string[];
+      /** Format: int32 */
+      price_alert_bps?: number | null;
+      priorities: string[];
+      required_certifications: string[];
+      /** Format: date-time */
+      updated_at?: string | null;
+      updated_by_name?: string | null;
+    };
     DecisionBody: {
       /** @description true: applied to the editor; false: discarded. */
       accepted: boolean;
@@ -2505,9 +2634,67 @@ export interface components {
       listing_id?: string | null;
       text: string;
     };
+    HistoryRowView: {
+      currency: string;
+      description: string;
+      /** Format: uuid */
+      id: string;
+      /** Format: uuid */
+      import_id: string;
+      /** Format: int32 */
+      lead_time_days?: number | null;
+      manufacturer: string;
+      mpn: string;
+      notes: string;
+      price_derived: boolean;
+      /** Format: date */
+      purchased_on: string;
+      /**
+       * Format: int64
+       * @description Thousandths of a unit.
+       */
+      quantity_milli: number;
+      supplier_name: string;
+      unit: string;
+      /**
+       * Format: int64
+       * @description Thousandths of a minor currency unit.
+       */
+      unit_price_milli: number;
+    };
     IdResponse: {
       /** Format: uuid */
       id: string;
+    };
+    ImportBody: {
+      /** @description Currency for rows without one; the organisation's usual currency, default `JPY`. */
+      currency?: string | null;
+      /** @description File content, standard base64. */
+      data_base64: string;
+      /** @description `.xlsx`, `.csv` or `.tsv` (UTF-8 or Shift_JIS). */
+      file_name: string;
+      /** @description Header row (0-based); detected when omitted. */
+      header_row?: number | null;
+      /**
+       * @description Field code per column (`date`, `supplier`, `description`, `manufacturer`, `mpn`,
+       *     `quantity`, `unit`, `unit_price`, `line_total`, `currency`, `lead_time_days`, `notes`;
+       *     null = ignore). Detected from the header when omitted.
+       */
+      mapping?: (string | null)[] | null;
+    };
+    ImportView: {
+      file_name: string;
+      /** Format: uuid */
+      id: string;
+      /** Format: date-time */
+      imported_at: string;
+      imported_by_name?: string | null;
+      /** Format: int32 */
+      rows_imported: number;
+      /** Format: int32 */
+      rows_skipped: number;
+      /** Format: date-time */
+      withdrawn_at?: string | null;
     };
     InvitationView: {
       /** Format: uuid */
@@ -2668,6 +2855,17 @@ export interface components {
       quantity: number;
       /** @description Unit code, e.g. `pcs`, `box`, `m` (lowercase letters and `_`). */
       unit?: string;
+    };
+    ItemReferenceView: {
+      /** Format: uuid */
+      item_id: string;
+      /** Format: int32 */
+      line_no: number;
+      /** @description `mpn` or `description`: what the past purchases were matched on; null = nothing to match. */
+      matched_on?: string | null;
+      /** @description The most recent matching purchases. */
+      recent: components["schemas"]["HistoryRowView"][];
+      summary?: null | components["schemas"]["PriceSummaryView"];
     };
     ItemView: {
       description: string;
@@ -3017,6 +3215,30 @@ export interface components {
       supplier_name: string;
       to_address?: string | null;
     };
+    ParsedRowView: {
+      currency: string;
+      description: string;
+      /** Format: int32 */
+      lead_time_days?: number | null;
+      manufacturer: string;
+      mpn: string;
+      price_derived: boolean;
+      /** Format: date */
+      purchased_on: string;
+      /**
+       * Format: int64
+       * @description Thousandths of a unit.
+       */
+      quantity_milli: number;
+      row: number;
+      supplier_name: string;
+      unit: string;
+      /**
+       * Format: int64
+       * @description Thousandths of a minor currency unit.
+       */
+      unit_price_milli: number;
+    };
     PaymentUpdate: {
       note?: string;
       /** @description true: received (needs `paid_on`); false: undo a mistaken payment record. */
@@ -3049,6 +3271,40 @@ export interface components {
        * @description 0 for the built-in default (one approval, never by the requester).
        */
       version: number;
+    };
+    PreviewView: {
+      /** @description Non-blank data rows in the file. */
+      data_rows: number;
+      /** @description Count per reason code. */
+      error_counts: {
+        [key: string]: number;
+      };
+      /** @description The first rows that could not be read. */
+      errors: components["schemas"]["RowErrorView"][];
+      header_row: number;
+      headers: string[];
+      mapping: (string | null)[];
+      /** @description The first rows as they would be stored. */
+      sample: components["schemas"]["ParsedRowView"][];
+      valid_rows: number;
+    };
+    PricePointView: {
+      currency: string;
+      /** Format: date */
+      purchased_on: string;
+      supplier_name: string;
+      /** Format: int64 */
+      unit_price_milli: number;
+    };
+    PriceSummaryView: {
+      cheapest: components["schemas"]["PricePointView"];
+      last: components["schemas"]["PricePointView"];
+      /** Format: int64 */
+      max_price_milli: number;
+      /** Format: int64 */
+      min_price_milli: number;
+      purchases: number;
+      suppliers: number;
     };
     ProductDetail: {
       evidence: components["schemas"]["EvidenceView"][];
@@ -3351,6 +3607,11 @@ export interface components {
       /** Format: date */
       response_due?: string | null;
       status: string;
+    };
+    RowErrorView: {
+      code: string;
+      /** @description 1-based row number in the file, as the spreadsheet shows it. */
+      row: number;
     };
     SetPasswordRequest: {
       password: string;
@@ -7052,6 +7313,117 @@ export interface operations {
       };
     };
   };
+  buying_criteria_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The organisation's buying criteria (empty until written) */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CriteriaView"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown organisation */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  buying_criteria_put: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CriteriaInput"];
+      };
+    };
+    responses: {
+      /** @description Saved (audited with the previous version) */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CriteriaView"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown organisation */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Invalid priority, list or limit */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
   listing_catalogue: {
     parameters: {
       query?: never;
@@ -8830,6 +9202,313 @@ export interface operations {
       };
       /** @description Unknown, or not linked to this organisation */
       404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  purchase_history_search: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+        /** @description Words found in the description, part number, maker or supplier. */
+        q: string | null;
+        limit: number | null;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Past purchases, newest first */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HistoryRowView"][];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown organisation */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Search text too long */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  purchase_history_imports: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Imports, newest first (withdrawn ones included) */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ImportView"][];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown organisation */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  purchase_history_import: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ImportBody"];
+      };
+    };
+    responses: {
+      /** @description Readable rows stored as one import; unreadable rows skipped and counted */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ImportView"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown organisation */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Larger than 10 MB */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description As for preview, or no readable rows */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  purchase_history_withdraw: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The import's rows are removed; the import stays listed as withdrawn */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ImportView"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown import */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Already withdrawn */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  purchase_history_preview: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ImportBody"];
+      };
+    };
+    responses: {
+      /** @description How the file would be read; nothing is stored */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PreviewView"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown organisation */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Larger than 10 MB */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Unsupported file, no header found, incomplete or invalid column mapping, too many rows */
+      422: {
         headers: {
           [name: string]: unknown;
         };
@@ -10633,6 +11312,56 @@ export interface operations {
       };
       /** @description Not in a state that allows this */
       409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  request_price_reference: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+        request_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Per request line: what was paid before, to whom, and when (matched on the verified or given part number, else the description) */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ItemReferenceView"][];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted (requesters see their requests but not past prices) */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown request */
+      404: {
         headers: {
           [name: string]: unknown;
         };

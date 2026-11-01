@@ -21,7 +21,8 @@
     "opsQueue": "業務キュー",
     "billing": "中央総合からの請求書",
     "listings": "製品掲載",
-    "catalogue": "カタログ"
+    "catalogue": "カタログ",
+    "history": "購買履歴"
   },
   "workspace": {
     "customer": "顧客ワークスペース",

@@ -29,6 +29,8 @@ pub enum IntakeError {
     SpeechUnavailable,
     /// A tool failed or timed out.
     Failed,
+    /// A table with more rows than one import takes.
+    TooLarge,
 }
 
 impl IntakeError {
@@ -39,6 +41,7 @@ impl IntakeError {
             IntakeError::Empty => "nothing_readable",
             IntakeError::SpeechUnavailable => "speech_unavailable",
             IntakeError::Failed => "intake_failed",
+            IntakeError::TooLarge => "too_many_rows",
         }
     }
 }
@@ -440,6 +443,135 @@ fn sheet_text(bytes: &[u8]) -> Result<String, IntakeError> {
     Ok(out)
 }
 
+/// Most rows a purchase-history file may hold (one import); larger exports are split.
+pub const MAX_TABLE_ROWS: usize = 50_000;
+/// Columns beyond this are ignored (no purchase export needs more).
+pub const MAX_TABLE_COLUMNS: usize = 60;
+
+/// A spreadsheet (.xlsx, first sheet that looks like a purchase table, else the first sheet)
+/// or a CSV/TSV file (UTF-8 or Shift_JIS) as rows of cell text. Dates in Excel cells come out
+/// as `YYYY-MM-DD`; numbers keep their exact decimal text.
+pub async fn table_rows(file_name: &str, bytes: &[u8]) -> Result<Vec<Vec<String>>, IntakeError> {
+    let ext = Path::new(file_name)
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    let rows = if ext == "xlsx" && bytes.starts_with(b"PK\x03\x04") {
+        let owned = bytes.to_vec();
+        tokio::task::spawn_blocking(move || {
+            check_workbook(&owned)?;
+            sheet_rows(&owned)
+        })
+        .await
+        .map_err(|_| IntakeError::Failed)??
+    } else if matches!(ext.as_str(), "csv" | "tsv" | "txt") && !bytes.contains(&0) {
+        delimited_rows(&decode_text(bytes))?
+    } else {
+        return Err(IntakeError::Unsupported);
+    };
+    if rows.iter().all(|r| procure_domain::history::is_blank(r)) {
+        return Err(IntakeError::Empty);
+    }
+    Ok(rows)
+}
+
+fn cell_text(cell: &calamine::Data) -> String {
+    use calamine::Data;
+    match cell {
+        Data::String(s) => s.clone(),
+        Data::Int(i) => i.to_string(),
+        // Shortest text that reads back as the same number (12.5, 0.85, 1000).
+        Data::Float(f) => f.to_string(),
+        Data::Bool(b) => b.to_string(),
+        Data::DateTime(d) => {
+            let (y, m, dd, ..) = d.to_ymd_hms_milli();
+            format!("{y:04}-{m:02}-{dd:02}")
+        }
+        Data::DateTimeIso(s) => s.chars().take(10).collect(),
+        Data::DurationIso(_) | Data::Error(_) | Data::Empty => String::new(),
+    }
+}
+
+fn sheet_rows(bytes: &[u8]) -> Result<Vec<Vec<String>>, IntakeError> {
+    use calamine::Reader;
+    let mut book = calamine::open_workbook_auto_from_rs(std::io::Cursor::new(bytes.to_vec()))
+        .map_err(|_| IntakeError::Unsupported)?;
+    let mut first: Option<Vec<Vec<String>>> = None;
+    for name in book.sheet_names().to_vec() {
+        let Ok(range) = book.worksheet_range(&name) else {
+            continue;
+        };
+        if range.height() > MAX_TABLE_ROWS + 20 {
+            return Err(IntakeError::TooLarge);
+        }
+        let rows: Vec<Vec<String>> = range
+            .rows()
+            .map(|r| r.iter().take(MAX_TABLE_COLUMNS).map(cell_text).collect())
+            .collect();
+        if procure_domain::history::find_header(&rows).is_some() {
+            return Ok(rows);
+        }
+        first.get_or_insert(rows);
+    }
+    first.ok_or(IntakeError::Empty)
+}
+
+/// RFC 4180 CSV (quoted fields, doubled quotes, newlines inside quotes); tab-separated when
+/// the first line has tabs and no commas.
+fn delimited_rows(text: &str) -> Result<Vec<Vec<String>>, IntakeError> {
+    let first_line = text.lines().next().unwrap_or("");
+    let sep = if first_line.contains('\t') && !first_line.contains(',') {
+        '\t'
+    } else {
+        ','
+    };
+    let mut rows = Vec::new();
+    let mut row: Vec<String> = Vec::new();
+    let mut field = String::new();
+    let mut quoted = false;
+    let mut chars = text.chars().peekable();
+    while let Some(c) = chars.next() {
+        if quoted {
+            match c {
+                '"' if chars.peek() == Some(&'"') => {
+                    chars.next();
+                    field.push('"');
+                }
+                '"' => quoted = false,
+                _ => field.push(c),
+            }
+            continue;
+        }
+        match c {
+            '"' if field.is_empty() => quoted = true,
+            c if c == sep => {
+                if row.len() < MAX_TABLE_COLUMNS {
+                    row.push(std::mem::take(&mut field));
+                }
+                field.clear();
+            }
+            '\r' => {}
+            '\n' => {
+                if row.len() < MAX_TABLE_COLUMNS {
+                    row.push(std::mem::take(&mut field));
+                }
+                field.clear();
+                rows.push(std::mem::take(&mut row));
+                if rows.len() > MAX_TABLE_ROWS + 20 {
+                    return Err(IntakeError::TooLarge);
+                }
+            }
+            _ => field.push(c),
+        }
+    }
+    if !field.is_empty() || !row.is_empty() {
+        row.push(field);
+        rows.push(row);
+    }
+    Ok(rows)
+}
+
 fn decode_text(bytes: &[u8]) -> String {
     let bytes = bytes.strip_prefix(b"\xEF\xBB\xBF").unwrap_or(bytes);
     match std::str::from_utf8(bytes) {
@@ -451,6 +583,35 @@ fn decode_text(bytes: &[u8]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn purchase_tables_are_read_from_csv() {
+        let csv = "日付,品名,単価\r\n2026/1/5,\"ボルト, M8\",12.5\r\n2026/1/6,\"say \"\"hi\"\"\nline 2\",3\n";
+        let (sjis, _, _) = encoding_rs::SHIFT_JIS.encode(csv);
+        for bytes in [csv.as_bytes(), &sjis] {
+            let rows = table_rows("history.csv", bytes).await.unwrap();
+            assert_eq!(rows.len(), 3);
+            assert_eq!(rows[1], vec!["2026/1/5", "ボルト, M8", "12.5"]);
+            assert_eq!(rows[2][1], "say \"hi\"\nline 2");
+        }
+        let rows = table_rows("h.tsv", b"date\titem\tprice\n2026-01-05\tnut\t3")
+            .await
+            .unwrap();
+        assert_eq!(rows[1], vec!["2026-01-05", "nut", "3"]);
+        assert_eq!(
+            table_rows("h.csv", b",,\n,,\n").await,
+            Err(IntakeError::Empty)
+        );
+        assert_eq!(
+            table_rows("h.pdf", b"%PDF-1.4").await,
+            Err(IntakeError::Unsupported)
+        );
+        let big = "a\n".repeat(MAX_TABLE_ROWS + 50);
+        assert_eq!(
+            table_rows("h.csv", big.as_bytes()).await,
+            Err(IntakeError::TooLarge)
+        );
+    }
 
     #[test]
     fn audio_is_recognised_by_content() {

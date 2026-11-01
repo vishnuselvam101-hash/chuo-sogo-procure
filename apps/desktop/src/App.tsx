@@ -21,6 +21,7 @@ import { OpsQueue } from "./pages/OpsQueue";
 import { Billing } from "./pages/Billing";
 import { Listings } from "./pages/Listings";
 import { Catalogue } from "./pages/Catalogue";
+import { PurchaseHistory } from "./pages/PurchaseHistory";
 
 const HOME: PageId = "dashboard";
 const PROCUREMENT: PageId = "procurement";
@@ -166,6 +167,9 @@ export function App() {
       break;
     case "billing":
       body = <Billing key={active.org_id} active={active} />;
+      break;
+    case "history":
+      body = <PurchaseHistory key={active.org_id} active={active} />;
       break;
     case "products":
       body = <Products key={active.org_id} active={active} />;

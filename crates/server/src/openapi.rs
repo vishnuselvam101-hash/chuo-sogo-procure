@@ -6,8 +6,8 @@ use utoipa::openapi::security::{HttpAuthScheme, HttpBuilder, SecurityScheme};
 use utoipa::{Modify, OpenApi};
 
 use crate::api::{
-    admin, ai, approvals, attachments, auth, billing, demo, listing_ai, listings, ops, orders,
-    orgs, products, requests, rfqs, shop, suppliers,
+    admin, ai, approvals, attachments, auth, billing, demo, history, listing_ai, listings, ops,
+    orders, orgs, products, requests, rfqs, shop, suppliers,
 };
 use crate::error::{ErrorBody, ErrorInner};
 
@@ -186,6 +186,14 @@ impl Modify for BearerAuth {
         ops::log_communication,
         ops::list_time,
         ops::log_time,
+        history::preview,
+        history::import,
+        history::list_imports,
+        history::withdraw,
+        history::search,
+        history::price_reference,
+        history::get_criteria,
+        history::put_criteria,
     ),
     components(schemas(ErrorBody, ErrorInner)),
     modifiers(&BearerAuth)

@@ -21,7 +21,8 @@
     "opsQueue": "Operations queue",
     "billing": "Chuo-Sogo invoices",
     "listings": "Product listings",
-    "catalogue": "Catalogue"
+    "catalogue": "Catalogue",
+    "history": "Purchase history"
   },
   "workspace": {
     "customer": "Customer workspace",

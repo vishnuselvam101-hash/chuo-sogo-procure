@@ -16,6 +16,7 @@ import { Comments } from "./Comments";
 import { StaffPanel } from "./StaffPanel";
 import { OrderPanel } from "./OrderPanel";
 import { P } from "../lib/perm";
+import { PriceReference } from "./PriceReference";
 
 const EDITABLE = ["draft", "needs_clarification"];
 const CLOSED = ["cancelled", "rejected", "closed"];
@@ -135,6 +136,9 @@ export function RequestDetail({ active, selfId, requestId, onBack }: Props) {
         </tbody>
       </table>
 
+      {data.items.length > 0 && (has(P.viewAllRequests) || has(P.managePurchaseHistory)) && (
+        <PriceReference key={data.items.map((i) => i.id).join()} active={active} requestId={r.id} />
+      )}
       {editable && <AiItems active={active} requestId={r.id} onAdded={reload} />}
       {editable && (
         <div className="card item-row">

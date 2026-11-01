@@ -182,6 +182,19 @@ pub fn router(state: AppState) -> Router {
             axum::routing::delete(api::orgs::revoke_operator),
         )
         .route("/orgs/{org_id}/audit", get(api::orgs::list_audit))
+        .route("/orgs/{org_id}/purchase-history", get(api::history::search))
+        .route(
+            "/orgs/{org_id}/purchase-history/imports/{id}/withdraw",
+            post(api::history::withdraw),
+        )
+        .route(
+            "/orgs/{org_id}/requests/{request_id}/price-reference",
+            get(api::history::price_reference),
+        )
+        .route(
+            "/orgs/{org_id}/buying-criteria",
+            get(api::history::get_criteria).put(api::history::put_criteria),
+        )
         .route(
             "/orgs/{org_id}/requests",
             get(api::requests::list_requests).post(api::requests::create_request),
@@ -450,6 +463,14 @@ pub fn router(state: AppState) -> Router {
         .route(
             "/orgs/{org_id}/listings/{id}/media",
             post(api::listings::upload_media),
+        )
+        .route(
+            "/orgs/{org_id}/purchase-history/preview",
+            post(api::history::preview),
+        )
+        .route(
+            "/orgs/{org_id}/purchase-history/imports",
+            get(api::history::list_imports).post(api::history::import),
         )
         .layer(axum::extract::DefaultBodyLimit::max(
             api::attachments::MAX_UPLOAD_BODY,

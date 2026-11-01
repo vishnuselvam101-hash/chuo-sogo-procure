@@ -29,6 +29,12 @@ export type Created = Schemas["Created"];
 export type AttachmentView = Schemas["AttachmentView"];
 export type ProductView = Schemas["ProductView"];
 export type ProductDetail = Schemas["ProductDetail"];
+export type HistoryPreview = Schemas["PreviewView"];
+export type HistoryImport = Schemas["ImportView"];
+export type HistoryRow = Schemas["HistoryRowView"];
+export type ItemReference = Schemas["ItemReferenceView"];
+export type BuyingCriteria = Schemas["CriteriaView"];
+export type BuyingCriteriaInput = Schemas["CriteriaInput"];
 
 /** What the Rust layer's `api_request`/`auth_login` commands return. */
 export interface ApiResponse<T = unknown> {

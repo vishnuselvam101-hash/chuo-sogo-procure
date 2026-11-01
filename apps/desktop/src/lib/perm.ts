@@ -16,6 +16,8 @@ export const P = {
   recordOrders: "record_orders",
   receiveGoods: "receive_goods",
   manageInvoices: "manage_invoices",
+  managePurchaseHistory: "manage_purchase_history",
+  viewAllRequests: "view_all_requests",
 } as const;
 
 export const AWAITING_APPROVAL = "awaiting_approval";

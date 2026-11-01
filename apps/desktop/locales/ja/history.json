@@ -1,0 +1,98 @@
+{
+  "lead": "過去の購買実績と購買基準をここにまとめます。お手元の購買記録（基幹システムや台帳から出力した Excel・CSV）を取り込むと、すべての依頼に「前回いくらで、どこから、いつ買ったか」が表示され、担当者は貴社の基準どおりに手配します。データは貴社の組織内にのみ保存されます。",
+  "import": {
+    "heading": "購買記録の取り込み",
+    "hint": "Excel（.xlsx）または CSV。日本語・英語の見出し、Shift_JIS・UTF-8 に対応。「取り込む」を押すまで何も保存されません。正確に読めない行は推測せず、除外して一覧にします。",
+    "file": "ファイル",
+    "currency": "通貨が無い行の通貨",
+    "commit": "{{count}} 行を取り込む",
+    "done": "{{imported}} 行を取り込みました（除外 {{skipped}} 行）。"
+  },
+  "preview": {
+    "summary": "{{total}} 行中 {{valid}} 行を取り込めます。",
+    "columns": "列の確認：各列の内容を選んでください",
+    "columnOf": "列「{{name}}」の内容",
+    "skipped": "除外される行",
+    "rows": "行",
+    "row": "行",
+    "sample": "保存される内容（先頭の行）",
+    "recheck": "この列設定で再確認"
+  },
+  "field": {
+    "ignore": "（使わない）",
+    "date": "日付",
+    "supplier": "仕入先",
+    "description": "品名",
+    "manufacturer": "メーカー",
+    "mpn": "型番",
+    "quantity": "数量",
+    "unit": "単位",
+    "unit_price": "単価",
+    "line_total": "金額",
+    "currency": "通貨",
+    "lead_time_days": "納期（日数）",
+    "notes": "備考"
+  },
+  "reason": {
+    "date_missing": "日付がない",
+    "date_invalid": "日付が読めない",
+    "item_missing": "品名・型番がない",
+    "quantity_invalid": "数量が読めない",
+    "price_missing": "単価・金額がない",
+    "price_invalid": "金額が読めない",
+    "currency_invalid": "通貨が不明",
+    "lead_time_invalid": "納期が読めない",
+    "text_too_long": "文字数が多すぎる"
+  },
+  "imports": {
+    "heading": "取り込み履歴",
+    "none": "まだ取り込みはありません。",
+    "file": "ファイル",
+    "rows": "行数",
+    "skipped": "除外",
+    "by": "取り込んだ人",
+    "at": "日時",
+    "withdraw": "取り消す",
+    "confirmWithdraw": "この取り込みの行を削除",
+    "withdrawn": "取り消し済み"
+  },
+  "search": {
+    "heading": "過去の購買",
+    "placeholder": "品名・型番・メーカー・仕入先",
+    "go": "検索",
+    "none": "該当する購買はありません。"
+  },
+  "derived": "金額と数量から算出",
+  "criteria": {
+    "heading": "購買基準",
+    "hint": "貴社の判断基準です。各依頼の手配担当者に表示され、貴社と同じ判断で選定します。",
+    "priority": "優先順位 {{n}}",
+    "priorities": "優先順位",
+    "preferred": "優先する仕入先（1行に1社）",
+    "excluded": "使わない仕入先（1行に1社）",
+    "certifications": "必要な認証（1行に1件）",
+    "maxLead": "許容できる最長納期（日）",
+    "alert": "前回価格からの上昇がこれを超えたら注意（%）",
+    "notes": "その他のルール",
+    "saved": "保存しました。",
+    "updated": "最終更新：{{who}}、{{when}}"
+  },
+  "priority": {
+    "price": "価格",
+    "lead_time": "納期",
+    "quality": "品質",
+    "existing_supplier": "既存取引先",
+    "domestic": "国内品"
+  },
+  "reference": {
+    "heading": "判断材料",
+    "none": "この依頼の品目に一致する過去の購買はまだありません。「購買履歴」から購買記録を取り込んでください。",
+    "noMatch": "購買実績なし",
+    "last": "前回価格",
+    "range": "価格帯",
+    "cheapest": "最安の仕入先",
+    "count": "購買回数",
+    "on_mpn": "型番で一致",
+    "on_description": "品名で一致"
+  }
+}

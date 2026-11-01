@@ -11,6 +11,7 @@ export type PageId =
   | "orders"
   | "invoices"
   | "billing"
+  | "history"
   | "listings"
   | "catalogue"
   | "reports"
@@ -50,6 +51,8 @@ export function navFor(m: MembershipView): NavItem[] {
   } else {
     if (has("submit_request") || has("view_all_requests")) items.push(item("procurement", true));
     if (has("approve_suppliers") || has("manage_rfqs")) items.push(item("suppliers", true));
+    // Past purchases and buying criteria: the decision material behind every request.
+    if (has("manage_purchase_history") || has("view_all_requests")) items.push(item("history", true));
     // Staff working inside a customer keep their work queue one click away.
     if (m.access === "assigned" && has("operate_requests")) items.push(item("opsQueue", true));
     if (m.access !== "assigned" && has("view_catalogue")) items.push(item("catalogue", true));
