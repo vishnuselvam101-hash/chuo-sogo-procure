@@ -80,7 +80,12 @@ async fn uploads_stop_at_the_organisation_quota(pool: PgPool) {
 
 #[sqlx::test(migrator = "procure_server::MIGRATOR")]
 async fn shop_sign_up_can_be_switched_off(pool: PgPool) {
-    let app = App::configured(pool, |s| s.shop_signup = false).await;
+    // In-process requests have no peer address, so they count as outside the admin networks.
+    let app = App::configured(pool, |s| {
+        s.shop_signup = false;
+        s.admin_networks = Some(procure_server::admin_networks_from("10.0.0.0/8"));
+    })
+    .await;
     let r = app
         .call(
             Method::POST,

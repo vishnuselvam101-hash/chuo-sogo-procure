@@ -65,8 +65,8 @@ pub struct AppState {
     /// Total bytes of uploaded files one organisation may keep (`PROCURE_ORG_STORAGE_QUOTA_MB`);
     /// unlimited when unset. Set on the public demo so one account cannot fill the disk.
     pub org_storage_quota: Option<i64>,
-    /// Consumer self sign-up in the shop (`PROCURE_SHOP_SIGNUP=off` turns it off, e.g. on the
-    /// public demo, where nobody can receive the activation mail anyway).
+    /// Consumer self sign-up in the shop (`PROCURE_SHOP_SIGNUP=off` turns it off outside the
+    /// admin networks, e.g. on the public demo, where nobody can receive the activation mail).
     pub shop_signup: bool,
 }
 

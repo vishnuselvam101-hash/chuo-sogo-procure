@@ -264,7 +264,8 @@ pub async fn signup(
     ClientIp(ip): ClientIp,
     ApiJson(b): ApiJson<SignupBody>,
 ) -> ApiResult<(StatusCode, Json<SignupResponse>)> {
-    if !state.shop_signup {
+    // Switched off (public demo): only from the admin networks, where the demo is seeded.
+    if !state.shop_signup && !super::admin::network_allowed(&state, &ip) {
         return Err(ApiError::Forbidden);
     }
     if !state.limiter.check(
