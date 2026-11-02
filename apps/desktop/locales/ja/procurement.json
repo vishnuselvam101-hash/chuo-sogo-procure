@@ -219,7 +219,8 @@
     "quoteTitle": "サプライヤーの文面を読み取る（AI）",
     "supplierText": "サプライヤーの回答",
     "readQuote": "文面から入力",
-    "prefilled": "AIがフォームに入力しました。保存する前に、すべての値をサプライヤーの文面と照合してください。"
+    "prefilled": "AIがフォームに入力しました。保存する前に、すべての値をサプライヤーの文面と照合してください。",
+    "replyFile": "仕入先の回答ファイル（メール .eml・PDF・Excel・FAX）"
   },
   "aiFlag": {
     "mpn_not_in_source": "型番が文面にありません",
@@ -363,5 +364,25 @@
       "quality_not_assessed": "品質は評価対象外（記録なし）",
       "close_call": "次点と僅差：内容を確認してください"
     }
+  },
+  "check": {
+    "done": "{{date}} {{name}} が確認済み",
+    "rfqHint": "送信前の確認：{{count}}社の宛先、品目と数量、本文に工場名が含まれていないことを確認してください。",
+    "note": "確認メモ（任意）",
+    "rfq": "確認済みにする",
+    "rfqFirst": "送信前に当社担当者の確認が必要です。",
+    "comparisonHint": "工場に提示する前に：読み取った単価・数量・納期を各社の回答原本と照合してください。",
+    "comparison": "比較を確認済みにする",
+    "comparisonFirst": "提示前に当社担当者による比較の確認が必要です。"
+  },
+  "delivery": {
+    "expected": "納品予定日",
+    "unknown": "未定",
+    "confirmedBySupplier": "仕入先確認済み",
+    "fromLeadTime": "見積の納期から算出",
+    "late": "納期遅れ",
+    "confirmedOn": "仕入先の回答納期",
+    "note": "メモ",
+    "record": "納期を記録"
   }
 }

@@ -79,7 +79,8 @@
     "rules": "Rules",
     "staff": "Staff",
     "audit": "Audit log",
-    "profile": "Profile"
+    "profile": "Profile",
+    "savings": "Savings share"
   },
   "rules": {
     "identifySla": "Product identification target (hours)",

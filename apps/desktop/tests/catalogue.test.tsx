@@ -64,7 +64,7 @@ describe("catalogue and listings", () => {
     });
   });
 
-  it("suppliers see their listings; customers the catalogue; nobody else", () => {
+  it("suppliers see their listings; the factory side has no catalogue by default", () => {
     const ids = (m: MembershipView) => navFor(m).map((n) => n.id);
     expect(ids(member("supplier", ["manage_listings", "manage_org_users", "view_audit"]))).toEqual([
       "dashboard",
@@ -73,9 +73,13 @@ describe("catalogue and listings", () => {
       "audit",
       "settings",
     ]);
-    expect(ids(member("customer", ["submit_request", "view_own_requests", "view_catalogue"]))).toContain(
+    // We buy for the factory; the catalogue only appears in a VITE_MARKETPLACE=on build.
+    expect(ids(member("customer", ["submit_request", "view_own_requests", "view_catalogue"]))).not.toContain(
       "catalogue",
     );
+    // Finance and buyers see the savings ledger our fee is computed from.
+    expect(ids(member("customer", ["view_finance"]))).toContain("savings");
+    expect(ids(member("customer", ["submit_request"]))).not.toContain("savings");
     expect(ids(member("customer", ["submit_request"]))).not.toContain("catalogue");
     expect(ids(member("customer", ["view_catalogue"]))).not.toContain("listings");
   });

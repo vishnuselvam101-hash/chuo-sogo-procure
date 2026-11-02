@@ -18,8 +18,9 @@ import {
   type OrgSettings,
 } from "./types";
 import { AdminStatus, ConfirmButton } from "./widgets";
+import { SavingsAdmin } from "./SavingsAdmin";
 
-type Tab = "members" | "rules" | "staff" | "audit" | "profile";
+type Tab = "members" | "rules" | "staff" | "savings" | "audit" | "profile";
 
 /** Rules the platform applies to this organisation (defaults until first saved). */
 function Rules({ orgId }: { orgId: string }) {
@@ -367,6 +368,7 @@ export function OrgDetail({
     "members",
     "rules",
     ...(org?.kind === "customer" ? (["staff"] as const) : []),
+    ...(org?.kind === "customer" && permissions.includes(PERM.manageBilling) ? (["savings"] as const) : []),
     "audit",
     "profile",
   ];
@@ -405,6 +407,7 @@ export function OrgDetail({
           {tab === "staff" && (
             <Staff orgId={org.id} canManage={permissions.includes(PERM.manageAssignments)} />
           )}
+          {tab === "savings" && <SavingsAdmin orgId={org.id} />}
           {tab === "audit" && <AuditLog orgId={org.id} timezone={org.timezone} />}
           {tab === "profile" && (
             <Profile key={`${org.name}${org.status}`} org={org} onChanged={orgs.reload} />

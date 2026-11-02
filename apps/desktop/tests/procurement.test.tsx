@@ -98,6 +98,9 @@ const rec: RecommendationDetail = {
     policy_version: 1,
     created_at: "2026-11-01T00:00:00Z",
     sent_at: "2026-11-01T00:00:00Z",
+    checked_at: "2026-11-01T00:00:00Z",
+    checked_by_name: "Operator",
+    check_note: "",
     decided_at: null,
   },
   comparison: [

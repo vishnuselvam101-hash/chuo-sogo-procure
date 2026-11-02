@@ -19,6 +19,7 @@ import { Approvals } from "./pages/Approvals";
 import { Products } from "./pages/Products";
 import { OpsQueue } from "./pages/OpsQueue";
 import { Billing } from "./pages/Billing";
+import { Savings } from "./pages/Savings";
 import { Listings } from "./pages/Listings";
 import { Catalogue } from "./pages/Catalogue";
 import { PurchaseHistory } from "./pages/PurchaseHistory";
@@ -167,6 +168,9 @@ export function App() {
       break;
     case "billing":
       body = <Billing key={active.org_id} active={active} />;
+      break;
+    case "savings":
+      body = <Savings key={active.org_id} active={active} />;
       break;
     case "history":
       body = <PurchaseHistory key={active.org_id} active={active} />;

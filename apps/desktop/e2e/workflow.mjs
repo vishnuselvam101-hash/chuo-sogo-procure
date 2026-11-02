@@ -3,7 +3,7 @@
 // by three different people. Run with scripts/e2e-workflow.sh.
 //   requester: drafts and submits a request
 //   operator (Chuo-Sogo, assigned): picks up, verifies the item with evidence, sources,
-//     dispatches the RFQ in test mode, records two quotations, compares, recommends, sends
+//     checks and dispatches the RFQ in test mode, records two quotations, compares, recommends, checks, sends
 //   procurement manager (customer): approves
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { remote } from "webdriverio";
@@ -180,6 +180,8 @@ try {
     await (await b.$(`//label[contains(normalize-space(.), '${s}')]/input`)).click();
   }
   await click("Create RFQ");
+  // A person on our side checks the RFQ before it can go out.
+  await click("Mark as checked");
   await click("Dispatch (test mode)");
   check("RFQ dispatched in test mode", await headerStatus("RFQ sent"));
   await click("Show messages");
@@ -247,6 +249,8 @@ try {
   await shot("03-operator-comparison");
   await click("Recommend");
   check("operator recommends", await headerStatus("Recommended"));
+  // ...and checks the comparison before the factory sees it.
+  await click("Comparison checked");
   await click("Send to customer for approval");
   check("recommendation sent for approval", await headerStatus("Awaiting approval"));
   check("operator is never offered an Approve button", (await b.$$(buttonXpath("Approve"))).length === 0);

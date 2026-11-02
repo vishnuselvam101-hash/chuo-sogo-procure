@@ -53,6 +53,7 @@ export interface Prefs {
   server_url: string;
 }
 export type InvoiceSummary = Schemas["InvoiceSummary"];
+export type SavingsView = Schemas["SavingsView"];
 export type IssuedInvoice = Schemas["InvoiceDetail"];
 export type InvoiceLineInput = Schemas["LineInput"];
 export type IssuerProfile = Schemas["IssuerProfile"];

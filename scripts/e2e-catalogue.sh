@@ -3,7 +3,8 @@
 # catalogue (business app), against a real
 # backend on a throwaway database (created and dropped here; dev data is never touched).
 # Needs: .env (owner DATABASE_URL, PROCURE_RUNTIME_DATABASE_URL), target/release/procure-server,
-# target/release/procure-desktop (business), target/admin/release/procure-desktop (cargo tauri build --config
+# target/release/procure-desktop (business, built with VITE_MARKETPLACE=on: the catalogue is
+# off in the factory-side product), target/admin/release/procure-desktop (cargo tauri build --config
 # src-tauri/tauri.admin.conf.json --features admin, CARGO_TARGET_DIR=target/admin),
 # tauri-driver, WebKitWebDriver, Xvfb, and port 8088 free.
 set -euo pipefail

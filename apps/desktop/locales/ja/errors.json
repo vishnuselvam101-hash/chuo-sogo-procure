@@ -163,7 +163,15 @@
     "alias_exists": "この表記は既に別の品目として登録されています。",
     "alias_chain": "この表記には既に別名が登録されています。先にそちらを解除してください。",
     "alias_key": "品目のキーが正しくありません。",
-    "canonical_key": "品目のキーが正しくありません。"
+    "canonical_key": "品目のキーが正しくありません。",
+    "rfq_not_checked": "送信前に当社担当者の確認が必要です。",
+    "recommendation_not_checked": "工場への提示前に比較の確認が必要です。",
+    "already_checked": "確認済みです。",
+    "terms_fixed": "条件は確定済みです（削減額が計上済み）。",
+    "baseline_exists": "この品目の従来単価は登録済みです。",
+    "baseline_fixed": "この単価は確認済みまたは使用済みのため削除できません。",
+    "nothing_to_bill": "その日までの未請求の報酬はありません。",
+    "already_confirmed": "確認済みです。"
   },
   "payload_too_large": "ファイルまたはリクエストが大きすぎます。",
   "invalid_file_name": "このファイル名は使用できません。",

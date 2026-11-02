@@ -22,7 +22,8 @@
     "billing": "Chuo-Sogo invoices",
     "listings": "Product listings",
     "catalogue": "Catalogue",
-    "history": "Purchase history"
+    "history": "Purchase history",
+    "savings": "Savings"
   },
   "workspace": {
     "customer": "Customer workspace",
@@ -149,7 +150,8 @@
     "save": "Save",
     "cancel": "Cancel",
     "refresh": "Refresh",
-    "back": "Back"
+    "back": "Back",
+    "remove": "Remove"
   },
   "state": {
     "loading": "Loading…",

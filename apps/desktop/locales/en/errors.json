@@ -163,7 +163,15 @@
     "alias_exists": "This item is already linked to another item.",
     "alias_chain": "Other items are already linked to this one. Remove those links first.",
     "alias_key": "Invalid item key.",
-    "canonical_key": "Invalid item key."
+    "canonical_key": "Invalid item key.",
+    "rfq_not_checked": "A person on our side must check the RFQ before it is sent.",
+    "recommendation_not_checked": "A person on our side must check the comparison before it goes to the factory.",
+    "already_checked": "Already checked.",
+    "terms_fixed": "The terms are fixed: savings were already counted under them.",
+    "baseline_exists": "This item already has a price paid before.",
+    "baseline_fixed": "This price is confirmed or already used and cannot be removed.",
+    "nothing_to_bill": "No unbilled fees up to that date.",
+    "already_confirmed": "Already confirmed."
   },
   "payload_too_large": "The file or request is too large.",
   "invalid_file_name": "This file name cannot be used.",

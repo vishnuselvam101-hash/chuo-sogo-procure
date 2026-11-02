@@ -219,7 +219,8 @@
     "quoteTitle": "Read the supplier's text (AI)",
     "supplierText": "Supplier's reply",
     "readQuote": "Pre-fill from text",
-    "prefilled": "Form pre-filled by AI. Check every value against the supplier's text before saving."
+    "prefilled": "Form pre-filled by AI. Check every value against the supplier's text before saving.",
+    "replyFile": "Supplier reply file (email .eml, PDF, Excel, FAX scan)"
   },
   "aiFlag": {
     "mpn_not_in_source": "part number not found in the text",
@@ -363,5 +364,25 @@
       "quality_not_assessed": "quality not assessed (no records)",
       "close_call": "close to the next one: check the details"
     }
+  },
+  "check": {
+    "done": "Checked by {{name}} on {{date}}",
+    "rfqHint": "Before this goes out: check the {{count}} suppliers, the items and quantities, and that the message does not name the factory.",
+    "note": "Check note (optional)",
+    "rfq": "Mark as checked",
+    "rfqFirst": "A person on our side checks the RFQ before it is sent.",
+    "comparisonHint": "Before the factory sees this: compare each read price, quantity and lead time with the supplier's own reply.",
+    "comparison": "Comparison checked",
+    "comparisonFirst": "A person on our side checks the comparison before it is sent."
+  },
+  "delivery": {
+    "expected": "Expected delivery",
+    "unknown": "not known yet",
+    "confirmedBySupplier": "confirmed by the supplier",
+    "fromLeadTime": "from the quoted lead time",
+    "late": "Late",
+    "confirmedOn": "Date the supplier confirmed",
+    "note": "Note",
+    "record": "Record date"
   }
 }

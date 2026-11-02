@@ -11,6 +11,7 @@ export type PageId =
   | "orders"
   | "invoices"
   | "billing"
+  | "savings"
   | "history"
   | "listings"
   | "catalogue"
@@ -28,6 +29,8 @@ export interface NavItem {
   /** False = module arrives in a later phase; shown honestly as such. */
   implemented: boolean;
 }
+
+const MARKETPLACE = import.meta.env.VITE_MARKETPLACE === "on";
 
 const item = (id: PageId, implemented = false): NavItem => ({ id, labelKey: `nav.${id}`, implemented });
 
@@ -55,12 +58,16 @@ export function navFor(m: MembershipView): NavItem[] {
     if (has("manage_purchase_history") || has("view_all_requests")) items.push(item("history", true));
     // Staff working inside a customer keep their work queue one click away.
     if (m.access === "assigned" && has("operate_requests")) items.push(item("opsQueue", true));
-    if (m.access !== "assigned" && has("view_catalogue")) items.push(item("catalogue", true));
+    // We buy for the factory; we are not a marketplace. The supplier catalogue stays off
+    // unless a build turns it on (VITE_MARKETPLACE=on).
+    if (MARKETPLACE && m.access !== "assigned" && has("view_catalogue")) items.push(item("catalogue", true));
     if (has("approve_recommendation") || has("manage_approval_policy")) items.push(item("approvals", true));
     if (has("view_orders")) items.push(item("orders", true));
     if (has("view_finance")) items.push(item("invoices", true));
     // Chuo-Sogo's own invoices to this customer (customer members only; staff use the console).
     if (has("view_finance") && m.access !== "assigned") items.push(item("billing", true));
+    // How we are paid: half of what each price went down, line by line.
+    if (has("view_finance") || has("view_all_requests")) items.push(item("savings", true));
     if (has("view_reports")) items.push(item("reports"));
     if (has("manage_org_users")) items.push(item("members", true));
   }

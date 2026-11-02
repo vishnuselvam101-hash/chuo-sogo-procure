@@ -250,7 +250,11 @@ function OrderDetails({
           </label>
           <label className="grow">
             {t("procurement:delivery.note")}
-            <input maxLength={2000} value={eta.note} onChange={(e) => setEta({ ...eta, note: e.target.value })} />
+            <input
+              maxLength={2000}
+              value={eta.note}
+              onChange={(e) => setEta({ ...eta, note: e.target.value })}
+            />
           </label>
           <button type="button" disabled={action.busy || !eta.date} onClick={() => void confirmEta()}>
             {t("procurement:delivery.record")}

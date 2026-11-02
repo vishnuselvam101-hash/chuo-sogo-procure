@@ -79,7 +79,8 @@
     "rules": "ルール",
     "staff": "スタッフ",
     "audit": "監査ログ",
-    "profile": "基本情報"
+    "profile": "基本情報",
+    "savings": "成果報酬"
   },
   "rules": {
     "identifySla": "製品特定の目標時間（時間）",
