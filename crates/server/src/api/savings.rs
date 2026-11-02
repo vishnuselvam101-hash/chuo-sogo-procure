@@ -89,9 +89,16 @@ async fn baseline_for(
         unit_price_milli: i64,
         currency: String,
         unit: String,
+        imported_by: Uuid,
+        factory_import: bool,
     }
     let past = sqlx::query_as::<_, Past>(
-        "SELECT h.id, h.purchased_on, h.supplier_name, h.unit_price_milli, h.currency, h.unit
+        "SELECT h.id, h.purchased_on, h.supplier_name, h.unit_price_milli, h.currency, h.unit,
+                i.imported_by,
+                EXISTS (SELECT 1 FROM memberships m
+                        WHERE m.user_id = i.imported_by AND m.org_id = $3
+                          AND m.role IN ('customer_admin', 'procurement_manager', 'requester',
+                                         'finance')) AS factory_import
          FROM purchase_history h JOIN history_imports i ON i.id = h.import_id
          WHERE h.item_key = ANY($1) AND i.source <> 'order' AND i.withdrawn_at IS NULL
            AND h.purchased_on < $2
@@ -99,18 +106,25 @@ async fn baseline_for(
     )
     .bind(group)
     .bind(starts_on)
+    .bind(org_id)
     .fetch_optional(&mut **tx)
     .await?;
     let Some(past) = past else {
         return Ok(None);
     };
-    let id = Uuid::now_v7();
+    // The factory's own record, with its unit, is the price it paid. A record our staff
+    // imported for them, or one without a unit (a price per 100 would count 100 times),
+    // waits for a factory approver to confirm it.
+    let confirmed_by =
+        (past.factory_import && !past.unit.trim().is_empty()).then_some(past.imported_by);
     sqlx::query(
         "INSERT INTO savings_baselines (id, org_id, item_key, source, history_id, purchased_on,
              supplier_name, unit_price_milli, currency, unit, set_by, confirmed_by, confirmed_at)
-         VALUES ($1, $2, $3, 'history', $4, $5, $6, $7, $8, $9, $10, $10, now())",
+         VALUES ($1, $2, $3, 'history', $4, $5, $6, $7, $8, $9, $10, $11,
+                 CASE WHEN $11::uuid IS NULL THEN NULL ELSE now() END)
+         ON CONFLICT (org_id, item_key) DO NOTHING",
     )
-    .bind(id)
+    .bind(Uuid::now_v7())
     .bind(org_id)
     .bind(&group[0])
     .bind(past.id)
@@ -120,15 +134,45 @@ async fn baseline_for(
     .bind(&past.currency)
     .bind(&past.unit)
     .bind(user)
+    .bind(confirmed_by)
     .execute(&mut **tx)
     .await?;
-    Ok(Some(BaselineRow {
-        id,
-        unit_price_milli: past.unit_price_milli,
-        currency: past.currency,
-        unit: past.unit,
-        confirmed: true,
-    }))
+    // Another reconcile may have fixed it first; either way the stored row is the baseline.
+    Ok(sqlx::query_as::<_, BaselineRow>(&format!(
+        "SELECT {BASELINE_COLUMNS} FROM savings_baselines
+         WHERE item_key = ANY($1) ORDER BY set_at, id LIMIT 1"
+    ))
+    .bind(group)
+    .fetch_optional(&mut **tx)
+    .await?)
+}
+
+/// Prices one order line against a confirmed baseline: (status, saving, fee).
+fn price_line(
+    b: &BaselineRow,
+    unit_price_minor: i64,
+    quantity: i32,
+    unit: &str,
+    currency: Currency,
+    share_bps: i32,
+) -> ApiResult<(&'static str, i64, i64)> {
+    let base = Baseline {
+        unit_price_milli: b.unit_price_milli,
+        currency: common::currency(&b.currency)?,
+        unit: b.unit.clone(),
+    };
+    let line = OrderLine {
+        unit_price: Money::from_minor(unit_price_minor, currency),
+        quantity: u32::try_from(quantity).map_err(ApiError::internal)?,
+        unit: unit.to_string(),
+    };
+    let bps = u32::try_from(share_bps).map_err(ApiError::internal)?;
+    Ok(match savings::share(&base, &line, bps) {
+        Ok(s) if s.fee.minor() > 0 => ("counted", s.saving.minor(), s.fee.minor()),
+        Ok(s) => ("no_saving", s.saving.minor(), 0),
+        Err(SavingsError::CurrencyMismatch | SavingsError::UnitMismatch) => ("mismatch", 0, 0),
+        Err(e) => return Err(ApiError::internal(e)),
+    })
 }
 
 /// The keys confirmed as the same item, the item's own key first.
@@ -136,6 +180,16 @@ fn ordered_group(key: &str, group: &[String]) -> Vec<String> {
     let mut g: Vec<String> = vec![key.to_string()];
     g.extend(group.iter().filter(|k| *k != key).cloned());
     g
+}
+
+/// 5000 → "50", 1250 → "12.5", 3333 → "33.33".
+fn percent_text(bps: i32) -> String {
+    let (whole, frac) = (bps / 100, bps % 100);
+    match frac {
+        0 => whole.to_string(),
+        f if f % 10 == 0 => format!("{whole}.{}", f / 10),
+        f => format!("{whole}.{f:02}"),
+    }
 }
 
 /// "JPY 12,345" / "USD 1,234.50" for invoice line text.
@@ -154,7 +208,12 @@ fn amount_text(m: Money) -> String {
     if digits == 0 {
         format!("{} {grouped}", m.currency().code())
     } else {
-        format!("{} {grouped}.{:0width$}", m.currency().code(), frac, width = digits as usize)
+        format!(
+            "{} {grouped}.{:0width$}",
+            m.currency().code(),
+            frac,
+            width = digits as usize
+        )
     }
 }
 
@@ -219,7 +278,6 @@ pub async fn record_order(
     let (mut counted, mut saving_total, mut fee_total) = (0usize, 0i64, 0i64);
     for (l, key) in lines.iter().zip(keys) {
         let currency = common::currency(&l.currency)?;
-        let quantity = u32::try_from(l.quantity).map_err(ApiError::internal)?;
         let mut baseline: Option<BaselineRow> = None;
         let mut share_bps: Option<i32> = None;
         let (status, saving, fee) = match (&agreement, &key) {
@@ -235,29 +293,14 @@ pub async fn record_order(
                 match &baseline {
                     None => ("no_baseline", 0, 0),
                     Some(b) if !b.confirmed => ("unconfirmed_baseline", 0, 0),
-                    Some(b) => {
-                        let base = Baseline {
-                            unit_price_milli: b.unit_price_milli,
-                            currency: common::currency(&b.currency)?,
-                            unit: b.unit.clone(),
-                        };
-                        let line = OrderLine {
-                            unit_price: Money::from_minor(l.unit_price_minor, currency),
-                            quantity,
-                            unit: l.unit.clone(),
-                        };
-                        let bps = u32::try_from(a.share_bps).map_err(ApiError::internal)?;
-                        match savings::share(&base, &line, bps) {
-                            Ok(s) if s.fee.minor() > 0 => {
-                                ("counted", s.saving.minor(), s.fee.minor())
-                            }
-                            Ok(s) => ("no_saving", s.saving.minor(), 0),
-                            Err(SavingsError::CurrencyMismatch | SavingsError::UnitMismatch) => {
-                                ("mismatch", 0, 0)
-                            }
-                            Err(e) => return Err(ApiError::internal(e)),
-                        }
-                    }
+                    Some(b) => price_line(
+                        b,
+                        l.unit_price_minor,
+                        l.quantity,
+                        &l.unit,
+                        currency,
+                        a.share_bps,
+                    )?,
                 }
             }
         };
@@ -371,7 +414,9 @@ pub struct SavingsView {
     pub baselines: Vec<BaselineView>,
 }
 
-async fn load_view(tx: &mut Tx) -> ApiResult<SavingsView> {
+/// `admin`: the console sees draft invoices; the factory sees only issued ones (a fee on a
+/// draft is still unbilled to the factory).
+async fn load_view(tx: &mut Tx, admin: bool) -> ApiResult<SavingsView> {
     #[derive(sqlx::FromRow)]
     struct A {
         share_bps: i32,
@@ -400,7 +445,8 @@ async fn load_view(tx: &mut Tx) -> ApiResult<SavingsView> {
     let entries = sqlx::query_as::<_, EntryView>(
         "SELECT e.id, e.order_id, o.po_number, r.number AS request_number, ri.description,
                 e.ordered_on, e.quantity, e.unit_price_minor, e.baseline_unit_price_milli,
-                e.currency, e.share_bps, e.saving_minor, e.fee_minor, e.status, e.invoice_id,
+                e.currency, e.share_bps, e.saving_minor, e.fee_minor, e.status,
+                CASE WHEN $1 OR inv.status <> 'draft' THEN e.invoice_id END AS invoice_id,
                 inv.number AS invoice_number
          FROM savings_entries e
          JOIN purchase_orders o ON o.id = e.order_id
@@ -411,6 +457,7 @@ async fn load_view(tx: &mut Tx) -> ApiResult<SavingsView> {
          WHERE e.org_id = app_org_id()
          ORDER BY e.ordered_on DESC, o.po_number, ri.line_no",
     )
+    .bind(admin)
     .fetch_all(&mut **tx)
     .await?;
     let baselines = sqlx::query_as::<_, BaselineView>(
@@ -424,19 +471,26 @@ async fn load_view(tx: &mut Tx) -> ApiResult<SavingsView> {
     .await?;
     let mut by_ccy: BTreeMap<String, CurrencyTotal> = BTreeMap::new();
     for e in entries.iter().filter(|e| e.status == "counted") {
-        let t = by_ccy.entry(e.currency.clone()).or_insert_with(|| CurrencyTotal {
-            currency: e.currency.clone(),
-            saving_minor: 0,
-            fee_minor: 0,
-            unbilled_fee_minor: 0,
-        });
+        let t = by_ccy
+            .entry(e.currency.clone())
+            .or_insert_with(|| CurrencyTotal {
+                currency: e.currency.clone(),
+                saving_minor: 0,
+                fee_minor: 0,
+                unbilled_fee_minor: 0,
+            });
         t.saving_minor = t.saving_minor.saturating_add(e.saving_minor);
         t.fee_minor = t.fee_minor.saturating_add(e.fee_minor);
         if e.invoice_id.is_none() {
             t.unbilled_fee_minor = t.unbilled_fee_minor.saturating_add(e.fee_minor);
         }
     }
-    Ok(SavingsView { agreement, totals: by_ccy.into_values().collect(), entries, baselines })
+    Ok(SavingsView {
+        agreement,
+        totals: by_ccy.into_values().collect(),
+        entries,
+        baselines,
+    })
 }
 
 // ---------------------------------------------------------------------------------------
@@ -475,7 +529,7 @@ pub async fn get_savings(
 ) -> ApiResult<Json<SavingsView>> {
     require_read(&state, &p, org_id).await?;
     let mut tx = db::tenant_tx(&state.pool, p.user_id, org_id).await?;
-    let view = load_view(&mut tx).await?;
+    let view = load_view(&mut tx, false).await?;
     tx.commit().await?;
     Ok(Json(view))
 }
@@ -524,8 +578,64 @@ pub async fn confirm_baseline(
     .bind(p.user_id)
     .execute(&mut *tx)
     .await?;
+    // Lines that waited for this confirmation are priced now.
+    let baseline = sqlx::query_as::<_, BaselineRow>(&format!(
+        "SELECT {BASELINE_COLUMNS} FROM savings_baselines WHERE id = $1"
+    ))
+    .bind(baseline_id)
+    .fetch_one(&mut *tx)
+    .await?;
+    #[derive(sqlx::FromRow)]
+    struct Waiting {
+        id: Uuid,
+        unit_price_minor: i64,
+        quantity: i32,
+        unit: String,
+        currency: String,
+        share_bps: i32,
+    }
+    let waiting = sqlx::query_as::<_, Waiting>(
+        "SELECT e.id, e.unit_price_minor, e.quantity, ri.unit, e.currency, e.share_bps
+         FROM savings_entries e
+         JOIN order_items oi ON oi.id = e.order_item_id
+         JOIN request_items ri ON ri.id = oi.request_item_id
+         WHERE e.baseline_id = $1 AND e.status = 'unconfirmed_baseline'
+           AND e.share_bps IS NOT NULL
+         FOR UPDATE OF e",
+    )
+    .bind(baseline_id)
+    .fetch_all(&mut *tx)
+    .await?;
+    let mut fee_total = 0i64;
+    for w in &waiting {
+        let currency = common::currency(&w.currency)?;
+        let (status, saving, fee) = price_line(
+            &baseline,
+            w.unit_price_minor,
+            w.quantity,
+            &w.unit,
+            currency,
+            w.share_bps,
+        )?;
+        fee_total = fee_total.saturating_add(fee);
+        sqlx::query(
+            "UPDATE savings_entries SET status = $2, saving_minor = $3, fee_minor = $4 WHERE id = $1",
+        )
+        .bind(w.id)
+        .bind(status)
+        .bind(saving)
+        .bind(fee)
+        .execute(&mut *tx)
+        .await?;
+    }
     Audit { org_id, p: &p }
-        .record(&mut tx, "savings.baseline_confirmed", "savings_baseline", baseline_id, json!({}))
+        .record(
+            &mut tx,
+            "savings.baseline_confirmed",
+            "savings_baseline",
+            baseline_id,
+            json!({ "lines_priced": waiting.len(), "fee_minor": fee_total }),
+        )
         .await?;
     tx.commit().await?;
     Ok(StatusCode::NO_CONTENT)
@@ -553,7 +663,7 @@ pub async fn admin_get_savings(
     ApiPath(org_id): ApiPath<Uuid>,
 ) -> ApiResult<Json<SavingsView>> {
     let (mut tx, _, _, _) = billing::org_billing_tx(&state, &p, org_id).await?;
-    let view = load_view(&mut tx).await?;
+    let view = load_view(&mut tx, true).await?;
     tx.commit().await?;
     Ok(Json(view))
 }
@@ -598,7 +708,8 @@ pub async fn put_agreement(
     })?;
     let notes = common::text(&body.notes, 2000, true, "notes")?;
     let ends_on = naive(
-        savings::term_end(day(body.starts_on)?, term_months).ok_or(ApiError::Validation("starts_on"))?,
+        savings::term_end(day(body.starts_on)?, term_months)
+            .ok_or(ApiError::Validation("starts_on"))?,
     )?;
     let (mut tx, platform, _, _) = billing::org_billing_tx(&state, &p, org_id).await?;
     let kind: String = sqlx::query_scalar("SELECT kind FROM organisations WHERE id = $1")
@@ -610,9 +721,12 @@ pub async fn put_agreement(
     }
     // Ledger rows were computed under the current terms; changing them afterwards would
     // rewrite what the factory already agreed to pay.
-    let used: bool = sqlx::query_scalar("SELECT EXISTS (SELECT 1 FROM savings_entries)")
-        .fetch_one(&mut *tx)
-        .await?;
+    // Lines recorded while there were no terms never earn a fee and do not fix them.
+    let used: bool = sqlx::query_scalar(
+        "SELECT EXISTS (SELECT 1 FROM savings_entries WHERE status <> 'no_agreement')",
+    )
+    .fetch_one(&mut *tx)
+    .await?;
     if used {
         return Err(ApiError::Conflict("terms_fixed"));
     }
@@ -635,9 +749,18 @@ pub async fn put_agreement(
     let data = json!({ "share_bps": share_bps, "term_months": term_months,
                        "starts_on": body.starts_on, "ends_on": ends_on });
     for target in [platform, org_id] {
-        Audit { org_id: target, p: &p }
-            .record(&mut tx, "savings.agreement_saved", "organisation", org_id, data.clone())
-            .await?;
+        Audit {
+            org_id: target,
+            p: &p,
+        }
+        .record(
+            &mut tx,
+            "savings.agreement_saved",
+            "organisation",
+            org_id,
+            data.clone(),
+        )
+        .await?;
     }
     tx.commit().await?;
     Ok(StatusCode::NO_CONTENT)
@@ -679,7 +802,8 @@ pub async fn add_agreed_baseline(
     ApiPath(org_id): ApiPath<Uuid>,
     ApiJson(body): ApiJson<AgreedBaselineInput>,
 ) -> ApiResult<(StatusCode, Json<crate::api::suppliers::IdResponse>)> {
-    let key = history::item_key(&body.mpn, &body.description).ok_or(ApiError::Validation("item"))?;
+    let key =
+        history::item_key(&body.mpn, &body.description).ok_or(ApiError::Validation("item"))?;
     if !(0..=history::MAX_PRICE_MILLI).contains(&body.unit_price_milli) {
         return Err(ApiError::Validation("unit_price_milli"));
     }
@@ -689,11 +813,12 @@ pub async fn add_agreed_baseline(
     let (mut tx, _, _, _) = billing::org_billing_tx(&state, &p, org_id).await?;
     let groups = key_groups(&mut tx, std::slice::from_ref(&key)).await?;
     let group = ordered_group(&key, groups.get(&key).map_or(&[][..], |g| g.as_slice()));
-    let exists: bool =
-        sqlx::query_scalar("SELECT EXISTS (SELECT 1 FROM savings_baselines WHERE item_key = ANY($1))")
-            .bind(&group)
-            .fetch_one(&mut *tx)
-            .await?;
+    let exists: bool = sqlx::query_scalar(
+        "SELECT EXISTS (SELECT 1 FROM savings_baselines WHERE item_key = ANY($1))",
+    )
+    .bind(&group)
+    .fetch_one(&mut *tx)
+    .await?;
     if exists {
         return Err(ApiError::Conflict("baseline_exists"));
     }
@@ -724,7 +849,10 @@ pub async fn add_agreed_baseline(
         )
         .await?;
     tx.commit().await?;
-    Ok((StatusCode::CREATED, Json(crate::api::suppliers::IdResponse { id })))
+    Ok((
+        StatusCode::CREATED,
+        Json(crate::api::suppliers::IdResponse { id }),
+    ))
 }
 
 #[utoipa::path(
@@ -765,7 +893,13 @@ pub async fn delete_baseline(
         .execute(&mut *tx)
         .await?;
     Audit { org_id, p: &p }
-        .record(&mut tx, "savings.baseline_removed", "savings_baseline", baseline_id, json!({}))
+        .record(
+            &mut tx,
+            "savings.baseline_removed",
+            "savings_baseline",
+            baseline_id,
+            json!({}),
+        )
         .await?;
     tx.commit().await?;
     Ok(StatusCode::NO_CONTENT)
@@ -837,7 +971,7 @@ pub async fn create_savings_invoice(
         .map(|o| LineInput {
             description: format!(
                 "Savings share {}% — PO {} ({}, {} line(s), saving {})",
-                o.share_bps / 100,
+                percent_text(o.share_bps),
                 o.po_number,
                 o.first_on,
                 o.lines,
@@ -862,7 +996,8 @@ pub async fn create_savings_invoice(
         ),
         lines,
     };
-    let id = billing::insert_draft(&mut tx, &p, platform, org_id, &org_name, issuer, &input).await?;
+    let id =
+        billing::insert_draft(&mut tx, &p, platform, org_id, &org_name, issuer, &input).await?;
     let orders: Vec<Uuid> = open.iter().map(|o| o.order_id).collect();
     sqlx::query(
         "UPDATE savings_entries SET invoice_id = $1
@@ -885,9 +1020,26 @@ mod tests {
 
     #[test]
     fn amounts() {
-        assert_eq!(amount_text(Money::from_minor(1_234_567, Currency::Jpy)), "JPY 1,234,567");
-        assert_eq!(amount_text(Money::from_minor(500, Currency::Jpy)), "JPY 500");
-        assert_eq!(amount_text(Money::from_minor(123_405, Currency::Usd)), "USD 1,234.05");
+        assert_eq!(
+            amount_text(Money::from_minor(1_234_567, Currency::Jpy)),
+            "JPY 1,234,567"
+        );
+        assert_eq!(
+            amount_text(Money::from_minor(500, Currency::Jpy)),
+            "JPY 500"
+        );
+        assert_eq!(
+            amount_text(Money::from_minor(123_405, Currency::Usd)),
+            "USD 1,234.05"
+        );
+    }
+
+    #[test]
+    fn percents() {
+        assert_eq!(percent_text(5000), "50");
+        assert_eq!(percent_text(1250), "12.5");
+        assert_eq!(percent_text(3333), "33.33");
+        assert_eq!(percent_text(5), "0.05");
     }
 
     #[test]

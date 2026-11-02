@@ -18,8 +18,9 @@ CREATE TABLE savings_agreements (
 
 -- The price paid before, per item, fixed once. Either taken from the factory's own purchase
 -- records dated before the agreement started (never from orders placed through us, which
--- would erase the saving), or agreed with the factory for an item without such a record —
--- an agreed baseline counts only after a factory user confirms it.
+-- would erase the saving), or agreed with the factory for an item without such a record.
+-- A baseline counts only once confirmed: automatically when it comes from a record the
+-- factory's own users imported and states its unit, otherwise by a factory approver.
 CREATE TABLE savings_baselines (
     id                 uuid PRIMARY KEY,
     org_id             uuid NOT NULL REFERENCES organisations (id),
@@ -40,8 +41,7 @@ CREATE TABLE savings_baselines (
     UNIQUE (org_id, item_key),
     UNIQUE (id, org_id),
     CHECK ((source = 'history') = (history_id IS NOT NULL)),
-    CHECK ((confirmed_at IS NULL) = (confirmed_by IS NULL)),
-    CHECK (source = 'agreed' OR confirmed_at IS NOT NULL)
+    CHECK ((confirmed_at IS NULL) = (confirmed_by IS NULL))
 );
 
 -- One row per order line, written when the order reconciles (the price was really paid).
@@ -103,10 +103,22 @@ CREATE POLICY savings_entries_insert ON savings_entries FOR INSERT
 CREATE POLICY savings_entries_bill ON savings_entries FOR UPDATE
     USING (app_platform_scope() AND org_id = app_org_id())
     WITH CHECK (app_platform_scope() AND org_id = app_org_id());
+-- A line waiting for its baseline to be confirmed is priced when the factory confirms it.
+CREATE POLICY savings_entries_price ON savings_entries FOR UPDATE
+    USING (org_id = app_org_id() AND status = 'unconfirmed_baseline')
+    WITH CHECK (org_id = app_org_id() AND invoice_id IS NULL);
 
--- Ledger rows are facts: only the invoice link may change after they are written.
+-- Ledger rows are facts: only the invoice link may change after they are written, and a
+-- line waiting for its baseline's confirmation gets its result (once).
 CREATE FUNCTION savings_entry_guard() RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE
+    priced text[] := ARRAY['status', 'saving_minor', 'fee_minor'];
 BEGIN
+    IF OLD.status = 'unconfirmed_baseline'
+       AND NEW.status IN ('counted', 'no_saving', 'mismatch')
+       AND (to_jsonb(NEW) - priced) IS NOT DISTINCT FROM (to_jsonb(OLD) - priced) THEN
+        RETURN NEW;
+    END IF;
     IF (to_jsonb(NEW) - 'invoice_id') IS DISTINCT FROM (to_jsonb(OLD) - 'invoice_id') THEN
         RAISE EXCEPTION 'savings entries are immutable' USING ERRCODE = 'P0001';
     END IF;
@@ -115,6 +127,29 @@ END $$;
 CREATE TRIGGER savings_entries_guard BEFORE UPDATE ON savings_entries
     FOR EACH ROW EXECUTE FUNCTION savings_entry_guard();
 
+-- A baseline's price is never edited: only its confirmation is added, once. A confirmed or
+-- used baseline is never deleted.
+CREATE FUNCTION savings_baseline_guard() RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE
+    confirm text[] := ARRAY['confirmed_by', 'confirmed_at'];
+BEGIN
+    IF TG_OP = 'DELETE' THEN
+        IF OLD.confirmed_at IS NOT NULL
+           OR EXISTS (SELECT 1 FROM savings_entries WHERE baseline_id = OLD.id) THEN
+            RAISE EXCEPTION 'baseline is fixed' USING ERRCODE = 'P0001';
+        END IF;
+        RETURN OLD;
+    END IF;
+    IF OLD.confirmed_at IS NOT NULL
+       OR (to_jsonb(NEW) - confirm) IS DISTINCT FROM (to_jsonb(OLD) - confirm) THEN
+        RAISE EXCEPTION 'baseline is fixed' USING ERRCODE = 'P0001';
+    END IF;
+    RETURN NEW;
+END $$;
+CREATE TRIGGER savings_baselines_guard BEFORE UPDATE OR DELETE ON savings_baselines
+    FOR EACH ROW EXECUTE FUNCTION savings_baseline_guard();
+
 GRANT SELECT, INSERT, UPDATE, DELETE ON savings_agreements TO procure_runtime;
-GRANT SELECT, INSERT, UPDATE, DELETE ON savings_baselines TO procure_runtime;
+GRANT SELECT, INSERT, DELETE ON savings_baselines TO procure_runtime;
+GRANT UPDATE (confirmed_by, confirmed_at) ON savings_baselines TO procure_runtime;
 GRANT SELECT, INSERT, UPDATE ON savings_entries TO procure_runtime;

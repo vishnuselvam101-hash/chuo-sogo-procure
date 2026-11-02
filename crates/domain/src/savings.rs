@@ -56,7 +56,9 @@ pub fn term_end(start: Day, term_months: u32) -> Option<Day> {
     let month = u32::try_from(months.rem_euclid(12)).ok()? + 1;
     match Day::new(year, month, start.day) {
         Some(same) => day_before(same),
-        None => (1..start.day).rev().find_map(|day| Day::new(year, month, day)),
+        None => (1..start.day)
+            .rev()
+            .find_map(|day| Day::new(year, month, day)),
     }
 }
 
@@ -64,7 +66,11 @@ fn day_before(d: Day) -> Option<Day> {
     if d.day > 1 {
         return Day::new(d.year, d.month, d.day - 1);
     }
-    let (y, m) = if d.month == 1 { (d.year - 1, 12) } else { (d.year, d.month - 1) };
+    let (y, m) = if d.month == 1 {
+        (d.year - 1, 12)
+    } else {
+        (d.year, d.month - 1)
+    };
     (1..=31).rev().find_map(|day| Day::new(y, m, day))
 }
 
@@ -118,15 +124,23 @@ pub fn share(baseline: &Baseline, line: &OrderLine, share_bps: u32) -> Result<Sh
     let per_unit = i128::from(baseline.unit_price_milli) - price_milli;
     if per_unit <= 0 {
         let zero = Money::zero(currency);
-        return Ok(Share { saving: zero, fee: zero });
+        return Ok(Share {
+            saving: zero,
+            fee: zero,
+        });
     }
     let saving_milli = per_unit * i128::from(line.quantity);
     let saving = saving_milli / 1000;
     let fee = saving * i128::from(share_bps) / 10_000;
     let to_money = |v: i128| {
-        i64::try_from(v).map(|m| Money::from_minor(m, currency)).map_err(|_| SavingsError::Overflow)
+        i64::try_from(v)
+            .map(|m| Money::from_minor(m, currency))
+            .map_err(|_| SavingsError::Overflow)
     };
-    Ok(Share { saving: to_money(saving)?, fee: to_money(fee)? })
+    Ok(Share {
+        saving: to_money(saving)?,
+        fee: to_money(fee)?,
+    })
 }
 
 #[cfg(test)]
@@ -138,11 +152,19 @@ mod tests {
     }
 
     fn base(milli: i64) -> Baseline {
-        Baseline { unit_price_milli: milli, currency: Currency::Jpy, unit: "pcs".into() }
+        Baseline {
+            unit_price_milli: milli,
+            currency: Currency::Jpy,
+            unit: "pcs".into(),
+        }
     }
 
     fn line(minor: i64, qty: u32) -> OrderLine {
-        OrderLine { unit_price: Money::from_minor(minor, Currency::Jpy), quantity: qty, unit: "PCS".into() }
+        OrderLine {
+            unit_price: Money::from_minor(minor, Currency::Jpy),
+            quantity: qty,
+            unit: "PCS".into(),
+        }
     }
 
     #[test]
@@ -174,14 +196,23 @@ mod tests {
     fn mismatches_are_refused() {
         let mut b = base(1_000_000);
         b.currency = Currency::Usd;
-        assert_eq!(share(&b, &line(900, 1), 5_000), Err(SavingsError::CurrencyMismatch));
+        assert_eq!(
+            share(&b, &line(900, 1), 5_000),
+            Err(SavingsError::CurrencyMismatch)
+        );
         let mut b = base(1_000_000);
         b.unit = "box".into();
-        assert_eq!(share(&b, &line(900, 1), 5_000), Err(SavingsError::UnitMismatch));
+        assert_eq!(
+            share(&b, &line(900, 1), 5_000),
+            Err(SavingsError::UnitMismatch)
+        );
         let mut b = base(1_000_000);
         b.unit = String::new();
         assert!(share(&b, &line(900, 1), 5_000).is_ok());
-        assert_eq!(share(&base(1), &line(0, 1), 0), Err(SavingsError::InvalidShare));
+        assert_eq!(
+            share(&base(1), &line(0, 1), 0),
+            Err(SavingsError::InvalidShare)
+        );
     }
 
     #[test]

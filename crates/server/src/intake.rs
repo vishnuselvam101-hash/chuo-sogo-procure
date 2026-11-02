@@ -1310,7 +1310,10 @@ mod quote_reply_tests {
         assert!(text.contains("Subject: お見積り"), "{text}");
         assert!(text.contains("From: Sales <sales@bearing.test>"));
         assert!(text.contains("見積ります 6204ZZ 1180"), "{text}");
-        assert!(text.contains("--- Attachment: quote.csv ---\n品番,単価\n6204ZZ,1180"), "{text}");
+        assert!(
+            text.contains("--- Attachment: quote.csv ---\n品番,単価\n6204ZZ,1180"),
+            "{text}"
+        );
     }
 
     #[tokio::test]
@@ -1329,6 +1332,9 @@ mod quote_reply_tests {
 
     #[test]
     fn html_bodies_lose_their_tags() {
-        assert_eq!(strip_tags("<p>単価&nbsp;<b>1,180</b></p>").trim(), "単価  1,180");
+        assert_eq!(
+            strip_tags("<p>単価&nbsp;<b>1,180</b></p>").trim(),
+            "単価  1,180"
+        );
     }
 }

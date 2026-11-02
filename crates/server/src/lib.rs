@@ -661,7 +661,10 @@ pub fn router(state: AppState) -> Router {
             "/orgs/{org_id}/billing/invoices/{id}/pdf",
             get(api::billing::admin_pdf),
         )
-        .route("/orgs/{org_id}/savings", get(api::savings::admin_get_savings))
+        .route(
+            "/orgs/{org_id}/savings",
+            get(api::savings::admin_get_savings),
+        )
         .route(
             "/orgs/{org_id}/savings/agreement",
             axum::routing::put(api::savings::put_agreement),

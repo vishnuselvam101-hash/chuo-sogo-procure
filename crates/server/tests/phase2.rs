@@ -255,7 +255,10 @@ impl Flow {
         assert_eq!(r.status, StatusCode::CONFLICT, "{:?}", r.body);
         assert_eq!(r.body["error"]["detail"], "rfq_not_checked");
         self.ok(self
-            .post_op(&format!("rfqs/{rfq}/check"), json!({ "note": "Recipients and items OK" }))
+            .post_op(
+                &format!("rfqs/{rfq}/check"),
+                json!({ "note": "Recipients and items OK" }),
+            )
             .await);
         let d = self.ok(self
             .post_op(&format!("rfqs/{rfq}/dispatch"), json!({}))

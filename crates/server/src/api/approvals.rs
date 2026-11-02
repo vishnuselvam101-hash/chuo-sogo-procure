@@ -474,7 +474,13 @@ pub async fn check_recommendation(
     .execute(&mut *tx)
     .await?;
     Audit { org_id, p: &p }
-        .record(&mut tx, "recommendation.checked", "recommendation", rec.id, json!({ "note": note }))
+        .record(
+            &mut tx,
+            "recommendation.checked",
+            "recommendation",
+            rec.id,
+            json!({ "note": note }),
+        )
         .await?;
     tx.commit().await?;
     Ok(StatusCode::NO_CONTENT)

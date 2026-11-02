@@ -1,6 +1,6 @@
 # Chuo-Sogo Procure — project rules
 
-AI industrial procurement platform (Model C: software + managed procurement ops). Japan-first desktop app. Owner: Chuo-Sogo Inc.
+AI industrial procurement platform: we do the factory's buying work for the factory (not a marketplace), paid by a share of the savings (`docs/architecture/FACTORY_SIDE_MODEL.md`). Japan-first desktop app. Owner: Chuo-Sogo Inc.
 Read `docs/architecture/ARCHITECTURE.md` and `docs/architecture/IMPLEMENTATION_PLAN.md` before changing anything.
 
 ## Non-negotiables

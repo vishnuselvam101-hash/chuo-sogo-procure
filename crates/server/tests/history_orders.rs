@@ -731,7 +731,11 @@ async fn admin_session(app: &App) -> String {
         .timestamp()
         .div_euclid(procure_server::mfa::STEP_SECONDS);
     let code = format!("{:06}", procure_server::mfa::code_at(&secret, step));
-    let c = call("/auth/totp/confirm", json!({ "token": token, "code": code })).await;
+    let c = call(
+        "/auth/totp/confirm",
+        json!({ "token": token, "code": code }),
+    )
+    .await;
     assert_eq!(c.status, StatusCode::OK, "{:?}", c.body);
     c.body["token"].as_str().unwrap().to_string()
 }
@@ -743,18 +747,26 @@ impl Flow {
 
     /// The factory's own purchase record (a spreadsheet import) for `mpn` at `price` yen.
     async fn past_purchase(&self, on: &str, mpn: &str, price: u32) {
-        let csv = format!("date,mpn,description,quantity,unit_price\n{on},{mpn},Bearing,100,{price}\n");
+        self.import_purchase(&self.w.admin_a, on, mpn, price, "pcs")
+            .await;
+    }
+
+    /// A purchase record for `mpn` at `price` yen per `unit`, imported by `token`.
+    async fn import_purchase(&self, token: &str, on: &str, mpn: &str, price: u32, unit: &str) {
+        let csv = format!(
+            "date,mpn,description,quantity,unit,unit_price\n{on},{mpn},Bearing,100,{unit},{price}\n"
+        );
         let r = self
             .w
             .app
             .post(
                 &self.url("purchase-history/imports"),
-                &self.w.admin_a,
+                token,
                 json!({
                     "file_name": "past.csv",
                     "data_base64": base64::engine::general_purpose::STANDARD.encode(csv),
                     "header_row": 0,
-                    "mapping": ["date", "mpn", "description", "quantity", "unit_price"],
+                    "mapping": ["date", "mpn", "description", "quantity", "unit", "unit_price"],
                 }),
             )
             .await;
@@ -853,13 +865,19 @@ async fn reconciled_orders_earn_half_of_the_saving(pool: PgPool) {
     assert_eq!(v["agreement"]["ends_on"], "2029-09-30");
     let entries = v["entries"].as_array().unwrap();
     assert_eq!(entries.len(), 2, "{entries:?}");
-    let bearing = entries.iter().find(|e| e["unit_price_minor"] == 1200).unwrap();
+    let bearing = entries
+        .iter()
+        .find(|e| e["unit_price_minor"] == 1200)
+        .unwrap();
     assert_eq!(bearing["status"], "counted");
     assert_eq!(bearing["baseline_unit_price_milli"], 1_500_000);
     assert_eq!(bearing["saving_minor"], 30_000);
     assert_eq!(bearing["fee_minor"], 15_000);
     assert_eq!(bearing["ordered_on"], "2026-10-02");
-    let guide = entries.iter().find(|e| e["unit_price_minor"] == 45_000).unwrap();
+    let guide = entries
+        .iter()
+        .find(|e| e["unit_price_minor"] == 45_000)
+        .unwrap();
     assert_eq!(guide["status"], "counted");
     assert_eq!(guide["fee_minor"], 10_000);
     assert_eq!(
@@ -971,8 +989,8 @@ async fn no_agreement_or_no_drop_means_no_fee(pool: PgPool) {
             json!({ "starts_on": "2026-10-01", "term_months": 36 }),
         )
         .await;
-    // Ledger rows exist (all without a fee), so the terms are already fixed.
-    assert_eq!(r.status, StatusCode::CONFLICT);
+    // Lines recorded without terms never earn a fee and do not fix the terms.
+    assert_eq!(r.status, StatusCode::NO_CONTENT, "{:?}", r.body);
 
     // Ledger rows cannot be edited even past the API.
     let mut tx = f.owner.begin().await.unwrap();
@@ -1057,7 +1075,10 @@ impl Flow {
         let d = self
             .w
             .app
-            .get(&self.url(&format!("requests/{}/order", o.request)), &self.manager)
+            .get(
+                &self.url(&format!("requests/{}/order", o.request)),
+                &self.manager,
+            )
             .await;
         assert_eq!(d.status, StatusCode::OK, "{:?}", d.body);
         d.body["order"].clone()
@@ -1121,7 +1142,11 @@ async fn delivery_dates_are_followed_up_until_everything_arrives(pool: PgPool) {
     );
     let (events, chain_valid) = f.audit_actions().await;
     assert!(chain_valid);
-    assert!(events.iter().any(|e| e["action"] == "order.delivery_date_confirmed"));
+    assert!(
+        events
+            .iter()
+            .any(|e| e["action"] == "order.delivery_date_confirmed")
+    );
 }
 
 #[sqlx::test(migrator = "procure_server::MIGRATOR")]
@@ -1135,10 +1160,16 @@ async fn supplier_reply_files_are_read_as_text(pool: PgPool) {
                 "data_base64": base64::engine::general_purpose::STANDARD.encode(data) })
     };
     let url = f.url(&format!("rfqs/{}/reply-text", o.rfq));
-    let r = f.w.app.post(&url, &f.operator, body("reply.eml", eml.as_bytes())).await;
+    let r =
+        f.w.app
+            .post(&url, &f.operator, body("reply.eml", eml.as_bytes()))
+            .await;
     assert_eq!(r.status, StatusCode::OK, "{:?}", r.body);
     let text = r.body["text"].as_str().unwrap();
-    assert!(text.contains("From: Sales <sales@tokyo-bearings.test>"), "{text}");
+    assert!(
+        text.contains("From: Sales <sales@tokyo-bearings.test>"),
+        "{text}"
+    );
     assert!(text.contains("単価 1,180円"), "{text}");
     // Customers do not handle supplier replies; unknown formats are refused.
     assert_eq!(
@@ -1148,6 +1179,118 @@ async fn supplier_reply_files_are_read_as_text(pool: PgPool) {
             .status,
         StatusCode::FORBIDDEN
     );
-    let r = f.w.app.post(&url, &f.operator, body("x.bin", &[0, 1, 2])).await;
+    let r =
+        f.w.app
+            .post(&url, &f.operator, body("x.bin", &[0, 1, 2]))
+            .await;
     assert_eq!(r.status, StatusCode::UNPROCESSABLE_ENTITY);
+}
+
+#[sqlx::test(migrator = "procure_server::MIGRATOR")]
+async fn baselines_our_staff_imported_wait_for_the_factory_then_price_the_waiting_lines(
+    pool: PgPool,
+) {
+    let f = Flow::new(pool).await;
+    let app = &f.w.app;
+    let admin = admin_session(app).await;
+    let r = app
+        .put(
+            &f.admin_url("savings/agreement"),
+            &admin,
+            json!({ "starts_on": "2026-10-01", "share_bps": 1250 }),
+        )
+        .await;
+    assert_eq!(r.status, StatusCode::NO_CONTENT);
+    let o = f.ordered("PO-W-1", false, "2026-10-01T15:30:00Z").await;
+    // Our operator onboarded the bearing's record (1,500): it is not the factory's word yet.
+    f.import_purchase(&f.operator, "2026-09-01", &o.mpns[0], 1500, "pcs")
+        .await;
+    // The factory's own record for the guide has no unit: it waits for confirmation too.
+    f.import_purchase(&f.w.admin_a, "2026-09-01", &o.mpns[1], 50_000, "")
+        .await;
+    f.reconcile(&o).await;
+    let v = app.get(&f.url("savings"), &f.finance).await.body;
+    assert!(
+        v["entries"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|e| e["status"] == "unconfirmed_baseline" && e["fee_minor"] == 0),
+        "{v:?}"
+    );
+    assert_eq!(v["totals"], json!([]));
+
+    // The factory confirms both; the waiting lines are priced at 12.5 %:
+    // (1,500 − 1,200) × 100 = 30,000 → 3,750; (50,000 − 45,000) × 4 = 20,000 → 2,500.
+    for b in v["baselines"].as_array().unwrap() {
+        let r = app
+            .post(
+                &f.url(&format!(
+                    "savings/baselines/{}/confirm",
+                    b["id"].as_str().unwrap()
+                )),
+                &f.manager,
+                json!({}),
+            )
+            .await;
+        assert_eq!(r.status, StatusCode::NO_CONTENT, "{:?}", r.body);
+    }
+    let v = app.get(&f.url("savings"), &f.finance).await.body;
+    assert_eq!(
+        v["totals"],
+        json!([{ "currency": "JPY", "saving_minor": 50_000, "fee_minor": 6_250,
+                 "unbilled_fee_minor": 6_250 }]),
+        "{v:?}"
+    );
+
+    // Baselines are fixed: no price edit past the API, and a confirmed one is never deleted.
+    let mut tx = f.owner.begin().await.unwrap();
+    sqlx::query("SELECT set_config('app.org_id', $1, true)")
+        .bind(f.w.org_a.to_string())
+        .execute(&mut *tx)
+        .await
+        .unwrap();
+    let e = sqlx::query("UPDATE savings_baselines SET unit_price_milli = 9_000_000")
+        .execute(&mut *tx)
+        .await;
+    assert!(e.is_err());
+    drop(tx);
+
+    // The draft is the console's business: the factory sees the fee as unbilled until issued.
+    let r = app
+        .post(
+            &f.admin_url("savings/invoice"),
+            &admin,
+            json!({ "through": "2026-10-31" }),
+        )
+        .await;
+    assert_eq!(r.status, StatusCode::CREATED, "{:?}", r.body);
+    let v = app.get(&f.url("savings"), &f.finance).await.body;
+    assert!(
+        v["entries"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|e| e["invoice_id"].is_null())
+    );
+    let a = app.get(&f.admin_url("savings"), &admin).await.body;
+    assert!(
+        a["entries"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|e| e["invoice_id"].is_string())
+    );
+    let inv = uuid(&r.body["id"]);
+    let d = app
+        .get(&f.admin_url(&format!("billing/invoices/{inv}")), &admin)
+        .await;
+    assert!(
+        d.body["lines"][0]["description"]
+            .as_str()
+            .unwrap()
+            .starts_with("Savings share 12.5% — PO PO-W-1"),
+        "{:?}",
+        d.body
+    );
 }

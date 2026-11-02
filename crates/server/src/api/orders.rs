@@ -1182,6 +1182,9 @@ pub async fn confirm_delivery_date(
         return Err(ApiError::Forbidden);
     }
     let note = common::text(&body.note, 2000, true, "note")?;
+    if !(2000..=2100).contains(&chrono::Datelike::year(&body.confirmed_on)) {
+        return Err(ApiError::Validation("confirmed_on"));
+    }
     let mut tx = db::tenant_tx(&state.pool, p.user_id, org_id).await?;
     let request_id = order_request(&mut tx, order_id).await?;
     let req = lock_request(&mut tx, request_id, View::All).await?;

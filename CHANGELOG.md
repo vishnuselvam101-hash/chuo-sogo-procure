@@ -1,5 +1,23 @@
 # Changelog
 
+## Unreleased — factory-side model (CEO direction 2026-11-02)
+
+See `docs/architecture/FACTORY_SIDE_MODEL.md`.
+
+- **Savings share** instead of a monthly fee: half of the drop from the price the factory
+  paid before, for 36 months, ¥0 when the price did not go down. Baselines fixed per item
+  from the factory's own pre-contract records (or agreed and confirmed by the factory);
+  immutable ledger written when an order reconciles; fee invoice drafts from the admin
+  console; Savings page for the factory (migration 0016).
+- **Staff checks**: an RFQ is checked by our staff before it is sent, and a comparison
+  before the factory sees the recommendation (migration 0017).
+- **Supplier replies from files**: saved emails (.eml, Japanese charsets, attachments),
+  PDF, Excel/CSV and FAX scans read into text for AI extraction.
+- **Delivery dates**: promised date from the quoted lead time, the supplier's confirmed
+  date, an automatic check-delivery task and a Late flag (migration 0018).
+- The customer catalogue is off unless built with `VITE_MARKETPLACE=on`: we are not a
+  marketplace.
+
 ## 1.0.0 — 2026-11-01 (installers built; not tagged, unsigned)
 
 - **Phase F — release preparation**: backups now include stored files with checksums;

@@ -6,8 +6,8 @@ use utoipa::openapi::security::{HttpAuthScheme, HttpBuilder, SecurityScheme};
 use utoipa::{Modify, OpenApi};
 
 use crate::api::{
-    admin, ai, approvals, attachments, auth, billing, demo, history, listing_ai, listings, ops, savings,
-    orders, orgs, products, requests, rfqs, shop, suppliers,
+    admin, ai, approvals, attachments, auth, billing, demo, history, listing_ai, listings, ops,
+    orders, orgs, products, requests, rfqs, savings, shop, suppliers,
 };
 use crate::error::{ErrorBody, ErrorInner};
 

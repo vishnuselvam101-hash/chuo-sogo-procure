@@ -301,14 +301,22 @@ pub async fn check_rfq(
     if rfq.checked {
         return Err(ApiError::Conflict("already_checked"));
     }
-    sqlx::query("UPDATE rfqs SET checked_by = $2, checked_at = now(), check_note = $3 WHERE id = $1")
-        .bind(rfq.id)
-        .bind(p.user_id)
-        .bind(&note)
-        .execute(&mut *tx)
-        .await?;
+    sqlx::query(
+        "UPDATE rfqs SET checked_by = $2, checked_at = now(), check_note = $3 WHERE id = $1",
+    )
+    .bind(rfq.id)
+    .bind(p.user_id)
+    .bind(&note)
+    .execute(&mut *tx)
+    .await?;
     Audit { org_id, p: &p }
-        .record(&mut tx, "rfq.checked", "rfq", rfq.id, json!({ "number": rfq.number, "note": note }))
+        .record(
+            &mut tx,
+            "rfq.checked",
+            "rfq",
+            rfq.id,
+            json!({ "number": rfq.number, "note": note }),
+        )
         .await?;
     tx.commit().await?;
     Ok(StatusCode::NO_CONTENT)
