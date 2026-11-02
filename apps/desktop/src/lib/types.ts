@@ -35,6 +35,8 @@ export type HistoryPreview = Schemas["PreviewView"];
 export type HistoryImport = Schemas["ImportView"];
 export type HistoryRow = Schemas["HistoryRowView"];
 export type ItemReference = Schemas["ItemReferenceView"];
+export type SimilarItem = Schemas["SimilarItemView"];
+export type ItemAlias = Schemas["AliasView"];
 export type BuyingCriteria = Schemas["CriteriaView"];
 export type BuyingCriteriaInput = Schemas["CriteriaInput"];
 

@@ -26,8 +26,8 @@ store listings and production changes need the founder's explicit approval.
 | D5 | AI model: local model, or a hosted provider (approval: `PROCURE_AI_REMOTE_APPROVED=yes`); vision for nameplate photos | real AI suggestions (the mock only parses "key: value" text) |
 | D6 | Consumer shop audience (individuals assumed) and opening date | opening the shop |
 | D7 | Card / convenience-store payments (a payment provider is a paid service) | anything beyond bank transfer |
-| D8 | Production hosting (this server vs managed hosting in Japan), domain, off-site backups | customers outside Tailscale, phones |
-| D9 | Code signing: Windows certificate, Apple Developer ($99/yr) + notarisation, Google Play ($25) | installers without warnings, store listings |
+| D8 | Production hosting (this server vs managed hosting in Japan), domain, off-site backups — encrypted off-site copy ready, options + runbook in [JAPAN_HOSTING.md](JAPAN_HOSTING.md) | customers outside Tailscale, phones |
+| D9 | Code signing: Windows certificate, Apple Developer ($99/yr) + notarisation, Google Play ($25) — Windows signing script ready, steps in [SIGNING.md](SIGNING.md) | installers without warnings, store listings |
 
 Legal texts in the shop (特定商取引法に基づく表記, returns, privacy policy) must be written or
 approved by Chuo-Sogo; the shop cannot open until they are filled in.

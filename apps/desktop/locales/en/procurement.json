@@ -337,5 +337,31 @@
     "aboveAlert": "Above alert line",
     "unknownItem": "Unknown item",
     "unknownSupplier": "Unknown supplier"
+  },
+  "memo": {
+    "heading": "Decision memo (LAYA method)",
+    "recommended": "Recommended: {{supplier}}",
+    "none": "No quotation can be recommended (see the reasons below).",
+    "rank": "Rank",
+    "score": "Score",
+    "factors": "Breakdown (points × weight)",
+    "cautions": "Cautions",
+    "preferred": "Preferred supplier",
+    "pastPurchases": "{{n}} past purchases",
+    "outOf": "{{n}} / 1000",
+    "factor": "{{name}} {{points}}×{{weight}}",
+    "notRanked": "{{supplier}} not recommended",
+    "note": "Reference only, calculated by fixed rules from your buying criteria, purchase history and this comparison. No outside AI or internet is used. The person responsible chooses and approves the supplier.",
+    "caution": {
+      "excluded_supplier": "excluded supplier",
+      "not_compliant": "does not meet the request",
+      "total_not_comparable": "different currency, total not comparable",
+      "lead_time_unknown": "lead time unknown",
+      "origin_unknown": "domestic or foreign unknown",
+      "price_above_alert": "lines above the alert line vs last price",
+      "over_max_lead_time": "beyond the maximum lead time",
+      "quality_not_assessed": "quality not assessed (no records)",
+      "close_call": "close to the next one: check the details"
+    }
   }
 }

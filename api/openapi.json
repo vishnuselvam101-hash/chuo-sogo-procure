@@ -5170,6 +5170,237 @@
         ]
       }
     },
+    "/api/v1/orgs/{org_id}/item-aliases": {
+      "get": {
+        "tags": [
+          "purchase_history"
+        ],
+        "operationId": "item_aliases_list",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Items confirmed as the same, newest first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AliasView"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown organisation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "purchase_history"
+        ],
+        "operationId": "item_aliases_create",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AliasInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Confirmed as the same item",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AliasView"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown organisation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Already linked (`alias_exists`), or the key already has aliases of its own (`alias_chain`)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid key, the same key twice, or note too long",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/orgs/{org_id}/item-aliases/{id}": {
+      "delete": {
+        "tags": [
+          "purchase_history"
+        ],
+        "operationId": "item_aliases_delete",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No longer treated as the same item"
+          },
+          "401": {
+            "description": "No valid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown alias",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/orgs/{org_id}/listings": {
       "get": {
         "tags": [
@@ -9709,6 +9940,93 @@
         ]
       }
     },
+    "/api/v1/orgs/{org_id}/requests/{request_id}/items/{item_id}/similar-items": {
+      "get": {
+        "tags": [
+          "purchase_history"
+        ],
+        "operationId": "request_item_similar",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "request_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Past items that look like this line (proposals only; a person confirms an alias)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SimilarItemView"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown request or line",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/orgs/{org_id}/requests/{request_id}/items/{item_id}/verification": {
       "post": {
         "tags": [
@@ -13699,6 +14017,61 @@
           }
         }
       },
+      "AliasInput": {
+        "type": "object",
+        "required": [
+          "alias_key",
+          "canonical_key"
+        ],
+        "properties": {
+          "alias_key": {
+            "type": "string",
+            "description": "The key written differently (usually the request line's `item_key`)."
+          },
+          "canonical_key": {
+            "type": "string",
+            "description": "The key it is the same item as (usually a purchase-history key). When that key is\nitself an alias, its canonical key is used."
+          },
+          "note": {
+            "type": "string"
+          }
+        }
+      },
+      "AliasView": {
+        "type": "object",
+        "required": [
+          "id",
+          "alias_key",
+          "canonical_key",
+          "note",
+          "created_at"
+        ],
+        "properties": {
+          "alias_key": {
+            "type": "string"
+          },
+          "canonical_key": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "created_by_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "note": {
+            "type": "string"
+          }
+        }
+      },
       "AssignmentRequest": {
         "type": "object",
         "required": [
@@ -14061,6 +14434,17 @@
             ],
             "format": "int32",
             "minimum": 0
+          },
+          "memo": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DecisionMemo",
+                "description": "The decision memo (customer's priorities, risks, evidence). A recommendation for a\nperson, never a decision; absent in runs stored before it existed."
+              }
+            ]
           },
           "price_alert_bps": {
             "type": [
@@ -14461,6 +14845,58 @@
           },
           "note": {
             "type": "string"
+          }
+        }
+      },
+      "DecisionMemo": {
+        "type": "object",
+        "description": "How one quotation fares against the customer's own criteria (the LAYA method: evidence,\nscoring, risk penalties, reasons). Deterministic; uses only this customer's data.",
+        "required": [
+          "factors",
+          "cautions",
+          "preferred_supplier",
+          "past_purchases"
+        ],
+        "properties": {
+          "cautions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "`excluded_supplier`, `not_compliant`, `total_not_comparable`, `lead_time_unknown`,\n`origin_unknown`, `price_above_alert`, `over_max_lead_time`, `quality_not_assessed`,\n`close_call`."
+          },
+          "factors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MemoFactor"
+            }
+          },
+          "past_purchases": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Purchases from this supplier in the customer's history.",
+            "minimum": 0
+          },
+          "preferred_supplier": {
+            "type": "boolean"
+          },
+          "rank": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "1 = recommended.",
+            "minimum": 0
+          },
+          "score": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "0–1000; null when it cannot be recommended (excluded, not compliant, no comparable total).",
+            "minimum": 0
           }
         }
       },
@@ -15614,6 +16050,13 @@
             "type": "string",
             "format": "uuid"
           },
+          "item_key": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The line's matching key (`m:` part number / `d:` description); null = nothing to match."
+          },
           "line_no": {
             "type": "integer",
             "format": "int32"
@@ -15623,7 +16066,7 @@
               "string",
               "null"
             ],
-            "description": "`mpn` or `description`: what the past purchases were matched on; null = nothing to match."
+            "description": "`mpn` or `description`: what the past purchases were matched on; `alias` when some came\nthrough an item confirmed as the same; null = nothing to match."
           },
           "recent": {
             "type": "array",
@@ -16266,6 +16709,32 @@
           },
           "timezone": {
             "type": "string"
+          }
+        }
+      },
+      "MemoFactor": {
+        "type": "object",
+        "description": "One factor of the memo's score.",
+        "required": [
+          "factor",
+          "weight",
+          "points"
+        ],
+        "properties": {
+          "factor": {
+            "type": "string",
+            "description": "`price`, `lead_time`, `existing_supplier` or `domestic`."
+          },
+          "points": {
+            "type": "integer",
+            "format": "int32",
+            "description": "0–100.",
+            "minimum": 0
+          },
+          "weight": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
           }
         }
       },
@@ -18502,6 +18971,52 @@
           "status": {
             "type": "string",
             "description": "Always `check_email`: the same answer whether or not the address already has an account."
+          }
+        }
+      },
+      "SimilarItemView": {
+        "type": "object",
+        "required": [
+          "item_key",
+          "description",
+          "mpn",
+          "purchases",
+          "last_purchased_on",
+          "last_unit_price_milli",
+          "currency",
+          "score"
+        ],
+        "properties": {
+          "currency": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string",
+            "description": "The most recent purchase of that item, as written then."
+          },
+          "item_key": {
+            "type": "string"
+          },
+          "last_purchased_on": {
+            "type": "string",
+            "format": "date"
+          },
+          "last_unit_price_milli": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "mpn": {
+            "type": "string"
+          },
+          "purchases": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "score": {
+            "type": "integer",
+            "format": "int32",
+            "description": "How alike it looks, 0–1000 (part number or description characters).",
+            "minimum": 0
           }
         }
       },

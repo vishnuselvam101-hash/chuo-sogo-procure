@@ -272,64 +272,161 @@ export function ComparisonTable({
   )?.price_alert_bps;
   const cols = 5 + (withChecks ? 1 : 0) + (action ? 1 : 0);
   return (
-    <table className="table">
-      <thead>
-        <tr>
-          <th className="num">{t("procurement:comparison.rank")}</th>
-          <th>{t("procurement:quote.supplier")}</th>
-          <th>{t("procurement:comparison.compliance")}</th>
-          <th className="num">{t("procurement:comparison.total")}</th>
-          <th className="num">{t("procurement:comparison.leadTime")}</th>
-          {withChecks && (
-            <th className="num">
-              {t("procurement:priceCheck.alerts")}
-              {alertBps !== null && alertBps !== undefined && (
-                <div className="muted small">
-                  {t("procurement:priceCheck.alertLine", { pct: signedPercent(alertBps) })}
-                </div>
-              )}
-            </th>
-          )}
-          {action && <th />}
-        </tr>
-      </thead>
-      <tbody>
-        {results.map((r) => (
-          <PriceRows key={r.quotation_id} checks={r.price_checks ?? []} cols={cols} result={r} items={items}>
-            <td className="num">{r.rank ?? "—"}</td>
-            <td>{r.supplier_name}</td>
-            <td>
-              <StatusBadge status={r.compliance} />
-              {r.reasons.length > 0 && (
-                <div className="muted small">
-                  {r.reasons
-                    .map((code) => t(`procurement:reason.${code}`, { defaultValue: code }))
-                    .join(", ")}
-                </div>
-              )}
-            </td>
-            <td className="num">
-              <Money minor={r.total_minor} currency={currency} />
-            </td>
-            <td className="num">
-              {r.max_lead_time_days === null || r.max_lead_time_days === undefined
-                ? "—"
-                : t("procurement:comparison.days", { n: formatNumber(r.max_lead_time_days, i18n.language) })}
-            </td>
+    <>
+      <table className="table">
+        <thead>
+          <tr>
+            <th className="num">{t("procurement:comparison.rank")}</th>
+            <th>{t("procurement:quote.supplier")}</th>
+            <th>{t("procurement:comparison.compliance")}</th>
+            <th className="num">{t("procurement:comparison.total")}</th>
+            <th className="num">{t("procurement:comparison.leadTime")}</th>
             {withChecks && (
-              <td className={`num${(r.price_alerts ?? 0) > 0 ? " error" : ""}`}>
-                {(r.price_checks?.length ?? 0) > 0
-                  ? t("procurement:priceCheck.alertCount", {
-                      n: formatNumber(r.price_alerts ?? 0, i18n.language),
-                    })
-                  : "—"}
-              </td>
+              <th className="num">
+                {t("procurement:priceCheck.alerts")}
+                {alertBps !== null && alertBps !== undefined && (
+                  <div className="muted small">
+                    {t("procurement:priceCheck.alertLine", { pct: signedPercent(alertBps) })}
+                  </div>
+                )}
+              </th>
             )}
-            {action && <td className="row-actions">{action(r)}</td>}
-          </PriceRows>
-        ))}
-      </tbody>
-    </table>
+            {action && <th />}
+          </tr>
+        </thead>
+        <tbody>
+          {results.map((r) => (
+            <PriceRows
+              key={r.quotation_id}
+              checks={r.price_checks ?? []}
+              cols={cols}
+              result={r}
+              items={items}
+            >
+              <td className="num">{r.rank ?? "—"}</td>
+              <td>{r.supplier_name}</td>
+              <td>
+                <StatusBadge status={r.compliance} />
+                {r.reasons.length > 0 && (
+                  <div className="muted small">
+                    {r.reasons
+                      .map((code) => t(`procurement:reason.${code}`, { defaultValue: code }))
+                      .join(", ")}
+                  </div>
+                )}
+              </td>
+              <td className="num">
+                <Money minor={r.total_minor} currency={currency} />
+              </td>
+              <td className="num">
+                {r.max_lead_time_days === null || r.max_lead_time_days === undefined
+                  ? "—"
+                  : t("procurement:comparison.days", {
+                      n: formatNumber(r.max_lead_time_days, i18n.language),
+                    })}
+              </td>
+              {withChecks && (
+                <td className={`num${(r.price_alerts ?? 0) > 0 ? " error" : ""}`}>
+                  {(r.price_checks?.length ?? 0) > 0
+                    ? t("procurement:priceCheck.alertCount", {
+                        n: formatNumber(r.price_alerts ?? 0, i18n.language),
+                      })
+                    : "—"}
+                </td>
+              )}
+              {action && <td className="row-actions">{action(r)}</td>}
+            </PriceRows>
+          ))}
+        </tbody>
+      </table>
+      <DecisionMemoPanel results={results} />
+    </>
+  );
+}
+
+/**
+ * The decision memo (LAYA method): each quotation scored against the customer's own priorities,
+ * with risk penalties and the reasons. A recommendation for the person deciding; nothing here
+ * chooses, orders or approves.
+ */
+export function DecisionMemoPanel({ results }: { results: ComparisonResult[] }) {
+  const { t, i18n } = useTranslation();
+  const withMemo = results.filter((r) => r.memo);
+  if (withMemo.length === 0) return null;
+  const ranked = withMemo
+    .filter((r) => r.memo?.rank != null)
+    .sort((a, b) => (a.memo?.rank ?? 0) - (b.memo?.rank ?? 0));
+  const unranked = withMemo.filter((r) => r.memo?.rank == null);
+  const num = (n: number) => formatNumber(n, i18n.language);
+  const cautions = (r: ComparisonResult) =>
+    (r.memo?.cautions ?? []).map((c) => t(`procurement:memo.caution.${c}`, { defaultValue: c })).join(" · ");
+  return (
+    <div className="card stack memo">
+      <h3>{t("procurement:memo.heading")}</h3>
+      {ranked.length > 0 && ranked[0] ? (
+        <p>
+          <strong>{t("procurement:memo.recommended", { supplier: ranked[0].supplier_name })}</strong>
+        </p>
+      ) : (
+        <p className="muted">{t("procurement:memo.none")}</p>
+      )}
+      {ranked.length > 0 && (
+        <table className="table">
+          <thead>
+            <tr>
+              <th className="num">{t("procurement:memo.rank")}</th>
+              <th>{t("procurement:quote.supplier")}</th>
+              <th className="num">{t("procurement:memo.score")}</th>
+              <th>{t("procurement:memo.factors")}</th>
+              <th>{t("procurement:memo.cautions")}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {ranked.map((r) => (
+              <tr key={r.quotation_id}>
+                <td className="num">{r.memo?.rank}</td>
+                <td>
+                  {r.supplier_name}
+                  {r.memo?.preferred_supplier && (
+                    <div className="muted small">{t("procurement:memo.preferred")}</div>
+                  )}
+                  {(r.memo?.past_purchases ?? 0) > 0 && (
+                    <div className="muted small">
+                      {t("procurement:memo.pastPurchases", { n: num(r.memo?.past_purchases ?? 0) })}
+                    </div>
+                  )}
+                </td>
+                <td className="num">{t("procurement:memo.outOf", { n: num(r.memo?.score ?? 0) })}</td>
+                <td className="small">
+                  {(r.memo?.factors ?? [])
+                    .map((f) =>
+                      t("procurement:memo.factor", {
+                        name: t(`history:priority.${f.factor}`, { defaultValue: f.factor }),
+                        points: num(f.points),
+                        weight: num(f.weight),
+                      }),
+                    )
+                    .join(" · ")}
+                </td>
+                <td className={`small${(r.memo?.cautions.length ?? 0) > 0 ? " error" : ""}`}>
+                  {cautions(r) || "—"}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+      {unranked.length > 0 && (
+        <ul className="plain small">
+          {unranked.map((r) => (
+            <li key={r.quotation_id}>
+              {t("procurement:memo.notRanked", { supplier: r.supplier_name })}: {cautions(r)}
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="muted small">{t("procurement:memo.note")}</p>
+    </div>
   );
 }
 

@@ -96,11 +96,26 @@
     "cheapest": "Lowest price from",
     "count": "Purchases",
     "on_mpn": "by part number",
-    "on_description": "by item name"
+    "on_description": "by item name",
+    "on_alias": "matched through an item confirmed as the same"
   },
   "source": {
     "file": "File",
     "ocr": "Scan (OCR)",
     "order": "Order in this system"
+  },
+  "similar": {
+    "find": "Find similar items",
+    "none": "No similar past items were found.",
+    "purchases": "{{count}} purchases",
+    "link": "Same item"
+  },
+  "aliases": {
+    "heading": "Same items (aliases)",
+    "hint": "The same item written differently (e.g. 6204ZZ and 6204-2Z). Once confirmed, the decision material and the quote comparison treat them as one item. Candidates are only proposed by how alike the text looks; a person always confirms.",
+    "none": "No aliases yet.",
+    "alias": "As written in the request",
+    "canonical": "As written in the records",
+    "remove": "Remove"
   }
 }

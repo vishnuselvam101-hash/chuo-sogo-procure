@@ -10,6 +10,7 @@ use axum::extract::State;
 use axum::http::StatusCode;
 use base64::Engine;
 use chrono::{DateTime, NaiveDate, Utc};
+use procure_domain::aliases;
 use procure_domain::history::{self, Field, HistoryRow, PricePoint};
 use procure_domain::money::Currency;
 use procure_domain::rbac::{self, Access, Permission};
@@ -560,7 +561,7 @@ pub async fn withdraw(
     Ok(Json(view))
 }
 
-#[derive(Serialize, sqlx::FromRow, utoipa::ToSchema)]
+#[derive(Serialize, Clone, sqlx::FromRow, utoipa::ToSchema)]
 pub struct HistoryRowView {
     pub id: Uuid,
     pub import_id: Uuid,
@@ -665,7 +666,10 @@ pub struct PriceSummaryView {
 pub struct ItemReferenceView {
     pub item_id: Uuid,
     pub line_no: i32,
-    /// `mpn` or `description`: what the past purchases were matched on; null = nothing to match.
+    /// The line's matching key (`m:` part number / `d:` description); null = nothing to match.
+    pub item_key: Option<String>,
+    /// `mpn` or `description`: what the past purchases were matched on; `alias` when some came
+    /// through an item confirmed as the same; null = nothing to match.
     pub matched_on: Option<String>,
     pub summary: Option<PriceSummaryView>,
     /// The most recent matching purchases.
@@ -738,7 +742,9 @@ pub async fn price_reference(
         .iter()
         .map(|i| history::item_key(i.verified_mpn.as_deref().unwrap_or(&i.mpn), &i.description))
         .collect();
-    let wanted: Vec<String> = keys.iter().flatten().cloned().collect();
+    let own: Vec<String> = keys.iter().flatten().cloned().collect();
+    let groups = key_groups(&mut tx, &own).await?;
+    let wanted: Vec<String> = groups.values().flatten().cloned().collect();
     let found = sqlx::query_as::<_, KeyedRow>(&format!(
         "SELECT item_key, {ROW_COLUMNS} FROM (
              SELECT *, row_number() OVER (PARTITION BY item_key
@@ -758,10 +764,22 @@ pub async fn price_reference(
     }
     let mut out = Vec::with_capacity(items.len());
     for (item, key) in items.into_iter().zip(keys) {
-        let rows = key
-            .as_ref()
-            .and_then(|k| by_key.remove(k))
-            .unwrap_or_default();
+        let mut via_alias = false;
+        let mut rows: Vec<HistoryRowView> = Vec::new();
+        if let Some(k) = &key {
+            for g in groups.get(k).into_iter().flatten() {
+                if let Some(found) = by_key.get(g) {
+                    via_alias |= g != k && !found.is_empty();
+                    rows.extend(found.iter().cloned());
+                }
+            }
+        }
+        rows.sort_by(|a, b| {
+            b.purchased_on
+                .cmp(&a.purchased_on)
+                .then_with(|| b.id.cmp(&a.id))
+        });
+        rows.truncate(usize::try_from(REFERENCE_DEPTH).unwrap_or(usize::MAX));
         let points = rows
             .iter()
             .map(|r| {
@@ -793,19 +811,349 @@ pub async fn price_reference(
         out.push(ItemReferenceView {
             item_id: item.id,
             line_no: item.line_no,
-            matched_on: key.map(|k| {
-                if k.starts_with("m:") {
+            matched_on: key.as_ref().map(|k| {
+                if via_alias {
+                    "alias"
+                } else if k.starts_with("m:") {
                     "mpn"
                 } else {
                     "description"
                 }
                 .to_string()
             }),
+            item_key: key,
             summary,
             recent: rows.into_iter().take(RECENT_PER_ITEM).collect(),
         });
     }
     Ok(Json(out))
+}
+
+/// For each key, the keys confirmed as the same item (its group, itself included).
+pub(crate) async fn key_groups(
+    tx: &mut db::Tx,
+    keys: &[String],
+) -> ApiResult<BTreeMap<String, Vec<String>>> {
+    let pairs: Vec<(String, String)> = sqlx::query_as(
+        "SELECT alias_key, canonical_key FROM item_aliases
+         WHERE canonical_key = ANY($1)
+            OR canonical_key IN (SELECT canonical_key FROM item_aliases WHERE alias_key = ANY($1))
+         ORDER BY created_at, id",
+    )
+    .bind(keys)
+    .fetch_all(&mut **tx)
+    .await?;
+    Ok(keys
+        .iter()
+        .map(|k| (k.clone(), aliases::key_group(k, &pairs)))
+        .collect())
+}
+
+#[derive(Serialize, sqlx::FromRow, utoipa::ToSchema)]
+pub struct AliasView {
+    pub id: Uuid,
+    pub alias_key: String,
+    pub canonical_key: String,
+    pub note: String,
+    pub created_by_name: Option<String>,
+    pub created_at: DateTime<Utc>,
+}
+
+const ALIAS_COLUMNS: &str = "a.id, a.alias_key, a.canonical_key, a.note,
+    u.display_name AS created_by_name, a.created_at";
+
+#[utoipa::path(
+    operation_id = "item_aliases_list",
+    get,
+    path = "/api/v1/orgs/{org_id}/item-aliases",
+    tag = "purchase_history",
+    params(("org_id" = Uuid, Path)),
+    security(("bearer" = [])),
+    responses(
+        (status = 200, description = "Items confirmed as the same, newest first", body = [AliasView]),
+        (status = 403, description = "Not permitted", body = ErrorBody),
+        (status = 404, description = "Unknown organisation", body = ErrorBody),
+        (status = 401, description = "No valid session", body = ErrorBody),
+    )
+)]
+pub async fn list_aliases(
+    State(state): State<AppState>,
+    p: Principal,
+    ApiPath(org_id): ApiPath<Uuid>,
+) -> ApiResult<Json<Vec<AliasView>>> {
+    require_read(&state, &p, org_id).await?;
+    let mut tx = db::tenant_tx(&state.pool, p.user_id, org_id).await?;
+    let rows = sqlx::query_as::<_, AliasView>(&format!(
+        "SELECT {ALIAS_COLUMNS} FROM item_aliases a LEFT JOIN users u ON u.id = a.created_by
+         ORDER BY a.created_at DESC, a.id DESC LIMIT 500"
+    ))
+    .fetch_all(&mut *tx)
+    .await?;
+    tx.commit().await?;
+    Ok(Json(rows))
+}
+
+#[derive(Deserialize, utoipa::ToSchema)]
+pub struct AliasInput {
+    /// The key written differently (usually the request line's `item_key`).
+    pub alias_key: String,
+    /// The key it is the same item as (usually a purchase-history key). When that key is
+    /// itself an alias, its canonical key is used.
+    pub canonical_key: String,
+    #[serde(default)]
+    pub note: String,
+}
+
+fn matching_key(raw: &str, field: &'static str) -> ApiResult<String> {
+    let k = raw.trim();
+    let ok = (k.starts_with("m:") || k.starts_with("d:"))
+        && k.chars().count() > 2
+        && k.len() <= 1100
+        && !k.chars().any(char::is_control);
+    if ok {
+        Ok(k.to_string())
+    } else {
+        Err(ApiError::Validation(field))
+    }
+}
+
+#[utoipa::path(
+    operation_id = "item_aliases_create",
+    post,
+    path = "/api/v1/orgs/{org_id}/item-aliases",
+    tag = "purchase_history",
+    params(("org_id" = Uuid, Path)),
+    request_body = AliasInput,
+    security(("bearer" = [])),
+    responses(
+        (status = 201, description = "Confirmed as the same item", body = AliasView),
+        (status = 409, description = "Already linked (`alias_exists`), or the key already has aliases of its own (`alias_chain`)", body = ErrorBody),
+        (status = 422, description = "Invalid key, the same key twice, or note too long", body = ErrorBody),
+        (status = 403, description = "Not permitted", body = ErrorBody),
+        (status = 404, description = "Unknown organisation", body = ErrorBody),
+        (status = 401, description = "No valid session", body = ErrorBody),
+    )
+)]
+pub async fn create_alias(
+    State(state): State<AppState>,
+    p: Principal,
+    ApiPath(org_id): ApiPath<Uuid>,
+    ApiJson(body): ApiJson<AliasInput>,
+) -> ApiResult<(StatusCode, Json<AliasView>)> {
+    require_manage(&state, &p, org_id).await?;
+    let alias = matching_key(&body.alias_key, "alias_key")?;
+    let given = matching_key(&body.canonical_key, "canonical_key")?;
+    let note = common::text(&body.note, 500, false, "note")?;
+    let mut tx = db::tenant_tx(&state.pool, p.user_id, org_id).await?;
+    // Serialise alias changes per organisation so the one-level rule holds under concurrency.
+    sqlx::query("SELECT pg_advisory_xact_lock(hashtextextended('item_aliases:' || $1::text, 0))")
+        .bind(org_id)
+        .execute(&mut *tx)
+        .await?;
+    let canonical: String =
+        sqlx::query_scalar("SELECT canonical_key FROM item_aliases WHERE alias_key = $1")
+            .bind(&given)
+            .fetch_optional(&mut *tx)
+            .await?
+            .unwrap_or(given);
+    if canonical == alias {
+        return Err(ApiError::Validation("canonical_key"));
+    }
+    let (is_alias, has_aliases): (bool, bool) = sqlx::query_as(
+        "SELECT EXISTS (SELECT 1 FROM item_aliases WHERE alias_key = $1),
+                EXISTS (SELECT 1 FROM item_aliases WHERE canonical_key = $1)",
+    )
+    .bind(&alias)
+    .fetch_one(&mut *tx)
+    .await?;
+    if is_alias {
+        return Err(ApiError::Conflict("alias_exists"));
+    }
+    if has_aliases {
+        return Err(ApiError::Conflict("alias_chain"));
+    }
+    let id = Uuid::now_v7();
+    sqlx::query(
+        "INSERT INTO item_aliases (id, org_id, alias_key, canonical_key, note, created_by)
+         VALUES ($1, $2, $3, $4, $5, $6)",
+    )
+    .bind(id)
+    .bind(org_id)
+    .bind(&alias)
+    .bind(&canonical)
+    .bind(&note)
+    .bind(p.user_id)
+    .execute(&mut *tx)
+    .await?;
+    Audit { org_id, p: &p }
+        .record(
+            &mut tx,
+            "item_alias.created",
+            "item_alias",
+            id,
+            json!({ "alias_key": alias, "canonical_key": canonical }),
+        )
+        .await?;
+    let view = sqlx::query_as::<_, AliasView>(&format!(
+        "SELECT {ALIAS_COLUMNS} FROM item_aliases a LEFT JOIN users u ON u.id = a.created_by
+         WHERE a.id = $1"
+    ))
+    .bind(id)
+    .fetch_one(&mut *tx)
+    .await?;
+    tx.commit().await?;
+    Ok((StatusCode::CREATED, Json(view)))
+}
+
+#[utoipa::path(
+    operation_id = "item_aliases_delete",
+    delete,
+    path = "/api/v1/orgs/{org_id}/item-aliases/{id}",
+    tag = "purchase_history",
+    params(("org_id" = Uuid, Path), ("id" = Uuid, Path)),
+    security(("bearer" = [])),
+    responses(
+        (status = 204, description = "No longer treated as the same item"),
+        (status = 403, description = "Not permitted", body = ErrorBody),
+        (status = 404, description = "Unknown alias", body = ErrorBody),
+        (status = 401, description = "No valid session", body = ErrorBody),
+    )
+)]
+pub async fn delete_alias(
+    State(state): State<AppState>,
+    p: Principal,
+    ApiPath((org_id, id)): ApiPath<(Uuid, Uuid)>,
+) -> ApiResult<StatusCode> {
+    require_manage(&state, &p, org_id).await?;
+    let mut tx = db::tenant_tx(&state.pool, p.user_id, org_id).await?;
+    let removed: Option<(String, String)> =
+        sqlx::query_as("DELETE FROM item_aliases WHERE id = $1 RETURNING alias_key, canonical_key")
+            .bind(id)
+            .fetch_optional(&mut *tx)
+            .await?;
+    let (alias, canonical) = removed.ok_or(ApiError::NotFound)?;
+    Audit { org_id, p: &p }
+        .record(
+            &mut tx,
+            "item_alias.deleted",
+            "item_alias",
+            id,
+            json!({ "alias_key": alias, "canonical_key": canonical }),
+        )
+        .await?;
+    tx.commit().await?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+/// Distinct items in the history considered for a suggestion.
+const SIMILAR_SCAN: i64 = 20_000;
+const SIMILAR_SHOWN: usize = 5;
+
+#[derive(Serialize, utoipa::ToSchema)]
+pub struct SimilarItemView {
+    pub item_key: String,
+    /// The most recent purchase of that item, as written then.
+    pub description: String,
+    pub mpn: String,
+    pub purchases: i64,
+    pub last_purchased_on: NaiveDate,
+    pub last_unit_price_milli: i64,
+    pub currency: String,
+    /// How alike it looks, 0–1000 (part number or description characters).
+    pub score: u32,
+}
+
+#[derive(sqlx::FromRow)]
+struct KeySample {
+    item_key: String,
+    description: String,
+    mpn: String,
+    purchases: i64,
+    purchased_on: NaiveDate,
+    unit_price_milli: i64,
+    currency: String,
+}
+
+#[utoipa::path(
+    operation_id = "request_item_similar",
+    get,
+    path = "/api/v1/orgs/{org_id}/requests/{request_id}/items/{item_id}/similar-items",
+    tag = "purchase_history",
+    params(("org_id" = Uuid, Path), ("request_id" = Uuid, Path), ("item_id" = Uuid, Path)),
+    security(("bearer" = [])),
+    responses(
+        (status = 200, description = "Past items that look like this line (proposals only; a person confirms an alias)", body = [SimilarItemView]),
+        (status = 403, description = "Not permitted", body = ErrorBody),
+        (status = 404, description = "Unknown request or line", body = ErrorBody),
+        (status = 401, description = "No valid session", body = ErrorBody),
+    )
+)]
+pub async fn similar_items(
+    State(state): State<AppState>,
+    p: Principal,
+    ApiPath((org_id, request_id, item_id)): ApiPath<(Uuid, Uuid, Uuid)>,
+) -> ApiResult<Json<Vec<SimilarItemView>>> {
+    require_read(&state, &p, org_id).await?;
+    let mut tx = db::tenant_tx(&state.pool, p.user_id, org_id).await?;
+    let item = sqlx::query_as::<_, ItemRow>(
+        "SELECT id, line_no, description, mpn, verified_mpn FROM request_items
+         WHERE id = $1 AND request_id = $2",
+    )
+    .bind(item_id)
+    .bind(request_id)
+    .fetch_optional(&mut *tx)
+    .await?
+    .ok_or(ApiError::NotFound)?;
+    let mpn = item
+        .verified_mpn
+        .as_deref()
+        .unwrap_or(&item.mpn)
+        .to_string();
+    let own = history::item_key(&mpn, &item.description);
+    let group = match &own {
+        Some(k) => key_groups(&mut tx, std::slice::from_ref(k))
+            .await?
+            .remove(k)
+            .unwrap_or_default(),
+        None => Vec::new(),
+    };
+    let samples = sqlx::query_as::<_, KeySample>(
+        "SELECT DISTINCT ON (item_key) item_key, description, mpn,
+                count(*) OVER (PARTITION BY item_key) AS purchases,
+                purchased_on, unit_price_milli, currency
+         FROM purchase_history
+         ORDER BY item_key, purchased_on DESC, id DESC
+         LIMIT $1",
+    )
+    .bind(SIMILAR_SCAN)
+    .fetch_all(&mut *tx)
+    .await?;
+    tx.commit().await?;
+    let mut found: Vec<SimilarItemView> = samples
+        .into_iter()
+        .filter(|s| !group.contains(&s.item_key))
+        .filter_map(|s| {
+            let score = aliases::similarity(&mpn, &item.description, &s.mpn, &s.description);
+            (score >= aliases::MIN_SIMILARITY).then_some(SimilarItemView {
+                item_key: s.item_key,
+                description: s.description,
+                mpn: s.mpn,
+                purchases: s.purchases,
+                last_purchased_on: s.purchased_on,
+                last_unit_price_milli: s.unit_price_milli,
+                currency: s.currency,
+                score,
+            })
+        })
+        .collect();
+    found.sort_by(|a, b| {
+        b.score
+            .cmp(&a.score)
+            .then_with(|| b.purchases.cmp(&a.purchases))
+            .then_with(|| a.item_key.cmp(&b.item_key))
+    });
+    found.truncate(SIMILAR_SHOWN);
+    Ok(Json(found))
 }
 
 pub const PRIORITIES: [&str; 5] = [

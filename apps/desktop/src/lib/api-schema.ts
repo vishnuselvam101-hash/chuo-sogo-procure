@@ -1015,6 +1015,38 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/orgs/{org_id}/item-aliases": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["item_aliases_list"];
+    put?: never;
+    post: operations["item_aliases_create"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/orgs/{org_id}/item-aliases/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete: operations["item_aliases_delete"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/orgs/{org_id}/listings": {
     parameters: {
       query?: never;
@@ -1586,6 +1618,22 @@ export interface paths {
     put: operations["replace_item"];
     post?: never;
     delete: operations["delete_item"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/orgs/{org_id}/requests/{request_id}/items/{item_id}/similar-items": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["request_item_similar"];
+    put?: never;
+    post?: never;
+    delete?: never;
     options?: never;
     head?: never;
     patch?: never;
@@ -2262,6 +2310,26 @@ export interface components {
       expires_at: string;
       token: string;
     };
+    AliasInput: {
+      /** @description The key written differently (usually the request line's `item_key`). */
+      alias_key: string;
+      /**
+       * @description The key it is the same item as (usually a purchase-history key). When that key is
+       *     itself an alias, its canonical key is used.
+       */
+      canonical_key: string;
+      note?: string;
+    };
+    AliasView: {
+      alias_key: string;
+      canonical_key: string;
+      /** Format: date-time */
+      created_at: string;
+      created_by_name?: string | null;
+      /** Format: uuid */
+      id: string;
+      note: string;
+    };
     AssignmentRequest: {
       /** Format: uuid */
       user_id: string;
@@ -2368,6 +2436,7 @@ export interface components {
       currency: string;
       /** Format: int32 */
       max_lead_time_days?: number | null;
+      memo?: null | components["schemas"]["DecisionMemo"];
       /**
        * Format: int64
        * @description The customer's alert line when the comparison ran (`buying_criteria.price_alert_bps`).
@@ -2499,6 +2568,35 @@ export interface components {
       /** @description true: applied to the editor; false: discarded. */
       accepted: boolean;
       note?: string;
+    };
+    /**
+     * @description How one quotation fares against the customer's own criteria (the LAYA method: evidence,
+     *     scoring, risk penalties, reasons). Deterministic; uses only this customer's data.
+     */
+    DecisionMemo: {
+      /**
+       * @description `excluded_supplier`, `not_compliant`, `total_not_comparable`, `lead_time_unknown`,
+       *     `origin_unknown`, `price_above_alert`, `over_max_lead_time`, `quality_not_assessed`,
+       *     `close_call`.
+       */
+      cautions: string[];
+      factors: components["schemas"]["MemoFactor"][];
+      /**
+       * Format: int32
+       * @description Purchases from this supplier in the customer's history.
+       */
+      past_purchases: number;
+      preferred_supplier: boolean;
+      /**
+       * Format: int32
+       * @description 1 = recommended.
+       */
+      rank?: number | null;
+      /**
+       * Format: int32
+       * @description 0–1000; null when it cannot be recommended (excluded, not compliant, no comparable total).
+       */
+      score?: number | null;
     };
     DecisionResponse: {
       /** Format: int32 */
@@ -2881,9 +2979,14 @@ export interface components {
     ItemReferenceView: {
       /** Format: uuid */
       item_id: string;
+      /** @description The line's matching key (`m:` part number / `d:` description); null = nothing to match. */
+      item_key?: string | null;
       /** Format: int32 */
       line_no: number;
-      /** @description `mpn` or `description`: what the past purchases were matched on; null = nothing to match. */
+      /**
+       * @description `mpn` or `description`: what the past purchases were matched on; `alias` when some came
+       *     through an item confirmed as the same; null = nothing to match.
+       */
       matched_on?: string | null;
       /** @description The most recent matching purchases. */
       recent: components["schemas"]["HistoryRowView"][];
@@ -3090,6 +3193,18 @@ export interface components {
       permissions: string[];
       role: string;
       timezone: string;
+    };
+    /** @description One factor of the memo's score. */
+    MemoFactor: {
+      /** @description `price`, `lead_time`, `existing_supplier` or `domestic`. */
+      factor: string;
+      /**
+       * Format: int32
+       * @description 0–100.
+       */
+      points: number;
+      /** Format: int32 */
+      weight: number;
     };
     MyData: {
       /** Format: date-time */
@@ -3803,6 +3918,24 @@ export interface components {
     SignupResponse: {
       /** @description Always `check_email`: the same answer whether or not the address already has an account. */
       status: string;
+    };
+    SimilarItemView: {
+      currency: string;
+      /** @description The most recent purchase of that item, as written then. */
+      description: string;
+      item_key: string;
+      /** Format: date */
+      last_purchased_on: string;
+      /** Format: int64 */
+      last_unit_price_milli: number;
+      mpn: string;
+      /** Format: int64 */
+      purchases: number;
+      /**
+       * Format: int32
+       * @description How alike it looks, 0–1000 (part number or description characters).
+       */
+      score: number;
     };
     Spec: {
       key: string;
@@ -7844,6 +7977,174 @@ export interface operations {
       };
     };
   };
+  item_aliases_list: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Items confirmed as the same, newest first */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AliasView"][];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown organisation */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  item_aliases_create: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["AliasInput"];
+      };
+    };
+    responses: {
+      /** @description Confirmed as the same item */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AliasView"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown organisation */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Already linked (`alias_exists`), or the key already has aliases of its own (`alias_chain`) */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Invalid key, the same key twice, or note too long */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  item_aliases_delete: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description No longer treated as the same item */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown alias */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
   listing_list_own: {
     parameters: {
       query?: never;
@@ -11079,6 +11380,57 @@ export interface operations {
       };
       /** @description No longer editable, or already quoted */
       409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  request_item_similar: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+        request_id: string;
+        item_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Past items that look like this line (proposals only; a person confirms an alias) */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SimilarItemView"][];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown request or line */
+      404: {
         headers: {
           [name: string]: unknown;
         };

@@ -9,7 +9,7 @@ import {
   formatNumber,
 } from "../lib/format";
 import { P } from "../lib/perm";
-import type { HistoryImport, HistoryPreview, HistoryRow, MembershipView } from "../lib/types";
+import type { HistoryImport, HistoryPreview, HistoryRow, ItemAlias, MembershipView } from "../lib/types";
 import { useAction } from "../lib/useAction";
 import { useApi } from "../lib/useApi";
 import { ErrorText, Loading, PageHeader } from "../components/ui";
@@ -335,8 +335,66 @@ export function PurchaseHistory({ active }: { active: MembershipView }) {
       {rows.data?.length === 0 && <p className="muted">{t("history:search.none")}</p>}
       {rows.data && rows.data.length > 0 && <HistoryTable rows={rows.data} />}
 
+      <AliasList active={active} />
       <BuyingCriteriaCard active={active} />
     </section>
+  );
+}
+
+/** Items confirmed as the same thing (written differently); removing one undoes the match. */
+function AliasList({ active }: { active: MembershipView }) {
+  const { t, i18n } = useTranslation();
+  const path = `/api/v1/orgs/${active.org_id}/item-aliases`;
+  const canManage = active.permissions.includes(P.managePurchaseHistory);
+  const aliases = useApi<ItemAlias[]>(path);
+  const action = useAction();
+  const label = (key: string) => key.slice(2);
+
+  async function remove(id: string) {
+    if (await action.run("DELETE", `${path}/${id}`)) aliases.reload();
+  }
+
+  return (
+    <div className="card stack">
+      <h2>{t("history:aliases.heading")}</h2>
+      <p className="muted">{t("history:aliases.hint")}</p>
+      <Loading data={aliases.data} error={aliases.error} />
+      {aliases.data?.length === 0 && <p className="muted">{t("history:aliases.none")}</p>}
+      {aliases.data && aliases.data.length > 0 && (
+        <table className="table">
+          <thead>
+            <tr>
+              <th>{t("history:aliases.alias")}</th>
+              <th>{t("history:aliases.canonical")}</th>
+              <th>{t("history:imports.by")}</th>
+              <th>{t("history:imports.at")}</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {aliases.data.map((a) => (
+              <tr key={a.id}>
+                <td>{label(a.alias_key)}</td>
+                <td>
+                  {label(a.canonical_key)}
+                  {a.note && <span className="muted"> · {a.note}</span>}
+                </td>
+                <td>{a.created_by_name ?? "—"}</td>
+                <td>{formatDateTime(a.created_at, i18n.language, active.timezone)}</td>
+                <td className="row-actions">
+                  {canManage && (
+                    <button type="button" disabled={action.busy} onClick={() => void remove(a.id)}>
+                      {t("history:aliases.remove")}
+                    </button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+      <ErrorText code={action.error} />
+    </div>
   );
 }
 

@@ -194,6 +194,10 @@ impl Modify for BearerAuth {
         history::price_reference,
         history::get_criteria,
         history::put_criteria,
+        history::list_aliases,
+        history::create_alias,
+        history::delete_alias,
+        history::similar_items,
     ),
     components(schemas(ErrorBody, ErrorInner)),
     modifiers(&BearerAuth)

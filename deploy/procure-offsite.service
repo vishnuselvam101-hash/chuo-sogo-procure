@@ -1,0 +1,16 @@
+# Off-site, encrypted copy of the newest backup (scripts/procure-offsite.sh). Does nothing
+# until PROCURE_OFFSITE_TARGET and PROCURE_OFFSITE_GPG_RECIPIENT are set. Not installed by
+# default: see docs/operations/JAPAN_HOSTING.md.
+[Unit]
+Description=Chuo-Sogo Procure off-site backup copy (encrypted)
+After=procure-backup.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=procure
+Group=procure
+EnvironmentFile=/etc/procure/procure.env
+UMask=0077
+Environment=TMPDIR=/var/lib/procure/work
+ExecStart=/opt/procure/bin/procure-offsite

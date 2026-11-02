@@ -367,3 +367,140 @@ async fn no_alert_line_means_no_flags(pool: PgPool) {
     assert_eq!(r["price_checks"][0]["above_alert"], false);
     assert_eq!(r["price_checks"][1]["above_alert"], false);
 }
+
+/// An item written differently in the records (another part-number variant) is checked only
+/// once a person has confirmed it as the same item.
+#[sqlx::test(migrator = "procure_server::MIGRATOR")]
+async fn confirmed_aliases_are_used_by_the_comparison(pool: PgPool) {
+    let s = Setup::new(pool).await;
+    let app = &s.w.app;
+    let (rfq, items) = s.rfq().await;
+    let s1 = s.suppliers[0];
+    s.quote(rfq, s1, "JPY", &items, [1200, 45_000]).await;
+    let history = "伝票日付,仕入先名,品名,型番,数量,単価（円）\n\
+                   2026/03/01,鈴木機材,玉軸受,PC-6204-2Z,10,1000\n";
+    let r = app
+        .post(
+            &s.url("purchase-history/imports"),
+            &s.w.admin_a,
+            json!({ "file_name": "h.csv",
+                    "data_base64": base64::engine::general_purpose::STANDARD.encode(history) }),
+        )
+        .await;
+    assert_eq!(r.status, StatusCode::CREATED, "{:?}", r.body);
+    let before = s.op(&format!("rfqs/{rfq}/comparisons"), json!({})).await;
+    assert_eq!(
+        by_supplier(&before["results"], s1)["price_checks"],
+        json!([])
+    );
+
+    let request: Value = app
+        .get(&s.url(&format!("rfqs/{rfq}")), &s.operator)
+        .await
+        .body;
+    let request = uuid(&request["rfq"]["request_id"]);
+    let refs = app
+        .get(
+            &s.url(&format!("requests/{request}/price-reference")),
+            &s.w.admin_a,
+        )
+        .await
+        .body;
+    let line_key = refs[0]["item_key"].as_str().unwrap().to_string();
+    let r = app
+        .post(
+            &s.url("item-aliases"),
+            &s.w.admin_a,
+            json!({ "alias_key": line_key, "canonical_key": "m:PC62042Z" }),
+        )
+        .await;
+    assert_eq!(r.status, StatusCode::CREATED, "{:?}", r.body);
+
+    let after = s.op(&format!("rfqs/{rfq}/comparisons"), json!({})).await;
+    assert_eq!(decisions(&before["results"]), decisions(&after["results"]));
+    let c = &by_supplier(&after["results"], s1)["price_checks"];
+    assert_eq!(c.as_array().unwrap().len(), 1, "{c:?}");
+    assert_eq!(c[0]["request_item_id"], json!(items[0]));
+    assert_eq!(c[0]["last_unit_price_milli"], 1_000_000);
+    assert_eq!(c[0]["change_bps"], 2000);
+}
+
+/// The decision memo: the customer's first priority leads, excluded suppliers and quotes
+/// without a comparable total are never recommended, risks are explained, and the comparison
+/// itself (compliance, rank) is unchanged.
+#[sqlx::test(migrator = "procure_server::MIGRATOR")]
+async fn the_decision_memo_follows_the_customers_criteria(pool: PgPool) {
+    let s = Setup::new(pool).await;
+    let app = &s.w.app;
+    let (rfq, items) = s.rfq().await;
+    let [s1, s2, s3] = [s.suppliers[0], s.suppliers[1], s.suppliers[2]];
+    s.quote(rfq, s1, "JPY", &items, [1200, 45_000]).await;
+    s.quote(rfq, s2, "JPY", &items, [1300, 38_000]).await;
+    s.quote(rfq, s3, "USD", &items, [800, 30_000]).await;
+    let first = s.op(&format!("rfqs/{rfq}/comparisons"), json!({})).await;
+    let cheapest = first["results"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|r| r["rank"] == 1)
+        .unwrap()
+        .clone();
+    let memo = &cheapest["memo"];
+    assert_eq!(memo["rank"], 1, "{memo:?}");
+    assert_eq!(memo["score"], 1000);
+    assert_eq!(
+        by_supplier(&first["results"], s3)["memo"]["score"],
+        Value::Null
+    );
+    assert!(
+        by_supplier(&first["results"], s3)["memo"]["cautions"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("total_not_comparable"))
+    );
+
+    // The customer excludes the cheapest supplier: the memo moves on; the comparison does not.
+    let name = cheapest["supplier_name"].as_str().unwrap();
+    let r = app
+        .put(
+            &s.url("buying-criteria"),
+            &s.w.admin_a,
+            json!({ "priorities": ["price", "quality"], "preferred_suppliers": [],
+                    "excluded_suppliers": [format!(" {} ", name.to_uppercase())],
+                    "required_certifications": [], "notes": "" }),
+        )
+        .await;
+    assert_eq!(r.status, StatusCode::OK, "{:?}", r.body);
+    let second = s.op(&format!("rfqs/{rfq}/comparisons"), json!({})).await;
+    assert_eq!(decisions(&first["results"]), decisions(&second["results"]));
+    let excluded = &by_supplier(&second["results"], uuid(&cheapest["supplier_id"]))["memo"];
+    assert_eq!(excluded["score"], Value::Null);
+    assert_eq!(excluded["rank"], Value::Null);
+    assert!(
+        excluded["cautions"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("excluded_supplier"))
+    );
+    let ranked: Vec<&Value> = second["results"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|r| r["memo"]["rank"] == 1)
+        .collect();
+    assert_eq!(ranked.len(), 1);
+    assert_ne!(ranked[0]["supplier_id"], cheapest["supplier_id"]);
+    assert!(
+        ranked[0]["memo"]["cautions"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("quality_not_assessed"))
+    );
+    let factors: Vec<&str> = ranked[0]["memo"]["factors"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|f| f["factor"].as_str().unwrap())
+        .collect();
+    assert_eq!(factors, vec!["price", "lead_time"]);
+}

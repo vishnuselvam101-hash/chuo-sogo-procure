@@ -232,3 +232,70 @@ describe("purchase history", () => {
     expect(await screen.findByText("Lead time › Price")).toBeTruthy();
   });
 });
+
+describe("item aliases", () => {
+  it("proposes similar past items for an unmatched line and links one", async () => {
+    const base = `/api/v1/orgs/${ORG}`;
+    const { bridge, calls } = fakeBridge(
+      {
+        [`${base}/requests/r1/price-reference`]: [
+          { item_id: "a", line_no: 1, item_key: "m:62042Z", matched_on: "mpn", summary: null, recent: [] },
+        ],
+        [`${base}/requests/r1/items/a/similar-items`]: [
+          {
+            item_key: "m:6204ZZ",
+            description: "深溝玉軸受",
+            mpn: "6204ZZ",
+            purchases: 2,
+            last_purchased_on: "2025-06-01",
+            last_unit_price_milli: 330_000,
+            currency: "JPY",
+            score: 666,
+          },
+        ],
+        [`${base}/buying-criteria`]: EMPTY_CRITERIA,
+      },
+      { [`${base}/item-aliases`]: { id: "x" } },
+    );
+    render(
+      <BridgeProvider value={bridge}>
+        <PriceReference active={member(["manage_purchase_history"])} requestId="r1" />
+      </BridgeProvider>,
+    );
+    fireEvent.click(await screen.findByText("Find similar items"));
+    expect(await screen.findByText("深溝玉軸受")).toBeTruthy();
+    fireEvent.click(screen.getByText("Same item"));
+    await waitFor(() =>
+      expect(calls.find((c) => c.method === "POST")?.body).toEqual({
+        alias_key: "m:62042Z",
+        canonical_key: "m:6204ZZ",
+      }),
+    );
+  });
+
+  it("lets readers see proposals but not link them", async () => {
+    const base = `/api/v1/orgs/${ORG}`;
+    const { bridge } = fakeBridge({
+      [`${base}/requests/r1/price-reference`]: [
+        {
+          item_id: "a",
+          line_no: 1,
+          item_key: "d:ナット",
+          matched_on: "description",
+          summary: null,
+          recent: [],
+        },
+      ],
+      [`${base}/requests/r1/items/a/similar-items`]: [],
+      [`${base}/buying-criteria`]: EMPTY_CRITERIA,
+    });
+    render(
+      <BridgeProvider value={bridge}>
+        <PriceReference active={member(["view_all_requests"])} requestId="r1" />
+      </BridgeProvider>,
+    );
+    fireEvent.click(await screen.findByText("Find similar items"));
+    expect(await screen.findByText("No similar past items were found.")).toBeTruthy();
+    expect(screen.queryByText("Same item")).toBeNull();
+  });
+});

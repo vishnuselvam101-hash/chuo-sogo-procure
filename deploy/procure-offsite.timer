@@ -1,0 +1,9 @@
+[Unit]
+Description=Off-site copy one hour after the nightly backup
+
+[Timer]
+OnCalendar=*-*-* 04:30:00 Asia/Tokyo
+Persistent=true
+
+[Install]
+WantedBy=timers.target

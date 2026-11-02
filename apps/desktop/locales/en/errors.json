@@ -159,7 +159,11 @@
     "priorities": "Each priority can be chosen once.",
     "max_lead_time_days": "Enter a lead time between 1 and 3650 days.",
     "price_alert_bps": "Enter a percentage between 0 and 1000.",
-    "ocr_unavailable": "Text recognition (OCR) is not set up on this server. Import an Excel or CSV file instead, or contact your administrator."
+    "ocr_unavailable": "Text recognition (OCR) is not set up on this server. Import an Excel or CSV file instead, or contact your administrator.",
+    "alias_exists": "This item is already linked to another item.",
+    "alias_chain": "Other items are already linked to this one. Remove those links first.",
+    "alias_key": "Invalid item key.",
+    "canonical_key": "Invalid item key."
   },
   "payload_too_large": "The file or request is too large.",
   "invalid_file_name": "This file name cannot be used.",

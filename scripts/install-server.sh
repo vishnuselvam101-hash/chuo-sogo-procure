@@ -18,6 +18,8 @@ install -d -m 0755 /opt/procure/bin
 install -d -o procure -g procure -m 0700 /var/lib/procure /var/lib/procure/storage /var/lib/procure/outbox /var/lib/procure/backups /var/lib/procure/work
 install -m 0755 target/release/procure-server /opt/procure/bin/procure-server
 install -m 0755 scripts/procure-backup.sh /opt/procure/bin/procure-backup
+# Off-site copy (B6): installed, but its timer is only enabled once it is configured.
+install -m 0755 scripts/procure-offsite.sh /opt/procure/bin/procure-offsite
 
 psql "$DATABASE_URL" -tAc "SELECT 1 FROM pg_database WHERE datname = '$DB'" | grep -q 1 \
   || psql "$DATABASE_URL" -qc "CREATE DATABASE $DB"
@@ -72,6 +74,7 @@ fi
 
 install -m 0644 deploy/procure.service deploy/procure-backup.service deploy/procure-backup.timer \
   deploy/procure-health.service deploy/procure-health.timer deploy/procure-verify.service deploy/procure-verify.timer \
+  deploy/procure-offsite.service deploy/procure-offsite.timer \
   /etc/systemd/system/
 systemctl daemon-reload
 systemctl enable --now procure.service procure-backup.timer procure-health.timer procure-verify.timer

@@ -48,6 +48,12 @@ one-time activation code; use it in the app's "I have a code" and choose a passw
   After a restore, check the last issued invoice number against what customers received
   (numbers issued after the backup would be reused otherwise).
 
+### Off-site copy (encrypted)
+`procure-offsite.timer` (04:30 JST, installed but not enabled) runs `scripts/procure-offsite.sh`: the newest
+backup is encrypted to the founder's offline public key and uploaded with rclone, read back and checked.
+Configure and enable as in [JAPAN_HOSTING.md](JAPAN_HOSTING.md); restore with
+`scripts/procure-offsite-restore.sh <target> latest <dir>` (needs the private key).
+
 ## Monitoring
 
 | Unit | When | On failure |

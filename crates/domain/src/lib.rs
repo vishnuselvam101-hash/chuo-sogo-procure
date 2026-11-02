@@ -1,8 +1,10 @@
 //! Pure procurement domain types and deterministic rules.
 //! No I/O, no database, no AI: everything here is testable in isolation.
 
+pub mod aliases;
 pub mod approval;
 pub mod comparison;
+pub mod decision;
 pub mod history;
 pub mod invoicing;
 pub mod listing;

@@ -1,9 +1,75 @@
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { bpsToPercent, formatDate, formatMilliPrice, intlLocale } from "../lib/format";
+import { P } from "../lib/perm";
 import { PRIORITIES } from "./BuyingCriteria";
-import type { BuyingCriteria, ItemReference, MembershipView } from "../lib/types";
+import type { BuyingCriteria, ItemReference, MembershipView, SimilarItem } from "../lib/types";
+import { useAction } from "../lib/useAction";
 import { useApi } from "../lib/useApi";
-import { Loading } from "../components/ui";
+import { ErrorText, Loading } from "../components/ui";
+
+/**
+ * Past items that look like a line with no match (proposals only). With the right to manage
+ * the records, one can be confirmed as the same item; the reference then includes it.
+ */
+function SimilarItems({
+  active,
+  requestId,
+  line,
+  onLinked,
+}: {
+  active: MembershipView;
+  requestId: string;
+  line: ItemReference;
+  onLinked: () => void;
+}) {
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language;
+  const base = `/api/v1/orgs/${active.org_id}`;
+  const canManage = active.permissions.includes(P.managePurchaseHistory);
+  const similar = useApi<SimilarItem[]>(`${base}/requests/${requestId}/items/${line.item_id}/similar-items`);
+  const action = useAction();
+
+  async function link(candidate: SimilarItem) {
+    if (!line.item_key) return;
+    const done = await action.run("POST", `${base}/item-aliases`, {
+      alias_key: line.item_key,
+      canonical_key: candidate.item_key,
+    });
+    if (done) onLinked();
+  }
+
+  return (
+    <div className="stack">
+      <Loading data={similar.data} error={similar.error} />
+      {similar.data?.length === 0 && <p className="muted">{t("history:similar.none")}</p>}
+      {similar.data && similar.data.length > 0 && (
+        <ul className="plain">
+          {similar.data.map((c) => (
+            <li key={c.item_key} className="row">
+              <span className="grow">
+                {c.description || "—"}
+                {c.mpn && <span className="muted"> · {c.mpn}</span>}
+                <span className="muted">
+                  {" "}
+                  · {t("history:similar.purchases", { count: c.purchases })} ·{" "}
+                  {formatMilliPrice(c.last_unit_price_milli, c.currency, lang)} (
+                  {formatDate(c.last_purchased_on, lang)})
+                </span>
+              </span>
+              {canManage && (
+                <button type="button" disabled={action.busy} onClick={() => void link(c)}>
+                  {t("history:similar.link")}
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+      <ErrorText code={action.error} />
+    </div>
+  );
+}
 
 /**
  * Decision material next to a request: what this customer paid before for each line (from
@@ -16,6 +82,7 @@ export function PriceReference({ active, requestId }: { active: MembershipView; 
   const list = new Intl.ListFormat(intlLocale(lang), { style: "narrow", type: "unit" });
   const base = `/api/v1/orgs/${active.org_id}`;
   const refs = useApi<ItemReference[]>(`${base}/requests/${requestId}/price-reference`);
+  const [open, setOpen] = useState<string | null>(null);
   const criteria = useApi<BuyingCriteria>(`${base}/buying-criteria`);
   const c = criteria.data;
   const hasCriteria =
@@ -35,7 +102,7 @@ export function PriceReference({ active, requestId }: { active: MembershipView; 
       {refs.data && refs.data.every((r) => !r.summary) && (
         <p className="muted">{t("history:reference.none")}</p>
       )}
-      {refs.data?.some((r) => r.summary) && (
+      {refs.data && refs.data.length > 0 && (
         <div className="table-scroll">
           <table className="table">
             <thead>
@@ -54,8 +121,24 @@ export function PriceReference({ active, requestId }: { active: MembershipView; 
                   return (
                     <tr key={r.item_id}>
                       <td className="num">{r.line_no}</td>
-                      <td colSpan={4} className="muted">
-                        {t("history:reference.noMatch")}
+                      <td colSpan={4}>
+                        <span className="muted">{t("history:reference.noMatch")}</span>{" "}
+                        {r.item_key && open !== r.item_id && (
+                          <button type="button" className="link" onClick={() => setOpen(r.item_id)}>
+                            {t("history:similar.find")}
+                          </button>
+                        )}
+                        {open === r.item_id && (
+                          <SimilarItems
+                            active={active}
+                            requestId={requestId}
+                            line={r}
+                            onLinked={() => {
+                              setOpen(null);
+                              refs.reload();
+                            }}
+                          />
+                        )}
                       </td>
                     </tr>
                   );

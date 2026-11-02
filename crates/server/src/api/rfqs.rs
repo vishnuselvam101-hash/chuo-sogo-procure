@@ -5,6 +5,7 @@ use axum::extract::State;
 use axum::http::StatusCode;
 use chrono::{DateTime, NaiveDate, Utc};
 use procure_domain::comparison::{self, Line, Quote, RequiredItem};
+use procure_domain::decision;
 use procure_domain::history;
 use procure_domain::money::Money;
 use procure_domain::rbac::{self, Access, Permission};
@@ -75,6 +76,8 @@ pub(crate) fn redact_price_checks(access: Access, results: &mut [ComparisonResul
             r.price_checks.clear();
             r.price_alerts = 0;
             r.price_alert_bps = None;
+            // Built from the history and the buying criteria.
+            r.memo = None;
         }
     }
 }
@@ -777,6 +780,38 @@ pub struct ComparisonResult {
     /// The customer's alert line when the comparison ran (`buying_criteria.price_alert_bps`).
     #[serde(default)]
     pub price_alert_bps: Option<i64>,
+    /// The decision memo (customer's priorities, risks, evidence). A recommendation for a
+    /// person, never a decision; absent in runs stored before it existed.
+    #[serde(default)]
+    pub memo: Option<DecisionMemo>,
+}
+
+/// One factor of the memo's score.
+#[derive(Serialize, Deserialize, Clone, utoipa::ToSchema)]
+pub struct MemoFactor {
+    /// `price`, `lead_time`, `existing_supplier` or `domestic`.
+    pub factor: String,
+    pub weight: u32,
+    /// 0–100.
+    pub points: u32,
+}
+
+/// How one quotation fares against the customer's own criteria (the LAYA method: evidence,
+/// scoring, risk penalties, reasons). Deterministic; uses only this customer's data.
+#[derive(Serialize, Deserialize, Clone, utoipa::ToSchema)]
+pub struct DecisionMemo {
+    /// 0–1000; null when it cannot be recommended (excluded, not compliant, no comparable total).
+    pub score: Option<u32>,
+    /// 1 = recommended.
+    pub rank: Option<u32>,
+    pub factors: Vec<MemoFactor>,
+    /// `excluded_supplier`, `not_compliant`, `total_not_comparable`, `lead_time_unknown`,
+    /// `origin_unknown`, `price_above_alert`, `over_max_lead_time`, `quality_not_assessed`,
+    /// `close_call`.
+    pub cautions: Vec<String>,
+    pub preferred_supplier: bool,
+    /// Purchases from this supplier in the customer's history.
+    pub past_purchases: u32,
 }
 
 /// A quoted line next to the last price the customer paid for the same item.
@@ -815,6 +850,7 @@ struct QuoteRow {
     currency: String,
     shipping_minor: i64,
     expired: bool,
+    country: String,
 }
 
 #[derive(sqlx::FromRow)]
@@ -883,7 +919,7 @@ async fn compare_rfq(
         .collect::<ApiResult<Vec<_>>>()?;
     let quotes = sqlx::query_as::<_, QuoteRow>(
         "SELECT q.id, x.supplier_id, s.name AS supplier_name, q.currency, q.shipping_minor,
-                coalesce(q.valid_until < $2, false) AS expired
+                coalesce(q.valid_until < $2, false) AS expired, s.country
          FROM quotations q JOIN rfq_recipients x ON x.id = q.rfq_recipient_id
          JOIN suppliers s ON s.id = x.supplier_id
          WHERE q.rfq_id = $1 AND q.superseded_at IS NULL ORDER BY q.id",
@@ -942,19 +978,40 @@ async fn compare_rfq(
                 .map(|k| (i.id, k))
         })
         .collect();
-    let wanted: Vec<String> = keys.values().cloned().collect();
-    let last: std::collections::HashMap<String, LastPurchase> = sqlx::query_as::<_, LastPurchase>(
-        "SELECT DISTINCT ON (item_key) item_key, purchased_on, supplier_name,
+    let own: Vec<String> = keys.values().cloned().collect();
+    // Items confirmed as the same (aliases) count as one.
+    let groups = crate::api::history::key_groups(tx, &own).await?;
+    let wanted: Vec<String> = groups.values().flatten().cloned().collect();
+    let by_key: std::collections::HashMap<String, LastPurchase> =
+        sqlx::query_as::<_, LastPurchase>(
+            "SELECT DISTINCT ON (item_key) item_key, purchased_on, supplier_name,
                     unit_price_milli, currency
              FROM purchase_history WHERE item_key = ANY($1)
              ORDER BY item_key, purchased_on DESC, id DESC",
-    )
-    .bind(&wanted)
-    .fetch_all(&mut **tx)
-    .await?
-    .into_iter()
-    .map(|l| (l.item_key.clone(), l))
-    .collect();
+        )
+        .bind(&wanted)
+        .fetch_all(&mut **tx)
+        .await?
+        .into_iter()
+        .map(|l| (l.item_key.clone(), l))
+        .collect();
+    // The most recent purchase across each item's group (ties: the smaller key, so the
+    // choice is stable).
+    let last: std::collections::HashMap<&String, &LastPurchase> = own
+        .iter()
+        .filter_map(|k| {
+            groups
+                .get(k)?
+                .iter()
+                .filter_map(|g| by_key.get(g))
+                .max_by(|a, b| {
+                    a.purchased_on
+                        .cmp(&b.purchased_on)
+                        .then_with(|| b.item_key.cmp(&a.item_key))
+                })
+                .map(|l| (k, l))
+        })
+        .collect();
     let line_no: std::collections::HashMap<Uuid, i32> =
         items.iter().map(|i| (i.id, i.line_no)).collect();
     let price_checks_for = |q: &QuoteRow| -> ApiResult<Vec<PriceCheck>> {
@@ -1003,8 +1060,10 @@ async fn compare_rfq(
             price_checks,
             price_alerts,
             price_alert_bps: alert_bps,
+            memo: None,
         });
     }
+    attach_memos(tx, &quotes, &mut results).await?;
     let id = Uuid::now_v7();
     let quotation_ids: Vec<Uuid> = quotes.iter().map(|q| q.id).collect();
     let view = sqlx::query_as::<_, ComparisonView>(
@@ -1024,6 +1083,90 @@ async fn compare_rfq(
     .fetch_one(&mut **tx)
     .await?;
     Ok(view)
+}
+
+/// Supplier names compared as the customer writes them (width, case and spaces ignored).
+fn supplier_name_key(name: &str) -> String {
+    history::half_width(name)
+        .to_lowercase()
+        .split_whitespace()
+        .collect()
+}
+
+/// The decision memo for every result: evidence from the buying criteria, the purchase
+/// history (past purchases per supplier) and the comparison itself.
+async fn attach_memos(
+    tx: &mut db::Tx,
+    quotes: &[QuoteRow],
+    results: &mut [ComparisonResult],
+) -> ApiResult<()> {
+    // priorities, preferred, excluded, max lead time.
+    type CriteriaRow = (Vec<String>, Vec<String>, Vec<String>, Option<i32>);
+    let criteria: Option<CriteriaRow> = sqlx::query_as(
+        "SELECT priorities, preferred_suppliers, excluded_suppliers, max_lead_time_days
+         FROM buying_criteria",
+    )
+    .fetch_optional(&mut **tx)
+    .await?;
+    let (priorities, preferred, excluded, max_lead) = criteria.unwrap_or_default();
+    let keys = |v: &[String]| v.iter().map(|n| supplier_name_key(n)).collect::<Vec<_>>();
+    let (preferred, excluded) = (keys(&preferred), keys(&excluded));
+    let past: Vec<(String, i64)> = sqlx::query_as(
+        "SELECT supplier_name, count(*) FROM purchase_history
+         WHERE supplier_name <> '' GROUP BY supplier_name",
+    )
+    .fetch_all(&mut **tx)
+    .await?;
+    let mut past_by_key: std::collections::HashMap<String, u32> = std::collections::HashMap::new();
+    for (name, n) in past {
+        *past_by_key.entry(supplier_name_key(&name)).or_default() +=
+            u32::try_from(n).unwrap_or(u32::MAX);
+    }
+    let candidates: Vec<decision::Candidate> = results
+        .iter()
+        .map(|r| {
+            let key = supplier_name_key(&r.supplier_name);
+            decision::Candidate {
+                compliant: r.compliance == "compliant",
+                total_minor: r.total_minor,
+                max_lead_time_days: r.max_lead_time_days,
+                domestic: quotes
+                    .iter()
+                    .find(|q| q.id == r.quotation_id)
+                    .map(|q| q.country == "JP"),
+                preferred: preferred.contains(&key),
+                excluded: excluded.contains(&key),
+                past_purchases: past_by_key.get(&key).copied().unwrap_or(0),
+                price_alerts: r.price_alerts,
+            }
+        })
+        .collect();
+    let assessed = decision::assess(
+        &candidates,
+        &decision::Criteria {
+            priorities,
+            max_lead_time_days: max_lead.and_then(|d| u32::try_from(d).ok()),
+        },
+    );
+    for ((r, a), c) in results.iter_mut().zip(assessed).zip(&candidates) {
+        r.memo = Some(DecisionMemo {
+            score: a.score,
+            rank: a.rank,
+            factors: a
+                .factors
+                .iter()
+                .map(|f| MemoFactor {
+                    factor: f.factor.code().to_string(),
+                    weight: f.weight,
+                    points: f.points,
+                })
+                .collect(),
+            cautions: a.cautions.iter().map(|c| (*c).to_string()).collect(),
+            preferred_supplier: c.preferred,
+            past_purchases: c.past_purchases,
+        });
+    }
+    Ok(())
 }
 
 #[utoipa::path(
@@ -1130,6 +1273,7 @@ mod tests {
             }],
             price_alerts: 1,
             price_alert_bps: Some(500),
+            memo: None,
         }
     }
 

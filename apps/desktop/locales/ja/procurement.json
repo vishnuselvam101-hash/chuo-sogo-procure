@@ -337,5 +337,31 @@
     "aboveAlert": "アラート基準超過",
     "unknownItem": "品目不明",
     "unknownSupplier": "仕入先不明"
+  },
+  "memo": {
+    "heading": "判断メモ（LAYA 方式）",
+    "recommended": "推奨：{{supplier}}",
+    "none": "推奨できる見積がありません（下記の理由を確認してください）。",
+    "rank": "順位",
+    "score": "評価",
+    "factors": "評価の内訳（点数×重み）",
+    "cautions": "注意点",
+    "preferred": "優先仕入先",
+    "pastPurchases": "過去の購買 {{n}} 回",
+    "outOf": "{{n}} / 1000",
+    "factor": "{{name}} {{points}}×{{weight}}",
+    "notRanked": "{{supplier}} は推奨対象外",
+    "note": "貴社の購買基準・購買履歴・この比較だけを根拠に、決まった計算で作成した参考情報です。外部の AI やインターネットは使っていません。仕入先の決定と承認は担当者が行います。",
+    "caution": {
+      "excluded_supplier": "使わない仕入先",
+      "not_compliant": "条件を満たしていない",
+      "total_not_comparable": "通貨が異なり合計を比較できない",
+      "lead_time_unknown": "納期が不明",
+      "origin_unknown": "国内・海外が不明",
+      "price_above_alert": "前回価格から注意ライン超過の品目あり",
+      "over_max_lead_time": "最長納期を超えている",
+      "quality_not_assessed": "品質は評価対象外（記録なし）",
+      "close_call": "次点と僅差：内容を確認してください"
+    }
   }
 }

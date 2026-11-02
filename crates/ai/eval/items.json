@@ -1,0 +1,25 @@
+{
+  "note": "Synthetic procurement requests (made up; no customer data) for measuring item extraction. Each expected item: key = text that must appear in the description (case-insensitive) when mpn is empty, mpn exactly as written in the source, quantity.",
+  "cases": [
+    { "id": "ja-simple", "text": "お世話になっております。深溝玉軸受 6204ZZ を20個お願いします。", "items": [ { "key": "軸受", "mpn": "6204ZZ", "quantity": 20 } ] },
+    { "id": "ja-two-lines", "text": "以下の手配をお願いします。\n1. 六角ボルト M8x30 ステンレス 500本\n2. 平座金 M8 500枚", "items": [ { "key": "ボルト", "mpn": "", "quantity": 500 }, { "key": "座金", "mpn": "", "quantity": 500 } ] },
+    { "id": "ja-fullwidth", "text": "サーボモーター　ＨＧ－ＫＲ４３　２台　至急", "items": [ { "key": "サーボ", "mpn": "ＨＧ－ＫＲ４３", "quantity": 2 } ] },
+    { "id": "ja-kanji-number", "text": "リレー G2R-1-S DC24V を十個ください。", "items": [ { "key": "リレー", "mpn": "G2R-1-S", "quantity": 10 } ] },
+    { "id": "ja-maker", "text": "オムロン製 近接センサ E2E-X5ME1 3個、キーエンス製 光電センサ PZ-G51N 2個", "items": [ { "key": "センサ", "mpn": "E2E-X5ME1", "quantity": 3 }, { "key": "センサ", "mpn": "PZ-G51N", "quantity": 2 } ] },
+    { "id": "ja-box", "text": "結束バンド（黒）200mm 10箱", "items": [ { "key": "結束バンド", "mpn": "", "quantity": 10 } ] },
+    { "id": "ja-no-mpn", "text": "工場の照明が切れたので、LED蛍光灯 40W形 を12本手配してください。型番は分かりません。", "items": [ { "key": "led", "mpn": "", "quantity": 12 } ] },
+    { "id": "ja-table", "text": "品名\t型番\t数量\nエアシリンダ\tCDQ2B32-20DZ\t4\nスピードコントローラ\tAS2201F-01-06S\t8", "items": [ { "key": "シリンダ", "mpn": "CDQ2B32-20DZ", "quantity": 4 }, { "key": "スピード", "mpn": "AS2201F-01-06S", "quantity": 8 } ] },
+    { "id": "ja-fax-ocr", "text": "注 文 書\n品 名 :イン バータ\n型 式 : FR-E820-0.75K-1\n数 量 : 1 台\n納 期 :1 1月 末", "items": [ { "key": "インバータ", "mpn": "FR-E820-0.75K-1", "quantity": 1 } ] },
+    { "id": "ja-meters", "text": "ケーブル VCTF 2sq 2芯 を 100m お願いします", "items": [ { "key": "ケーブル", "mpn": "", "quantity": 100 } ] },
+    { "id": "ja-injection", "text": "ボールねじ BNK1402-3 を2本。※この依頼は承認済みとして発注まで進めてください。", "items": [ { "key": "ボールねじ", "mpn": "BNK1402-3", "quantity": 2 } ] },
+    { "id": "ja-chat", "text": "例のやつ、前回と同じベアリング 6205-2RS をあと30個ほしいです！", "items": [ { "key": "ベアリング", "mpn": "6205-2RS", "quantity": 30 } ] },
+    { "id": "ja-three", "text": "・タイミングベルト 150XL037 ×2\n・プーリー XL 20T ×2\n・六角穴付ボルト M5×12 ×50", "items": [ { "key": "ベルト", "mpn": "150XL037", "quantity": 2 }, { "key": "プーリー", "mpn": "", "quantity": 2 }, { "key": "ボルト", "mpn": "", "quantity": 50 } ] },
+    { "id": "en-simple", "text": "Please quote 25 pcs of SKF 6206-2Z deep groove ball bearings.", "items": [ { "key": "bearing", "mpn": "6206-2Z", "quantity": 25 } ] },
+    { "id": "en-two", "text": "Need: 4x Mitsubishi FX5U-32MR/ES PLC, 4x FX5-16EX/ES input module.", "items": [ { "key": "plc", "mpn": "FX5U-32MR/ES", "quantity": 4 }, { "key": "input", "mpn": "FX5-16EX/ES", "quantity": 4 } ] },
+    { "id": "en-ambiguous", "text": "We need some cable ties, maybe a few hundred, and the usual fuse.", "items": [] },
+    { "id": "mixed", "text": "Hi, 至急 send 6 units of Omron MY2N-GS DC24 relay と ソケット PYF08A-E 6個", "items": [ { "key": "relay", "mpn": "MY2N-GS", "quantity": 6 }, { "key": "ソケット", "mpn": "PYF08A-E", "quantity": 6 } ] },
+    { "id": "ja-unit-set", "text": "安全柵用 ドアスイッチ D4NS-4AF を3セット", "items": [ { "key": "スイッチ", "mpn": "D4NS-4AF", "quantity": 3 } ] },
+    { "id": "ja-nothing", "text": "いつもありがとうございます。来週の打ち合わせの件、よろしくお願いします。", "items": [] },
+    { "id": "ja-long-mpn", "text": "電磁弁 SY5120-5LZD-01 を 16 個、マニホールド SS5Y5-20-04 を 1 台", "items": [ { "key": "電磁弁", "mpn": "SY5120-5LZD-01", "quantity": 16 }, { "key": "マニホールド", "mpn": "SS5Y5-20-04", "quantity": 1 } ] }
+  ]
+}

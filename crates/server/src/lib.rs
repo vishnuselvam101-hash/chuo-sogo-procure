@@ -196,6 +196,18 @@ pub fn router(state: AppState) -> Router {
             get(api::history::get_criteria).put(api::history::put_criteria),
         )
         .route(
+            "/orgs/{org_id}/item-aliases",
+            get(api::history::list_aliases).post(api::history::create_alias),
+        )
+        .route(
+            "/orgs/{org_id}/item-aliases/{id}",
+            axum::routing::delete(api::history::delete_alias),
+        )
+        .route(
+            "/orgs/{org_id}/requests/{request_id}/items/{item_id}/similar-items",
+            get(api::history::similar_items),
+        )
+        .route(
             "/orgs/{org_id}/requests",
             get(api::requests::list_requests).post(api::requests::create_request),
         )
