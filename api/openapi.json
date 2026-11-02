@@ -7514,6 +7514,94 @@
         ]
       }
     },
+    "/api/v1/orgs/{org_id}/orders/{order_id}/delivery-date": {
+      "post": {
+        "tags": [
+          "orders"
+        ],
+        "operationId": "confirm_delivery_date",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "order_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeliveryDateBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Confirmed date recorded; the delivery check is due that day"
+          },
+          "401": {
+            "description": "No valid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Only our assigned staff record it",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown order",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Already delivered or closed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/orgs/{org_id}/orders/{order_id}/invoice": {
       "post": {
         "tags": [
@@ -12344,6 +12432,111 @@
         ]
       }
     },
+    "/api/v1/orgs/{org_id}/rfqs/{rfq_id}/reply-text": {
+      "post": {
+        "tags": [
+          "ai"
+        ],
+        "operationId": "reply_text",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "rfq_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReplyFileBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Text read from the supplier's reply (nothing stored)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReplyText"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown RFQ or not assigned",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unsupported, empty or too large file; OCR not installed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/orgs/{org_id}/savings": {
       "get": {
         "tags": [
@@ -15812,6 +16005,22 @@
           }
         }
       },
+      "DeliveryDateBody": {
+        "type": "object",
+        "required": [
+          "confirmed_on"
+        ],
+        "properties": {
+          "confirmed_on": {
+            "type": "string",
+            "format": "date",
+            "description": "The delivery date the supplier confirmed."
+          },
+          "note": {
+            "type": "string"
+          }
+        }
+      },
       "DeliveryInput": {
         "type": "object",
         "required": [
@@ -17780,15 +17989,40 @@
           "shipping_minor",
           "total_minor",
           "notes",
-          "ordered_at"
+          "ordered_at",
+          "delivery_note",
+          "late"
         ],
         "properties": {
           "currency": {
             "type": "string"
           },
+          "delivery_confirmed_on": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date",
+            "description": "The date the supplier confirmed to our staff."
+          },
+          "delivery_note": {
+            "type": "string"
+          },
+          "expected_on": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date",
+            "description": "Confirmed date, else promised date."
+          },
           "id": {
             "type": "string",
             "format": "uuid"
+          },
+          "late": {
+            "type": "boolean",
+            "description": "Not everything has arrived and the expected day has passed (organisation's calendar)."
           },
           "notes": {
             "type": "string"
@@ -17799,6 +18033,14 @@
           },
           "po_number": {
             "type": "string"
+          },
+          "promised_on": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date",
+            "description": "From the quotation's longest lead time (null when the supplier gave none)."
           },
           "request_id": {
             "type": "string",
@@ -19155,6 +19397,35 @@
           "po_number": {
             "type": "string",
             "description": "The customer's own purchase order number."
+          }
+        }
+      },
+      "ReplyFileBody": {
+        "type": "object",
+        "required": [
+          "file_name",
+          "data_base64"
+        ],
+        "properties": {
+          "data_base64": {
+            "type": "string",
+            "description": "File content, standard base64."
+          },
+          "file_name": {
+            "type": "string",
+            "description": "A saved supplier email (`.eml`, attachments read too), a PDF (text layer, else OCR),\nan Excel / CSV sheet, or a scanned page / FAX (PNG, JPEG, TIFF; OCR)."
+          }
+        }
+      },
+      "ReplyText": {
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "properties": {
+          "text": {
+            "type": "string",
+            "description": "The reply as text, for the operator to read and then pass to quotation extraction."
           }
         }
       },

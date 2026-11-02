@@ -18,6 +18,7 @@ import type {
   PriceCheck,
   RfqDetail,
 } from "../lib/types";
+import { readAsBase64 } from "../lib/files";
 import { useAction } from "../lib/useAction";
 import { useApi } from "../lib/useApi";
 import { ErrorText, Loading, Money, StatusBadge } from "../components/ui";
@@ -44,6 +45,7 @@ export function RfqPanel({ active, rfqId, requestId, requestStatus, currency, it
   const action = useAction();
   const [outbox, setOutbox] = useState<OutboxMessage[] | null>(null);
   const [quoting, setQuoting] = useState(false);
+  const [checkNote, setCheckNote] = useState("");
   const has = (p: string) => active.permissions.includes(p);
   const operator = active.access === "assigned";
 
@@ -54,6 +56,9 @@ export function RfqPanel({ active, rfqId, requestId, requestStatus, currency, it
     onChanged();
   };
 
+  async function check() {
+    if (await action.run("POST", `${org}/rfqs/${rfqId}/check`, { note: checkNote })) refresh();
+  }
   async function dispatch() {
     if (await action.run("POST", `${org}/rfqs/${rfqId}/dispatch`)) refresh();
   }
@@ -84,10 +89,43 @@ export function RfqPanel({ active, rfqId, requestId, requestStatus, currency, it
         ))}
       </ul>
 
+      {rfq.checked_at ? (
+        <p className="muted small">
+          {t("procurement:check.done", {
+            name: rfq.checked_by_name ?? "",
+            date: formatDate(rfq.checked_at, i18n.language),
+          })}
+          {rfq.check_note ? ` — ${rfq.check_note}` : ""}
+        </p>
+      ) : (
+        rfq.status === "draft" &&
+        operator &&
+        has(P.manageRfqs) && (
+          <div className="stack sub-card">
+            <p className="small">{t("procurement:check.rfqHint", { count: data.recipients.length })}</p>
+            <label>
+              {t("procurement:check.note")}
+              <input value={checkNote} maxLength={2000} onChange={(e) => setCheckNote(e.target.value)} />
+            </label>
+            <div className="row">
+              <button type="button" className="primary" disabled={action.busy} onClick={() => void check()}>
+                {t("procurement:check.rfq")}
+              </button>
+            </div>
+          </div>
+        )
+      )}
+
       {operator && (
         <div className="row">
           {rfq.status === "draft" && has(P.manageRfqs) && (
-            <button type="button" className="primary" onClick={() => void dispatch()}>
+            <button
+              type="button"
+              className="primary"
+              disabled={!rfq.checked_at}
+              title={rfq.checked_at ? undefined : t("procurement:check.rfqFirst")}
+              onClick={() => void dispatch()}
+            >
               {t("procurement:rfq.dispatch")}
             </button>
           )}
@@ -531,6 +569,16 @@ function QuotationForm(props: {
     lineFlags: string[][];
   } | null>(null);
 
+  /** Reads a saved email (with attachments), PDF, Excel sheet or FAX scan into the text box for checking. */
+  async function readReplyFile(file: File) {
+    const data_base64 = await readAsBase64(file);
+    const res = await action.run<{ text: string }>("POST", `${props.base}/reply-text`, {
+      file_name: file.name,
+      data_base64,
+    });
+    if (res) setAiText(res.body.text);
+  }
+
   /** Pre-fills the form from the supplier's text. The operator checks and saves; nothing is recorded by the AI. */
   async function readWithAi() {
     const res = await action.run<{
@@ -639,6 +687,19 @@ function QuotationForm(props: {
       <details>
         <summary>{t("procurement:ai.quoteTitle")}</summary>
         <div className="stack">
+          <label>
+            {t("procurement:ai.replyFile")}
+            <input
+              type="file"
+              accept=".eml,.pdf,.xlsx,.csv,.txt,.png,.jpg,.jpeg,.tif,.tiff"
+              disabled={action.busy}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                e.target.value = "";
+                if (file) void readReplyFile(file);
+              }}
+            />
+          </label>
           <label>
             {t("procurement:ai.supplierText")}
             <textarea rows={4} maxLength={20000} value={aiText} onChange={(e) => setAiText(e.target.value)} />

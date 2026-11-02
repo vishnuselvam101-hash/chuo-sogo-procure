@@ -1367,6 +1367,22 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/orgs/{org_id}/orders/{order_id}/delivery-date": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["confirm_delivery_date"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/orgs/{org_id}/orders/{order_id}/invoice": {
     parameters: {
       query?: never;
@@ -2001,6 +2017,22 @@ export interface paths {
     get?: never;
     put?: never;
     post: operations["record_quotation"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/orgs/{org_id}/rfqs/{rfq_id}/reply-text": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["reply_text"];
     delete?: never;
     options?: never;
     head?: never;
@@ -2843,6 +2875,14 @@ export interface components {
       /** @description `approve`, `reject` or `clarify`. */
       decision: string;
     };
+    DeliveryDateBody: {
+      /**
+       * Format: date
+       * @description The delivery date the supplier confirmed.
+       */
+      confirmed_on: string;
+      note?: string;
+    };
     DeliveryInput: {
       lines: components["schemas"]["DeliveryLineInput"][];
       note?: string;
@@ -3482,12 +3522,30 @@ export interface components {
     };
     OrderHeader: {
       currency: string;
+      /**
+       * Format: date
+       * @description The date the supplier confirmed to our staff.
+       */
+      delivery_confirmed_on?: string | null;
+      delivery_note: string;
+      /**
+       * Format: date
+       * @description Confirmed date, else promised date.
+       */
+      expected_on?: string | null;
       /** Format: uuid */
       id: string;
+      /** @description Not everything has arrived and the expected day has passed (organisation's calendar). */
+      late: boolean;
       notes: string;
       /** Format: date-time */
       ordered_at: string;
       po_number: string;
+      /**
+       * Format: date
+       * @description From the quotation's longest lead time (null when the supplier gave none).
+       */
+      promised_on?: string | null;
       /** Format: uuid */
       request_id: string;
       /** Format: int64 */
@@ -3938,6 +3996,19 @@ export interface components {
       notes?: string;
       /** @description The customer's own purchase order number. */
       po_number: string;
+    };
+    ReplyFileBody: {
+      /** @description File content, standard base64. */
+      data_base64: string;
+      /**
+       * @description A saved supplier email (`.eml`, attachments read too), a PDF (text layer, else OCR),
+       *     an Excel / CSV sheet, or a scanned page / FAX (PNG, JPEG, TIFF; OCR).
+       */
+      file_name: string;
+    };
+    ReplyText: {
+      /** @description The reply as text, for the operator to read and then pass to quotation extraction. */
+      text: string;
     };
     RequestDetail: {
       items: components["schemas"]["ItemView"][];
@@ -9964,6 +10035,67 @@ export interface operations {
       };
     };
   };
+  confirm_delivery_date: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+        order_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["DeliveryDateBody"];
+      };
+    };
+    responses: {
+      /** @description Confirmed date recorded; the delivery check is due that day */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Only our assigned staff record it */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown order */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Already delivered or closed */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
   record_invoice: {
     parameters: {
       query?: never;
@@ -13349,6 +13481,78 @@ export interface operations {
         };
       };
       /** @description Invalid quotation */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  reply_text: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+        rfq_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ReplyFileBody"];
+      };
+    };
+    responses: {
+      /** @description Text read from the supplier's reply (nothing stored) */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ReplyText"];
+        };
+      };
+      /** @description Malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown RFQ or not assigned */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unsupported, empty or too large file; OCR not installed */
       422: {
         headers: {
           [name: string]: unknown;

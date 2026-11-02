@@ -94,6 +94,7 @@ function OrderDetails({
     lines: Record<string, { qty: string; price: string; rate: string }>;
   } | null>(null);
   const [reverseReason, setReverseReason] = useState("");
+  const [eta, setEta] = useState({ date: "", note: "" });
   const [resolution, setResolution] = useState<Record<string, { kind: string; note: string }>>({});
 
   if (!data) return error ? <ErrorText code={error} /> : null;
@@ -181,6 +182,19 @@ function OrderDetails({
     }
   }
 
+  async function confirmEta() {
+    if (!eta.date) return action.setError("validation_failed/confirmed_on");
+    if (
+      await action.run("POST", `${org}/orders/${o.id}/delivery-date`, {
+        confirmed_on: eta.date,
+        note: eta.note,
+      })
+    ) {
+      setEta({ date: "", note: "" });
+      refresh();
+    }
+  }
+
   async function reverse(deliveryId: string) {
     const reason = reverseReason.trim();
     if (!reason) return action.setError("validation_failed/reason");
@@ -213,6 +227,36 @@ function OrderDetails({
         <span className="muted">{o.supplier_name ?? ""}</span>
         <Money minor={o.total_minor} currency={cur} />
       </div>
+      <div className="row small">
+        <span>
+          {t("procurement:delivery.expected")}:{" "}
+          {o.expected_on ? formatDate(o.expected_on, i18n.language) : t("procurement:delivery.unknown")}
+        </span>
+        {o.delivery_confirmed_on ? (
+          <span className="muted">
+            {t("procurement:delivery.confirmedBySupplier")}
+            {o.delivery_note ? ` — ${o.delivery_note}` : ""}
+          </span>
+        ) : (
+          o.promised_on && <span className="muted">{t("procurement:delivery.fromLeadTime")}</span>
+        )}
+        {o.late && <span className="badge badge-overdue">{t("procurement:delivery.late")}</span>}
+      </div>
+      {status === "ordered" && active.access === "assigned" && has(P.operateRequests) && (
+        <div className="row">
+          <label>
+            {t("procurement:delivery.confirmedOn")}
+            <input type="date" value={eta.date} onChange={(e) => setEta({ ...eta, date: e.target.value })} />
+          </label>
+          <label className="grow">
+            {t("procurement:delivery.note")}
+            <input maxLength={2000} value={eta.note} onChange={(e) => setEta({ ...eta, note: e.target.value })} />
+          </label>
+          <button type="button" disabled={action.busy || !eta.date} onClick={() => void confirmEta()}>
+            {t("procurement:delivery.record")}
+          </button>
+        </div>
+      )}
       <table className="table">
         <thead>
           <tr>

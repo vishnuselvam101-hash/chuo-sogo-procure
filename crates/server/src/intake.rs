@@ -1185,3 +1185,150 @@ mod tests {
         out
     }
 }
+
+/// Attachments read from one supplier email.
+pub const MAX_EMAIL_ATTACHMENTS: usize = 5;
+
+/// Text of a supplier's reply to a request for quotation, as it arrived: a saved email
+/// (`.eml`, with its PDF / Excel / scanned attachments read too), a PDF (text layer, else
+/// OCR), an Excel or CSV sheet, or a scanned page / FAX image (OCR).
+pub async fn quote_reply_text(file_name: &str, bytes: &[u8]) -> Result<String, IntakeError> {
+    let ext = Path::new(file_name)
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    let text = if ext == "eml" {
+        email_text(bytes).await?
+    } else {
+        file_text(file_name, bytes).await?
+    };
+    let text = clip(text.trim());
+    if text.chars().filter(|c| c.is_alphanumeric()).count() < 3 {
+        return Err(IntakeError::Empty);
+    }
+    Ok(text)
+}
+
+/// One document: its text layer, or OCR read back as tab-separated lines.
+async fn file_text(file_name: &str, bytes: &[u8]) -> Result<String, IntakeError> {
+    if image_kind(bytes).is_none() {
+        match document_text(file_name, bytes).await {
+            Err(IntakeError::Empty) if bytes.starts_with(b"%PDF-") => {}
+            other => return other,
+        }
+    }
+    let table = table_rows(file_name, bytes).await?;
+    Ok(table
+        .rows
+        .iter()
+        .map(|r| r.join("\t").trim_end().to_string())
+        .filter(|l| !l.is_empty())
+        .collect::<Vec<_>>()
+        .join("\n"))
+}
+
+async fn email_text(bytes: &[u8]) -> Result<String, IntakeError> {
+    use mail_parser::MimeHeaders;
+    let msg = mail_parser::MessageParser::default()
+        .parse(bytes)
+        .ok_or(IntakeError::Unsupported)?;
+    let mut out = String::new();
+    if let Some(subject) = msg.subject() {
+        out.push_str(&format!("Subject: {subject}\n"));
+    }
+    if let Some(from) = msg.from().and_then(|a| a.first()) {
+        let name = from.name().unwrap_or("");
+        let addr = from.address().unwrap_or("");
+        out.push_str(&format!("From: {name} <{addr}>\n"));
+    }
+    if let Some(date) = msg.date() {
+        out.push_str(&format!("Date: {}\n", date.to_rfc3339()));
+    }
+    out.push('\n');
+    if let Some(body) = msg.body_text(0) {
+        out.push_str(body.trim());
+    } else if let Some(html) = msg.body_html(0) {
+        out.push_str(strip_tags(&html).trim());
+    }
+    for part in msg.attachments().take(MAX_EMAIL_ATTACHMENTS) {
+        let name = part.attachment_name().unwrap_or("attachment");
+        // An unreadable attachment (a logo, a zip) is noted, not fatal: the body may be
+        // enough, and the operator sees what was skipped.
+        let text = match Box::pin(file_text(name, part.contents())).await {
+            Ok(t) => t,
+            Err(IntakeError::OcrUnavailable) => "(scanned; OCR is not installed)".to_string(),
+            Err(_) => "(not readable)".to_string(),
+        };
+        out.push_str(&format!("\n\n--- Attachment: {name} ---\n{}", text.trim()));
+    }
+    Ok(out)
+}
+
+fn strip_tags(html: &str) -> String {
+    let mut out = String::with_capacity(html.len());
+    let mut in_tag = false;
+    for c in html.chars() {
+        match c {
+            '<' => in_tag = true,
+            '>' if in_tag => {
+                in_tag = false;
+                out.push(' ');
+            }
+            _ if !in_tag => out.push(c),
+            _ => {}
+        }
+    }
+    out.replace("&nbsp;", " ")
+        .replace("&amp;", "&")
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+}
+
+#[cfg(test)]
+mod quote_reply_tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn iso_2022_jp_email_with_csv_attachment() {
+        // 「お見積り」 in ISO-2022-JP (the usual Japanese business mail charset).
+        let subject = "=?ISO-2022-JP?B?GyRCJCo4K0BRJGobKEI=?=";
+        let body = "\x1b$B8+@Q$j$^$9\x1b(B 6204ZZ 1180";
+        let csv = base64::Engine::encode(
+            &base64::engine::general_purpose::STANDARD,
+            "品番,単価\n6204ZZ,1180\n".as_bytes(),
+        );
+        let eml = format!(
+            "From: Sales <sales@bearing.test>\r\nSubject: {subject}\r\nMIME-Version: 1.0\r\n\
+             Content-Type: multipart/mixed; boundary=\"b1\"\r\n\r\n--b1\r\n\
+             Content-Type: text/plain; charset=ISO-2022-JP\r\n\r\n{body}\r\n--b1\r\n\
+             Content-Type: text/csv; name=\"quote.csv\"\r\n\
+             Content-Disposition: attachment; filename=\"quote.csv\"\r\n\
+             Content-Transfer-Encoding: base64\r\n\r\n{csv}\r\n--b1--\r\n"
+        );
+        let text = quote_reply_text("reply.eml", eml.as_bytes()).await.unwrap();
+        assert!(text.contains("Subject: お見積り"), "{text}");
+        assert!(text.contains("From: Sales <sales@bearing.test>"));
+        assert!(text.contains("見積ります 6204ZZ 1180"), "{text}");
+        assert!(text.contains("--- Attachment: quote.csv ---\n品番,単価\n6204ZZ,1180"), "{text}");
+    }
+
+    #[tokio::test]
+    async fn plain_files_and_rejections() {
+        let t = quote_reply_text("q.csv", "item,price\n6204ZZ,1180\n".as_bytes()).await;
+        assert_eq!(t.unwrap(), "item,price\n6204ZZ,1180");
+        assert!(matches!(
+            quote_reply_text("q.bin", &[0, 1, 2, 3]).await,
+            Err(IntakeError::Unsupported)
+        ));
+        assert!(matches!(
+            quote_reply_text("q.eml", b"").await,
+            Err(IntakeError::Unsupported | IntakeError::Empty)
+        ));
+    }
+
+    #[test]
+    fn html_bodies_lose_their_tags() {
+        assert_eq!(strip_tags("<p>単価&nbsp;<b>1,180</b></p>").trim(), "単価  1,180");
+    }
+}

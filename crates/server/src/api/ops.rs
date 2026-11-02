@@ -21,11 +21,12 @@ use crate::db;
 use crate::error::{ApiError, ApiJson, ApiPath, ApiQuery, ApiResult, ErrorBody};
 use crate::principal::Principal;
 
-pub const TASK_KINDS: [&str; 7] = [
+pub const TASK_KINDS: [&str; 8] = [
     "identify",
     "source",
     "chase_quotes",
     "compare",
+    "check_delivery",
     "follow_up",
     "exception",
     "other",

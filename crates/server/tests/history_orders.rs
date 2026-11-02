@@ -28,6 +28,7 @@ struct Flow {
 /// An order taken to `ordered`, with its order item ids and verified part numbers.
 struct Ordered {
     request: Uuid,
+    rfq: Uuid,
     order: Uuid,
     items: Vec<Uuid>,
     mpns: Vec<String>,
@@ -287,6 +288,7 @@ impl Flow {
             .collect();
         Ordered {
             request,
+            rfq,
             order,
             items,
             mpns,
@@ -1033,4 +1035,119 @@ async fn price_at_or_above_the_baseline_and_unconfirmed_baselines_earn_nothing(p
         )
         .await;
     assert_eq!(r.status, StatusCode::CONFLICT);
+}
+
+// ---------------------------------------------------------------------------------------
+// After approval: the delivery date is followed up; supplier replies are read from files.
+
+impl Flow {
+    async fn delivery_tasks(&self) -> Vec<Value> {
+        let q = self.w.app.get("/api/v1/ops/queue", &self.operator).await;
+        assert_eq!(q.status, StatusCode::OK, "{:?}", q.body);
+        q.body["tasks"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|t| t["kind"] == "check_delivery")
+            .cloned()
+            .collect()
+    }
+
+    async fn order_header(&self, o: &Ordered) -> Value {
+        let d = self
+            .w
+            .app
+            .get(&self.url(&format!("requests/{}/order", o.request)), &self.manager)
+            .await;
+        assert_eq!(d.status, StatusCode::OK, "{:?}", d.body);
+        d.body["order"].clone()
+    }
+}
+
+#[sqlx::test(migrator = "procure_server::MIGRATOR")]
+async fn delivery_dates_are_followed_up_until_everything_arrives(pool: PgPool) {
+    let f = Flow::new(pool).await;
+    let app = &f.w.app;
+    // Lead times quoted: 7 and 21 days → promised 21 days after the order.
+    let o = f.ordered("PO-D-1", false, "2026-10-01T15:30:00Z").await;
+    let h = f.order_header(&o).await;
+    let promised = h["promised_on"].as_str().unwrap().to_string();
+    let today = chrono::Utc::now()
+        .with_timezone(&chrono::FixedOffset::east_opt(9 * 3600).unwrap())
+        .date_naive();
+    assert_eq!(promised, (today + chrono::Duration::days(21)).to_string());
+    assert_eq!(h["expected_on"], promised.as_str());
+    assert_eq!(h["late"], false);
+    let tasks = f.delivery_tasks().await;
+    assert_eq!(tasks.len(), 1, "{tasks:?}");
+    assert_eq!(tasks[0]["title"], "Check delivery of PO PO-D-1");
+
+    // Only our staff record the supplier's confirmed date.
+    let url = f.url(&format!("orders/{}/delivery-date", o.order));
+    let body = json!({ "confirmed_on": "2026-10-20", "note": "Tanaka-san, by phone" });
+    assert_eq!(
+        app.post(&url, &f.manager, body.clone()).await.status,
+        StatusCode::FORBIDDEN
+    );
+    assert_eq!(
+        app.post(&url, &f.operator, body).await.status,
+        StatusCode::NO_CONTENT
+    );
+    let h = f.order_header(&o).await;
+    assert_eq!(h["delivery_confirmed_on"], "2026-10-20");
+    assert_eq!(h["delivery_note"], "Tanaka-san, by phone");
+    assert_eq!(h["expected_on"], "2026-10-20");
+    // The confirmed day has passed and nothing arrived: late, and the task is overdue.
+    assert_eq!(h["late"], true);
+    let tasks = f.delivery_tasks().await;
+    assert_eq!(tasks.len(), 1);
+    assert_eq!(tasks[0]["overdue"], true);
+
+    // Everything arrives: the follow-up closes and the order is no longer late.
+    f.deliver(
+        &o,
+        "2026-10-21T00:00:00Z",
+        json!([{ "order_item_id": o.items[0], "quantity": 100 },
+               { "order_item_id": o.items[1], "quantity": 4 }]),
+    )
+    .await;
+    assert!(f.delivery_tasks().await.is_empty());
+    assert_eq!(f.order_header(&o).await["late"], false);
+    assert_eq!(
+        app.post(&url, &f.operator, json!({ "confirmed_on": "2026-10-25" }))
+            .await
+            .status,
+        StatusCode::CONFLICT
+    );
+    let (events, chain_valid) = f.audit_actions().await;
+    assert!(chain_valid);
+    assert!(events.iter().any(|e| e["action"] == "order.delivery_date_confirmed"));
+}
+
+#[sqlx::test(migrator = "procure_server::MIGRATOR")]
+async fn supplier_reply_files_are_read_as_text(pool: PgPool) {
+    let f = Flow::new(pool).await;
+    let o = f.ordered("PO-R-1", false, "2026-10-01T15:30:00Z").await;
+    let eml = "From: Sales <sales@tokyo-bearings.test>\r\nSubject: Quote\r\n\
+               Content-Type: text/plain; charset=UTF-8\r\n\r\n6204ZZ 100個 単価 1,180円 納期 7日\r\n";
+    let body = |name: &str, data: &[u8]| {
+        json!({ "file_name": name,
+                "data_base64": base64::engine::general_purpose::STANDARD.encode(data) })
+    };
+    let url = f.url(&format!("rfqs/{}/reply-text", o.rfq));
+    let r = f.w.app.post(&url, &f.operator, body("reply.eml", eml.as_bytes())).await;
+    assert_eq!(r.status, StatusCode::OK, "{:?}", r.body);
+    let text = r.body["text"].as_str().unwrap();
+    assert!(text.contains("From: Sales <sales@tokyo-bearings.test>"), "{text}");
+    assert!(text.contains("単価 1,180円"), "{text}");
+    // Customers do not handle supplier replies; unknown formats are refused.
+    assert_eq!(
+        f.w.app
+            .post(&url, &f.manager, body("reply.eml", eml.as_bytes()))
+            .await
+            .status,
+        StatusCode::FORBIDDEN
+    );
+    let r = f.w.app.post(&url, &f.operator, body("x.bin", &[0, 1, 2])).await;
+    assert_eq!(r.status, StatusCode::UNPROCESSABLE_ENTITY);
 }

@@ -362,6 +362,10 @@ pub fn router(state: AppState) -> Router {
             post(api::orders::record_invoice),
         )
         .route(
+            "/orgs/{org_id}/orders/{order_id}/delivery-date",
+            post(api::orders::confirm_delivery_date),
+        )
+        .route(
             "/orgs/{org_id}/discrepancies/{discrepancy_id}/resolve",
             post(api::orders::resolve_discrepancy),
         )
@@ -492,6 +496,10 @@ pub fn router(state: AppState) -> Router {
         .route(
             "/orgs/{org_id}/purchase-history/preview",
             post(api::history::preview),
+        )
+        .route(
+            "/orgs/{org_id}/rfqs/{rfq_id}/reply-text",
+            post(api::ai::reply_text),
         )
         .route(
             "/orgs/{org_id}/purchase-history/imports",

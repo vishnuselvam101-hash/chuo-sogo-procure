@@ -9,7 +9,7 @@ use chrono::{DateTime, NaiveDate, Utc};
 use procure_domain::matching::{self, Discrepancy, Invoice, InvoiceLine, OrderLine, TaxRounding};
 use procure_domain::money::Money;
 use procure_domain::rbac::{self, Permission};
-use procure_domain::workflow::RequestStatus;
+use procure_domain::workflow::{RequestStatus, Side};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use uuid::Uuid;
@@ -107,8 +107,13 @@ pub async fn record_order(
     let id = Uuid::now_v7();
     sqlx::query(
         "INSERT INTO purchase_orders (id, org_id, request_id, recommendation_id, supplier_id, po_number,
-                                      currency, shipping_minor, total_minor, notes, ordered_by)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)",
+                                      currency, shipping_minor, total_minor, notes, ordered_by,
+                                      promised_on)
+         SELECT $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11,
+                -- The slowest quoted line: the day everything should be here.
+                (now() AT TIME ZONE g.timezone)::date
+                    + (SELECT max(l.lead_time_days) FROM quotation_lines l WHERE l.quotation_id = $12)
+         FROM organisations g WHERE g.id = $2",
     )
     .bind(id)
     .bind(org_id)
@@ -121,6 +126,7 @@ pub async fn record_order(
     .bind(total)
     .bind(&notes)
     .bind(p.user_id)
+    .bind(quotation_id)
     .execute(&mut *tx)
     .await?;
     sqlx::query(
@@ -146,6 +152,7 @@ pub async fn record_order(
                 "total_minor": total, "currency": currency }),
     )
     .await?;
+    open_delivery_check(&mut tx, org_id, req.id, id).await?;
     tx.commit().await?;
     Ok((StatusCode::CREATED, Json(IdResponse { id })))
 }
@@ -162,6 +169,15 @@ pub struct OrderHeader {
     pub total_minor: i64,
     pub notes: String,
     pub ordered_at: DateTime<Utc>,
+    /// From the quotation's longest lead time (null when the supplier gave none).
+    pub promised_on: Option<NaiveDate>,
+    /// The date the supplier confirmed to our staff.
+    pub delivery_confirmed_on: Option<NaiveDate>,
+    pub delivery_note: String,
+    /// Confirmed date, else promised date.
+    pub expected_on: Option<NaiveDate>,
+    /// Not everything has arrived and the expected day has passed (organisation's calendar).
+    pub late: bool,
 }
 
 #[derive(Serialize, sqlx::FromRow, utoipa::ToSchema)]
@@ -250,8 +266,16 @@ async fn order_reader(p: &Principal, state: &AppState, org_id: Uuid) -> ApiResul
 async fn load_detail(tx: &mut db::Tx, request_id: Uuid) -> ApiResult<OrderDetail> {
     let order = sqlx::query_as::<_, OrderHeader>(
         "SELECT o.id, o.request_id, o.po_number, o.supplier_id, s.name AS supplier_name, o.currency,
-                o.shipping_minor, o.total_minor, o.notes, o.ordered_at
-         FROM purchase_orders o LEFT JOIN suppliers s ON s.id = o.supplier_id
+                o.shipping_minor, o.total_minor, o.notes, o.ordered_at, o.promised_on,
+                o.delivery_confirmed_on, o.delivery_note,
+                coalesce(o.delivery_confirmed_on, o.promised_on) AS expected_on,
+                (r.status = 'ordered'
+                 AND coalesce(o.delivery_confirmed_on, o.promised_on)
+                     < (now() AT TIME ZONE g.timezone)::date) IS TRUE AS late
+         FROM purchase_orders o
+         JOIN procurement_requests r ON r.id = o.request_id
+         JOIN organisations g ON g.id = o.org_id
+         LEFT JOIN suppliers s ON s.id = o.supplier_id
          WHERE o.request_id = $1",
     )
     .bind(request_id)
@@ -497,6 +521,7 @@ pub async fn record_delivery(
             json!({ "order": order_id }),
         )
         .await?;
+        crate::api::ops::close_auto_tasks(&mut tx, req.id, None, "check_delivery").await?;
     }
     tx.commit().await?;
     Ok((StatusCode::CREATED, Json(IdResponse { id })))
@@ -1077,7 +1102,113 @@ pub async fn reverse_delivery(
             json!({ "delivery": delivery_id }),
         )
         .await?;
+        open_delivery_check(&mut tx, org_id, req.id, order_id).await?;
     }
+    tx.commit().await?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+// ---------------------------------------------------------------------------------------
+// Delivery date follow-up.
+
+/// Days to get a date from the supplier when the quotation gave no lead time.
+const UNKNOWN_LEAD_FOLLOW_UP_DAYS: i64 = 3;
+
+/// Opens (or re-dates) the automatic "check_delivery" task: due at the end of the expected
+/// day, or in a few days to ask the supplier for a date when none is known.
+async fn open_delivery_check(
+    tx: &mut db::Tx,
+    org_id: Uuid,
+    request_id: Uuid,
+    order_id: Uuid,
+) -> ApiResult<()> {
+    let (expected, po): (Option<NaiveDate>, String) = sqlx::query_as(
+        "SELECT coalesce(delivery_confirmed_on, promised_on), po_number
+         FROM purchase_orders WHERE id = $1",
+    )
+    .bind(order_id)
+    .fetch_one(&mut **tx)
+    .await?;
+    let due = match expected {
+        Some(d) => crate::api::ops::end_of_local_day(tx, org_id, d).await?,
+        None => Utc::now() + chrono::Duration::days(UNKNOWN_LEAD_FOLLOW_UP_DAYS),
+    };
+    crate::api::ops::close_auto_tasks(tx, request_id, None, "check_delivery").await?;
+    crate::api::ops::open_auto_task(
+        tx,
+        org_id,
+        request_id,
+        None,
+        "check_delivery",
+        &format!("Check delivery of PO {po}"),
+        due,
+    )
+    .await
+}
+
+#[derive(Deserialize, utoipa::ToSchema)]
+pub struct DeliveryDateBody {
+    /// The delivery date the supplier confirmed.
+    pub confirmed_on: NaiveDate,
+    #[serde(default)]
+    pub note: String,
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/v1/orgs/{org_id}/orders/{order_id}/delivery-date",
+    tag = "orders",
+    params(("org_id" = Uuid, Path), ("order_id" = Uuid, Path)),
+    request_body = DeliveryDateBody,
+    security(("bearer" = [])),
+    responses(
+        (status = 204, description = "Confirmed date recorded; the delivery check is due that day"),
+        (status = 409, description = "Already delivered or closed", body = ErrorBody),
+        (status = 403, description = "Only our assigned staff record it", body = ErrorBody),
+        (status = 404, description = "Unknown order", body = ErrorBody),
+        (status = 401, description = "No valid session", body = ErrorBody),
+    )
+)]
+pub async fn confirm_delivery_date(
+    State(state): State<AppState>,
+    p: Principal,
+    ApiPath((org_id, order_id)): ApiPath<(Uuid, Uuid)>,
+    ApiJson(body): ApiJson<DeliveryDateBody>,
+) -> ApiResult<StatusCode> {
+    let access = p
+        .require(&state, org_id, Permission::OperateRequests)
+        .await?;
+    if side(access)? != Side::Operator {
+        return Err(ApiError::Forbidden);
+    }
+    let note = common::text(&body.note, 2000, true, "note")?;
+    let mut tx = db::tenant_tx(&state.pool, p.user_id, org_id).await?;
+    let request_id = order_request(&mut tx, order_id).await?;
+    let req = lock_request(&mut tx, request_id, View::All).await?;
+    if req.status()? != RequestStatus::Ordered {
+        return Err(ApiError::Conflict("invalid_transition"));
+    }
+    sqlx::query(
+        "UPDATE purchase_orders SET delivery_confirmed_on = $2, delivery_note = $3,
+                delivery_confirmed_by = $4, delivery_confirmed_at = now()
+         WHERE id = $1",
+    )
+    .bind(order_id)
+    .bind(body.confirmed_on)
+    .bind(&note)
+    .bind(p.user_id)
+    .execute(&mut *tx)
+    .await?;
+    Audit { org_id, p: &p }
+        .record(
+            &mut tx,
+            "order.delivery_date_confirmed",
+            "purchase_order",
+            order_id,
+            json!({ "confirmed_on": body.confirmed_on, "note": note }),
+        )
+        .await?;
+    open_delivery_check(&mut tx, org_id, request_id, order_id).await?;
     tx.commit().await?;
     Ok(StatusCode::NO_CONTENT)
 }

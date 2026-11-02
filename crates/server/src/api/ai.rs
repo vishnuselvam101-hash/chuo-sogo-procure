@@ -242,6 +242,83 @@ pub async fn extract_items(
     Ok((StatusCode::CREATED, Json(stored)))
 }
 
+#[derive(Deserialize, utoipa::ToSchema)]
+pub struct ReplyFileBody {
+    /// A saved supplier email (`.eml`, attachments read too), a PDF (text layer, else OCR),
+    /// an Excel / CSV sheet, or a scanned page / FAX (PNG, JPEG, TIFF; OCR).
+    pub file_name: String,
+    /// File content, standard base64.
+    pub data_base64: String,
+}
+
+#[derive(Serialize, utoipa::ToSchema)]
+pub struct ReplyText {
+    /// The reply as text, for the operator to read and then pass to quotation extraction.
+    pub text: String,
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/v1/orgs/{org_id}/rfqs/{rfq_id}/reply-text",
+    tag = "ai",
+    params(("org_id" = Uuid, Path), ("rfq_id" = Uuid, Path)),
+    request_body = ReplyFileBody,
+    security(("bearer" = [])),
+    responses(
+        (status = 200, description = "Text read from the supplier's reply (nothing stored)", body = ReplyText),
+        (status = 403, description = "Not permitted", body = ErrorBody),
+        (status = 404, description = "Unknown RFQ or not assigned", body = ErrorBody),
+        (status = 422, description = "Unsupported, empty or too large file; OCR not installed", body = ErrorBody),
+        (status = 400, description = "Malformed request", body = ErrorBody),
+        (status = 401, description = "No valid session", body = ErrorBody),
+    )
+)]
+pub async fn reply_text(
+    State(state): State<AppState>,
+    p: Principal,
+    ApiPath((org_id, rfq_id)): ApiPath<(Uuid, Uuid)>,
+    ApiJson(body): ApiJson<ReplyFileBody>,
+) -> ApiResult<Json<ReplyText>> {
+    let access = p
+        .require(&state, org_id, Permission::RecordQuotations)
+        .await?;
+    if side(access)? != Side::Operator {
+        return Err(ApiError::Forbidden);
+    }
+    {
+        let mut tx = db::tenant_tx(&state.pool, p.user_id, org_id).await?;
+        let found: bool = sqlx::query_scalar("SELECT EXISTS (SELECT 1 FROM rfqs WHERE id = $1)")
+            .bind(rfq_id)
+            .fetch_one(&mut *tx)
+            .await?;
+        tx.commit().await?;
+        if !found {
+            return Err(ApiError::NotFound);
+        }
+    }
+    let file_name = common::required(&body.file_name, 255, false, "file_name")?;
+    let bytes = base64::Engine::decode(
+        &base64::engine::general_purpose::STANDARD,
+        body.data_base64.as_bytes(),
+    )
+    .map_err(|_| ApiError::BadRequest("invalid_base64"))?;
+    if bytes.is_empty() || bytes.len() > crate::storage::MAX_ATTACHMENT_BYTES {
+        return Err(ApiError::Validation("file_size"));
+    }
+    let _permit = state
+        .upload_permits
+        .acquire()
+        .await
+        .map_err(ApiError::internal)?;
+    let text = crate::intake::quote_reply_text(&file_name, &bytes)
+        .await
+        .map_err(|e| match e {
+            crate::intake::IntakeError::Failed => ApiError::Conflict("intake_failed"),
+            other => ApiError::Validation(other.code()),
+        })?;
+    Ok(Json(ReplyText { text }))
+}
+
 #[utoipa::path(
     post,
     path = "/api/v1/orgs/{org_id}/rfqs/{rfq_id}/ai/extract-quotation",

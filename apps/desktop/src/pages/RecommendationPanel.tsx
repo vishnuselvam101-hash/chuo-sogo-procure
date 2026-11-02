@@ -26,6 +26,7 @@ export function RecommendationPanel({ active, selfId, recommendationId, onChange
   const { data, error, reload } = useApi<RecommendationDetail>(base);
   const action = useAction();
   const [comment, setComment] = useState("");
+  const [checkNote, setCheckNote] = useState("");
 
   if (!data) return <Loading data={data} error={error} />;
   const rec = data.recommendation;
@@ -90,9 +91,45 @@ export function RecommendationPanel({ active, selfId, recommendationId, onChange
         </ul>
       )}
 
+      {rec.checked_at && (
+        <p className="muted small">
+          {t("procurement:check.done", {
+            name: rec.checked_by_name ?? "",
+            date: formatDateTime(rec.checked_at, i18n.language, active.timezone),
+          })}
+          {rec.check_note ? ` — ${rec.check_note}` : ""}
+        </p>
+      )}
+
+      {operator && rec.status === "recommended" && !rec.checked_at && (
+        <div className="stack sub-card">
+          <p className="small">{t("procurement:check.comparisonHint")}</p>
+          <label>
+            {t("procurement:check.note")}
+            <input maxLength={2000} value={checkNote} onChange={(e) => setCheckNote(e.target.value)} />
+          </label>
+          <div className="row">
+            <button
+              type="button"
+              className="primary"
+              disabled={action.busy}
+              onClick={() => void post("/check", { note: checkNote })}
+            >
+              {t("procurement:check.comparison")}
+            </button>
+          </div>
+        </div>
+      )}
+
       {operator && rec.status === "recommended" && (
         <div className="row">
-          <button type="button" className="primary" disabled={action.busy} onClick={() => void post("/send")}>
+          <button
+            type="button"
+            className="primary"
+            disabled={action.busy || !rec.checked_at}
+            title={rec.checked_at ? undefined : t("procurement:check.comparisonFirst")}
+            onClick={() => void post("/send")}
+          >
             {t("procurement:recommendation.send")}
           </button>
           <label className="grow">
