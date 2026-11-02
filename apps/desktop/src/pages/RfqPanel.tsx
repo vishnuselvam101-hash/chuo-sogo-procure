@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import {
   bpsToPercent,
   formatDate,
+  formatDateTime,
   formatMilliPrice,
   formatMoney,
   formatNumber,
@@ -93,7 +94,7 @@ export function RfqPanel({ active, rfqId, requestId, requestStatus, currency, it
         <p className="muted small">
           {t("procurement:check.done", {
             name: rfq.checked_by_name ?? "",
-            date: formatDate(rfq.checked_at, i18n.language),
+            date: formatDateTime(rfq.checked_at, i18n.language, active.timezone),
           })}
           {rfq.check_note ? ` — ${rfq.check_note}` : ""}
         </p>

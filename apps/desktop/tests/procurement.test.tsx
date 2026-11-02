@@ -8,6 +8,7 @@ import type { MembershipView, RecommendationDetail, RequestDetail as Detail } fr
 import { ErrorText } from "../src/components/ui";
 import { RequestDetail } from "../src/pages/RequestDetail";
 import { NewRequest } from "../src/pages/NewRequest";
+import { RfqPanel } from "../src/pages/RfqPanel";
 
 const ORG = "0192f0aa-1111-7222-8333-444455556666";
 const REQ = "0192f0aa-2222-7222-8333-444455556666";
@@ -436,5 +437,96 @@ describe("AI item suggestions", () => {
       body: { indices: [0] },
     });
     expect(added).toHaveBeenCalled();
+  });
+});
+
+describe("RFQ", () => {
+  it("pre-ticks the shortlist with its reasons and sends what staff leave ticked", async () => {
+    const pick = (id: string, name: string, selected: boolean, reasons: object[]) => ({
+      supplier_id: id,
+      name,
+      country: "JP",
+      score: 10,
+      selected,
+      relevant: selected,
+      reasons,
+    });
+    const { bridge, calls } = fakeBridge({
+      [base]: detail("sourcing"),
+      [`${base}/attachments`]: [],
+      [`${base}/supplier-shortlist`]: {
+        picks: [
+          pick("s1", "Tokyo Bearings", true, [{ code: "quoted_before", count: 2 }]),
+          pick("s2", "Denki Shoji", true, [{ code: "category", category: "electrical" }]),
+          pick("s3", "Kogu Ya", false, []),
+        ],
+      },
+    });
+    render(
+      <BridgeProvider value={bridge}>
+        <RequestDetail
+          active={view("assigned", ["operate_requests", "manage_rfqs", "view_all_requests"])}
+          selfId={ME}
+          requestId={REQ}
+          onBack={() => undefined}
+        />
+      </BridgeProvider>,
+    );
+    const tokyo = (await screen.findByRole("checkbox", { name: /Tokyo Bearings/ })) as HTMLInputElement;
+    expect(tokyo.checked).toBe(true);
+    expect((screen.getByRole("checkbox", { name: /Kogu Ya/ }) as HTMLInputElement).checked).toBe(false);
+    expect(screen.getByText("Quoted 2 of these items before")).toBeTruthy();
+    expect(screen.getByText("Sells electrical")).toBeTruthy();
+    expect(screen.getByText("No record with this factory yet")).toBeTruthy();
+    fireEvent.click(screen.getByRole("checkbox", { name: /Denki Shoji/ }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Create RFQ" }));
+    });
+    expect(calls).toContainEqual({
+      method: "POST",
+      path: `${base}/rfqs`,
+      body: { supplier_ids: ["s1"], response_due: null, message: "" },
+    });
+  });
+
+  it("shows when and by whom a draft RFQ was checked, then allows dispatch", async () => {
+    const RFQ = "rfq-1";
+    const { bridge } = fakeBridge({
+      [`/api/v1/orgs/${ORG}/rfqs/${RFQ}`]: {
+        rfq: {
+          id: RFQ,
+          request_id: REQ,
+          number: "RFQ-2026-000001",
+          status: "draft",
+          message: "",
+          response_due: null,
+          created_at: "2026-11-01T00:00:00Z",
+          sent_at: null,
+          checked_at: "2026-11-02T03:04:05.123456Z",
+          checked_by_name: "Operator",
+          check_note: "",
+        },
+        recipients: [{ supplier_id: "s1", supplier_name: "Tokyo Bearings", status: "pending" }],
+        quotations: [],
+        latest_comparison_id: null,
+      },
+    });
+    render(
+      <BridgeProvider value={bridge}>
+        <RfqPanel
+          active={view("assigned", ["manage_rfqs"])}
+          rfqId={RFQ}
+          requestId={REQ}
+          requestStatus="sourcing"
+          currency="JPY"
+          items={[]}
+          onChanged={() => undefined}
+        />
+      </BridgeProvider>,
+    );
+    expect(await screen.findByText(/Checked by Operator on/)).toBeTruthy();
+    expect((screen.getByRole("button", { name: "Dispatch (test mode)" }) as HTMLButtonElement).disabled).toBe(
+      false,
+    );
   });
 });
