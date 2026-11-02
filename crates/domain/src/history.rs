@@ -641,6 +641,13 @@ pub fn change_bps(
     i64::try_from(q).ok()
 }
 
+/// Whether a price change is above the customer's alert line (`buying_criteria.price_alert_bps`).
+/// Reference only: it never changes compliance, ranking or any decision. False when either
+/// side is unknown (no alert line set, or prices in different currencies).
+pub fn above_alert(change_bps: Option<i64>, alert_bps: Option<i64>) -> bool {
+    matches!((change_bps, alert_bps), (Some(c), Some(a)) if c > a)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -891,5 +898,16 @@ mod tests {
             Some(-769)
         );
         assert_eq!(change_bps(13_000, Currency::Jpy, 14, Currency::Usd), None);
+    }
+
+    #[test]
+    fn alert_line_is_strictly_above_and_needs_both_sides() {
+        assert!(above_alert(Some(1001), Some(1000)));
+        assert!(!above_alert(Some(1000), Some(1000)));
+        assert!(!above_alert(Some(-5000), Some(1000)));
+        assert!(above_alert(Some(1), Some(0)));
+        assert!(!above_alert(None, Some(1000)));
+        assert!(!above_alert(Some(9999), None));
+        assert!(!above_alert(None, None));
     }
 }

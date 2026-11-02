@@ -5,6 +5,7 @@ use axum::extract::State;
 use axum::http::StatusCode;
 use chrono::{DateTime, NaiveDate, Utc};
 use procure_domain::comparison::{self, Line, Quote, RequiredItem};
+use procure_domain::history;
 use procure_domain::money::Money;
 use procure_domain::rbac::{self, Access, Permission};
 use procure_domain::workflow::{RequestStatus, Side};
@@ -30,10 +31,10 @@ async fn require_operator(
     state: &AppState,
     org_id: Uuid,
     perm: Permission,
-) -> ApiResult<()> {
+) -> ApiResult<Access> {
     let access = p.require(state, org_id, perm).await?;
     if side(access)? == Side::Operator {
-        Ok(())
+        Ok(access)
     } else {
         Err(ApiError::Forbidden)
     }
@@ -56,6 +57,25 @@ async fn require_quote_reader(p: &Principal, state: &AppState, org_id: Uuid) -> 
         Ok(access)
     } else {
         Err(ApiError::Forbidden)
+    }
+}
+
+/// Past prices are shown only to those who may read the purchase history (the same rule as
+/// the price reference): managers of the records, or those who see all requests.
+fn may_read_history(access: Access) -> bool {
+    rbac::allows(access, Permission::ManagePurchaseHistory)
+        || rbac::allows(access, Permission::ViewAllRequests)
+}
+
+/// Removes the past-price reference from a comparison for readers without history access.
+/// The stored snapshot keeps it.
+pub(crate) fn redact_price_checks(access: Access, results: &mut [ComparisonResult]) {
+    if !may_read_history(access) {
+        for r in results {
+            r.price_checks.clear();
+            r.price_alerts = 0;
+            r.price_alert_bps = None;
+        }
     }
 }
 
@@ -747,6 +767,33 @@ pub struct ComparisonResult {
     pub max_lead_time_days: Option<u32>,
     /// 1-based among compliant quotations.
     pub rank: Option<u32>,
+    /// Reference only: each quoted line against the customer's last purchase of the item.
+    /// Never affects compliance or rank. Empty for readers without purchase-history access.
+    #[serde(default)]
+    pub price_checks: Vec<PriceCheck>,
+    /// Lines whose change is above the customer's alert line.
+    #[serde(default)]
+    pub price_alerts: u32,
+    /// The customer's alert line when the comparison ran (`buying_criteria.price_alert_bps`).
+    #[serde(default)]
+    pub price_alert_bps: Option<i64>,
+}
+
+/// A quoted line next to the last price the customer paid for the same item.
+#[derive(Serialize, Deserialize, Clone, utoipa::ToSchema)]
+pub struct PriceCheck {
+    pub request_item_id: Uuid,
+    /// Quoted unit price, in the quotation currency.
+    pub quoted_unit_price_minor: i64,
+    /// Thousandths of a minor unit of `last_currency`.
+    pub last_unit_price_milli: i64,
+    pub last_currency: String,
+    pub last_purchased_on: NaiveDate,
+    pub last_supplier_name: String,
+    /// Change against the last price in basis points (+1250 = 12.5 % dearer); null when the
+    /// currencies differ (no FX).
+    pub change_bps: Option<i64>,
+    pub above_alert: bool,
 }
 
 #[derive(Serialize, sqlx::FromRow, utoipa::ToSchema)]
@@ -768,6 +815,25 @@ struct QuoteRow {
     currency: String,
     shipping_minor: i64,
     expired: bool,
+}
+
+#[derive(sqlx::FromRow)]
+struct CompareItemRow {
+    id: Uuid,
+    quantity: i32,
+    line_no: i32,
+    description: String,
+    mpn: String,
+    verified_mpn: Option<String>,
+}
+
+#[derive(sqlx::FromRow)]
+struct LastPurchase {
+    item_key: String,
+    purchased_on: NaiveDate,
+    supplier_name: String,
+    unit_price_milli: i64,
+    currency: String,
 }
 
 #[derive(sqlx::FromRow)]
@@ -799,17 +865,19 @@ async fn compare_rfq(
     .bind(org_id)
     .fetch_one(&mut **tx)
     .await?;
-    let items: Vec<(Uuid, i32)> =
-        sqlx::query_as("SELECT id, quantity FROM request_items WHERE request_id = $1")
-            .bind(req.id)
-            .fetch_all(&mut **tx)
-            .await?;
+    let items = sqlx::query_as::<_, CompareItemRow>(
+        "SELECT id, quantity, line_no, description, mpn, verified_mpn FROM request_items
+         WHERE request_id = $1 ORDER BY line_no",
+    )
+    .bind(req.id)
+    .fetch_all(&mut **tx)
+    .await?;
     let required = items
         .iter()
-        .map(|(id, q)| {
+        .map(|i| {
             Ok(RequiredItem {
-                id: *id,
-                quantity: to_u32(*q)?,
+                id: i.id,
+                quantity: to_u32(i.quantity)?,
             })
         })
         .collect::<ApiResult<Vec<_>>>()?;
@@ -857,23 +925,86 @@ async fn compare_rfq(
         });
     }
     let evaluations = comparison::compare(currency, &required, &domain_quotes);
-    let results: Vec<ComparisonResult> = evaluations
+
+    // Reference only, computed after the evaluation: the last price paid per item (same key
+    // as the price reference: a verified part number wins over the typed one).
+    let alert_bps: Option<i32> =
+        sqlx::query_scalar("SELECT price_alert_bps FROM buying_criteria WHERE org_id = $1")
+            .bind(org_id)
+            .fetch_optional(&mut **tx)
+            .await?
+            .flatten();
+    let alert_bps = alert_bps.map(i64::from);
+    let keys: std::collections::HashMap<Uuid, String> = items
         .iter()
-        .filter_map(|e| {
-            let q = quotes.iter().find(|q| q.id == e.quote)?;
-            Some(ComparisonResult {
-                quotation_id: q.id,
-                supplier_id: q.supplier_id,
-                supplier_name: q.supplier_name.clone(),
-                currency: q.currency.clone(),
-                compliance: e.compliance.code().to_string(),
-                reasons: e.reasons.iter().map(|r| r.code().to_string()).collect(),
-                total_minor: e.total.map(Money::minor),
-                max_lead_time_days: e.max_lead_time_days,
-                rank: e.rank,
-            })
+        .filter_map(|i| {
+            history::item_key(i.verified_mpn.as_deref().unwrap_or(&i.mpn), &i.description)
+                .map(|k| (i.id, k))
         })
         .collect();
+    let wanted: Vec<String> = keys.values().cloned().collect();
+    let last: std::collections::HashMap<String, LastPurchase> = sqlx::query_as::<_, LastPurchase>(
+        "SELECT DISTINCT ON (item_key) item_key, purchased_on, supplier_name,
+                    unit_price_milli, currency
+             FROM purchase_history WHERE item_key = ANY($1)
+             ORDER BY item_key, purchased_on DESC, id DESC",
+    )
+    .bind(&wanted)
+    .fetch_all(&mut **tx)
+    .await?
+    .into_iter()
+    .map(|l| (l.item_key.clone(), l))
+    .collect();
+    let line_no: std::collections::HashMap<Uuid, i32> =
+        items.iter().map(|i| (i.id, i.line_no)).collect();
+    let price_checks_for = |q: &QuoteRow| -> ApiResult<Vec<PriceCheck>> {
+        let qc = common::currency(&q.currency)?;
+        let mut ql: Vec<&LineRow> = lines.iter().filter(|l| l.quotation_id == q.id).collect();
+        ql.sort_by_key(|l| line_no.get(&l.request_item_id).copied().unwrap_or(i32::MAX));
+        let mut out = Vec::new();
+        for l in ql {
+            let Some(p) = keys.get(&l.request_item_id).and_then(|k| last.get(k)) else {
+                continue;
+            };
+            let lc = common::currency(&p.currency)?;
+            let change = history::change_bps(p.unit_price_milli, lc, l.unit_price_minor, qc);
+            out.push(PriceCheck {
+                request_item_id: l.request_item_id,
+                quoted_unit_price_minor: l.unit_price_minor,
+                last_unit_price_milli: p.unit_price_milli,
+                last_currency: p.currency.clone(),
+                last_purchased_on: p.purchased_on,
+                last_supplier_name: p.supplier_name.clone(),
+                change_bps: change,
+                above_alert: history::above_alert(change, alert_bps),
+            });
+        }
+        Ok(out)
+    };
+
+    let mut results = Vec::with_capacity(evaluations.len());
+    for e in &evaluations {
+        let Some(q) = quotes.iter().find(|q| q.id == e.quote) else {
+            continue;
+        };
+        let price_checks = price_checks_for(q)?;
+        let price_alerts = u32::try_from(price_checks.iter().filter(|c| c.above_alert).count())
+            .unwrap_or(u32::MAX);
+        results.push(ComparisonResult {
+            quotation_id: q.id,
+            supplier_id: q.supplier_id,
+            supplier_name: q.supplier_name.clone(),
+            currency: q.currency.clone(),
+            compliance: e.compliance.code().to_string(),
+            reasons: e.reasons.iter().map(|r| r.code().to_string()).collect(),
+            total_minor: e.total.map(Money::minor),
+            max_lead_time_days: e.max_lead_time_days,
+            rank: e.rank,
+            price_checks,
+            price_alerts,
+            price_alert_bps: alert_bps,
+        });
+    }
     let id = Uuid::now_v7();
     let quotation_ids: Vec<Uuid> = quotes.iter().map(|q| q.id).collect();
     let view = sqlx::query_as::<_, ComparisonView>(
@@ -915,13 +1046,13 @@ pub async fn run_comparison(
     p: Principal,
     ApiPath((org_id, rfq_id)): ApiPath<(Uuid, Uuid)>,
 ) -> ApiResult<(StatusCode, Json<ComparisonView>)> {
-    require_operator(&p, &state, org_id, Permission::ManageRfqs).await?;
+    let access = require_operator(&p, &state, org_id, Permission::ManageRfqs).await?;
     let mut tx = db::tenant_tx(&state.pool, p.user_id, org_id).await?;
     // Supplier names for the snapshot.
     db::enable_staff_scope(&mut tx).await?;
     let rfq = lock_rfq(&mut tx, rfq_id).await?;
     let req = lock_request(&mut tx, rfq.request_id, View::All).await?;
-    let view = compare_rfq(&mut tx, org_id, rfq.id, &req, p.user_id).await?;
+    let mut view = compare_rfq(&mut tx, org_id, rfq.id, &req, p.user_id).await?;
     transition(
         &mut tx,
         &Audit { org_id, p: &p },
@@ -934,6 +1065,7 @@ pub async fn run_comparison(
     .await?;
     crate::api::ops::close_auto_tasks(&mut tx, req.id, Some(rfq.id), "chase_quotes").await?;
     tx.commit().await?;
+    redact_price_checks(access, &mut view.results.0);
     Ok((StatusCode::CREATED, Json(view)))
 }
 
@@ -956,9 +1088,9 @@ pub async fn get_comparison(
     p: Principal,
     ApiPath((org_id, comparison_id)): ApiPath<(Uuid, Uuid)>,
 ) -> ApiResult<Json<ComparisonView>> {
-    require_quote_reader(&p, &state, org_id).await?;
+    let access = require_quote_reader(&p, &state, org_id).await?;
     let mut tx = db::tenant_tx(&state.pool, p.user_id, org_id).await?;
-    let view = sqlx::query_as::<_, ComparisonView>(
+    let mut view = sqlx::query_as::<_, ComparisonView>(
         "SELECT id, rfq_id, currency, as_of, results, ran_at FROM comparison_runs WHERE id = $1",
     )
     .bind(comparison_id)
@@ -966,5 +1098,78 @@ pub async fn get_comparison(
     .await?
     .ok_or(ApiError::NotFound)?;
     tx.commit().await?;
+    redact_price_checks(access, &mut view.results.0);
     Ok(Json(view))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use procure_domain::rbac::Role;
+
+    fn result_with_check() -> ComparisonResult {
+        ComparisonResult {
+            quotation_id: Uuid::nil(),
+            supplier_id: Uuid::nil(),
+            supplier_name: String::new(),
+            currency: "JPY".into(),
+            compliance: "compliant".into(),
+            reasons: vec![],
+            total_minor: Some(1),
+            max_lead_time_days: None,
+            rank: Some(1),
+            price_checks: vec![PriceCheck {
+                request_item_id: Uuid::nil(),
+                quoted_unit_price_minor: 14,
+                last_unit_price_milli: 13_000,
+                last_currency: "JPY".into(),
+                last_purchased_on: NaiveDate::from_ymd_opt(2026, 1, 1).unwrap_or_default(),
+                last_supplier_name: "A".into(),
+                change_bps: Some(769),
+                above_alert: true,
+            }],
+            price_alerts: 1,
+            price_alert_bps: Some(500),
+        }
+    }
+
+    #[test]
+    fn past_prices_follow_the_history_read_rule() {
+        for role in Role::ALL {
+            for access in [Access::Member(role), Access::Assigned(role)] {
+                let mut rs = [result_with_check()];
+                redact_price_checks(access, &mut rs);
+                let readable = rbac::allows(access, Permission::ManagePurchaseHistory)
+                    || rbac::allows(access, Permission::ViewAllRequests);
+                assert_eq!(
+                    rs[0].price_checks.len(),
+                    usize::from(readable),
+                    "{access:?}"
+                );
+                assert_eq!(rs[0].price_alerts, u32::from(readable), "{access:?}");
+                assert_eq!(rs[0].price_alert_bps.is_some(), readable, "{access:?}");
+                // Never touches the decision fields.
+                assert_eq!(
+                    (rs[0].rank, rs[0].compliance.as_str()),
+                    (Some(1), "compliant")
+                );
+            }
+        }
+        let mut rs = [result_with_check()];
+        redact_price_checks(Access::Member(Role::Requester), &mut rs);
+        assert!(rs[0].price_checks.is_empty());
+    }
+
+    #[test]
+    fn runs_stored_before_price_checks_still_load() {
+        let old = json!([{
+            "quotation_id": Uuid::nil(), "supplier_id": Uuid::nil(), "supplier_name": "S",
+            "currency": "JPY", "compliance": "compliant", "reasons": [], "total_minor": 10,
+            "max_lead_time_days": 3, "rank": 1
+        }]);
+        let r: Vec<ComparisonResult> = serde_json::from_value(old).unwrap_or_default();
+        assert_eq!(r.len(), 1);
+        assert!(r[0].price_checks.is_empty());
+        assert_eq!((r[0].price_alerts, r[0].price_alert_bps), (0, None));
+    }
 }

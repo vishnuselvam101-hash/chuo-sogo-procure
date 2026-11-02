@@ -132,7 +132,7 @@ export function PurchaseHistory({ active }: { active: MembershipView }) {
               {t("history:import.file")}
               <input
                 type="file"
-                accept=".xlsx,.csv,.tsv,.txt"
+                accept=".xlsx,.csv,.tsv,.txt,.pdf,.png,.jpg,.jpeg,.tif,.tiff"
                 disabled={action.busy}
                 onChange={(e) => void choose(e.target.files)}
               />
@@ -151,6 +151,11 @@ export function PurchaseHistory({ active }: { active: MembershipView }) {
 
           {preview && mapping && file && (
             <>
+              {preview.ocr && (
+                <div className="notice" role="note">
+                  {t("history:import.ocrNotice")}
+                </div>
+              )}
               <p>
                 {t("history:preview.summary", {
                   valid: formatNumber(preview.valid_rows, i18n.language),
@@ -264,6 +269,7 @@ export function PurchaseHistory({ active }: { active: MembershipView }) {
           <thead>
             <tr>
               <th>{t("history:imports.file")}</th>
+              <th>{t("history:imports.source")}</th>
               <th className="num">{t("history:imports.rows")}</th>
               <th className="num">{t("history:imports.skipped")}</th>
               <th>{t("history:imports.by")}</th>
@@ -275,6 +281,7 @@ export function PurchaseHistory({ active }: { active: MembershipView }) {
             {imports.data.map((im) => (
               <tr key={im.id} className={im.withdrawn_at ? "muted" : undefined}>
                 <td>{im.file_name}</td>
+                <td>{t(`history:source.${im.source}`, { defaultValue: im.source })}</td>
                 <td className="num">{formatNumber(im.rows_imported, i18n.language)}</td>
                 <td className="num">{formatNumber(im.rows_skipped, i18n.language)}</td>
                 <td>{im.imported_by_name ?? "—"}</td>

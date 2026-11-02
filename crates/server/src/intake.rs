@@ -29,8 +29,10 @@ pub enum IntakeError {
     SpeechUnavailable,
     /// A tool failed or timed out.
     Failed,
-    /// A table with more rows than one import takes.
+    /// A table with more rows than one import takes, or a scan with too many pages/pixels.
     TooLarge,
+    /// A scanned record, but this server has no OCR installed.
+    OcrUnavailable,
 }
 
 impl IntakeError {
@@ -42,6 +44,7 @@ impl IntakeError {
             IntakeError::SpeechUnavailable => "speech_unavailable",
             IntakeError::Failed => "intake_failed",
             IntakeError::TooLarge => "too_many_rows",
+            IntakeError::OcrUnavailable => "ocr_unavailable",
         }
     }
 }
@@ -448,32 +451,360 @@ pub const MAX_TABLE_ROWS: usize = 50_000;
 /// Columns beyond this are ignored (no purchase export needs more).
 pub const MAX_TABLE_COLUMNS: usize = 60;
 
-/// A spreadsheet (.xlsx, first sheet that looks like a purchase table, else the first sheet)
-/// or a CSV/TSV file (UTF-8 or Shift_JIS) as rows of cell text. Dates in Excel cells come out
-/// as `YYYY-MM-DD`; numbers keep their exact decimal text.
-pub async fn table_rows(file_name: &str, bytes: &[u8]) -> Result<Vec<Vec<String>>, IntakeError> {
+/// A purchase table as read from a file.
+#[derive(Debug, PartialEq, Eq)]
+pub struct Table {
+    pub rows: Vec<Vec<String>>,
+    /// Per cell: recognised with low confidence (OCR only; empty for exact sources).
+    pub unclear: Vec<Vec<bool>>,
+    /// Read by OCR from a scan, photo or FAX (the numbers must be checked against the paper).
+    pub ocr: bool,
+}
+
+impl Table {
+    fn exact(rows: Vec<Vec<String>>) -> Self {
+        Table {
+            rows,
+            unclear: Vec::new(),
+            ocr: false,
+        }
+    }
+
+    pub fn is_unclear(&self, row: usize, col: usize) -> bool {
+        self.unclear
+            .get(row)
+            .and_then(|r| r.get(col))
+            .copied()
+            .unwrap_or(false)
+    }
+}
+
+/// A spreadsheet (.xlsx, first sheet that looks like a purchase table, else the first sheet),
+/// a CSV/TSV file (UTF-8 or Shift_JIS), a PDF (its text layer, else OCR of its pages) or a
+/// scan / photo / FAX (PNG, JPEG, TIFF; OCR) as rows of cell text. Dates in Excel cells come
+/// out as `YYYY-MM-DD`; numbers keep their exact decimal text.
+pub async fn table_rows(file_name: &str, bytes: &[u8]) -> Result<Table, IntakeError> {
     let ext = Path::new(file_name)
         .extension()
         .and_then(|e| e.to_str())
         .unwrap_or("")
         .to_ascii_lowercase();
-    let rows = if ext == "xlsx" && bytes.starts_with(b"PK\x03\x04") {
+    let table = if bytes.starts_with(b"%PDF-") {
+        pdf_table(bytes).await?
+    } else if let Some(kind) = image_kind(bytes) {
+        ocr_image(bytes, kind, &tool("PROCURE_TESSERACT", "tesseract")).await?
+    } else if ext == "xlsx" && bytes.starts_with(b"PK\x03\x04") {
         let owned = bytes.to_vec();
-        tokio::task::spawn_blocking(move || {
-            check_workbook(&owned)?;
-            sheet_rows(&owned)
-        })
-        .await
-        .map_err(|_| IntakeError::Failed)??
+        Table::exact(
+            tokio::task::spawn_blocking(move || {
+                check_workbook(&owned)?;
+                sheet_rows(&owned)
+            })
+            .await
+            .map_err(|_| IntakeError::Failed)??,
+        )
     } else if matches!(ext.as_str(), "csv" | "tsv" | "txt") && !bytes.contains(&0) {
-        delimited_rows(&decode_text(bytes))?
+        Table::exact(delimited_rows(&decode_text(bytes))?)
     } else {
         return Err(IntakeError::Unsupported);
     };
-    if rows.iter().all(|r| procure_domain::history::is_blank(r)) {
+    if table
+        .rows
+        .iter()
+        .all(|r| procure_domain::history::is_blank(r))
+    {
         return Err(IntakeError::Empty);
     }
-    Ok(rows)
+    if table.rows.len() > MAX_TABLE_ROWS + 20 {
+        return Err(IntakeError::TooLarge);
+    }
+    Ok(table)
+}
+
+/// Pages read from one scanned document, and the largest page accepted (an A3 sheet at
+/// 300 dpi is about 17.5 million pixels).
+pub const MAX_OCR_PAGES: usize = 10;
+const MAX_OCR_PIXELS: u64 = 40_000_000;
+/// Largest TSV read back from `pdftotext` / `tesseract`.
+const MAX_TSV_BYTES: u64 = 16 * 1024 * 1024;
+
+fn tool(var: &str, default: &str) -> PathBuf {
+    std::env::var(var).unwrap_or_else(|_| default.into()).into()
+}
+
+/// Whether `program` can be started: an existing path, or a name found on `PATH`.
+fn installed(program: &Path) -> bool {
+    if program.components().count() > 1 {
+        return program.is_file();
+    }
+    std::env::var_os("PATH")
+        .is_some_and(|paths| std::env::split_paths(&paths).any(|d| d.join(program).is_file()))
+}
+
+async fn read_tsv(path: &Path) -> Result<String, IntakeError> {
+    let size = tokio::fs::metadata(path)
+        .await
+        .map_err(|_| IntakeError::Failed)?
+        .len();
+    if size > MAX_TSV_BYTES {
+        return Err(IntakeError::TooLarge);
+    }
+    let bytes = tokio::fs::read(path)
+        .await
+        .map_err(|_| IntakeError::Failed)?;
+    Ok(String::from_utf8_lossy(&bytes).into_owned())
+}
+
+fn words_table(words: &[procure_domain::ocr_table::Word], ocr: bool) -> Table {
+    let cells = procure_domain::ocr_table::rows_from_words(words);
+    Table {
+        rows: cells
+            .iter()
+            .map(|r| r.iter().map(|c| c.text.clone()).collect())
+            .collect(),
+        unclear: if ocr {
+            cells
+                .iter()
+                .map(|r| r.iter().map(|c| c.unclear()).collect())
+                .collect()
+        } else {
+            Vec::new()
+        },
+        ocr,
+    }
+}
+
+/// The text layer when the PDF has one (exact); otherwise its first pages rendered to a
+/// fixed size (so a huge page size cannot make a huge image) and read by OCR.
+async fn pdf_table(bytes: &[u8]) -> Result<Table, IntakeError> {
+    let scratch = Scratch::new()?;
+    let input = scratch.path("input.pdf");
+    tokio::fs::write(&input, bytes)
+        .await
+        .map_err(|_| IntakeError::Failed)?;
+    let tsv = scratch.path("text.tsv");
+    let pages = MAX_OCR_PAGES.to_string();
+    run_tool(
+        &tool("PROCURE_PDFTOTEXT", "pdftotext"),
+        &[
+            "-tsv".as_ref(),
+            "-l".as_ref(),
+            pages.as_ref(),
+            "-enc".as_ref(),
+            "UTF-8".as_ref(),
+            input.as_os_str(),
+            tsv.as_os_str(),
+        ],
+    )
+    .await
+    // A damaged or encrypted PDF that poppler cannot open.
+    .map_err(|_| IntakeError::Unsupported)?;
+    let words = procure_domain::ocr_table::parse_tsv(&read_tsv(&tsv).await?);
+    let letters: usize = words
+        .iter()
+        .map(|w| w.text.chars().filter(|c| c.is_alphanumeric()).count())
+        .sum();
+    if letters >= 20 {
+        return Ok(words_table(&words, false));
+    }
+    let tesseract = tool("PROCURE_TESSERACT", "tesseract");
+    let pdftoppm = tool("PROCURE_PDFTOPPM", "pdftoppm");
+    if !installed(&tesseract) || !installed(&pdftoppm) {
+        return Err(IntakeError::OcrUnavailable);
+    }
+    let prefix = scratch.path("page");
+    run_tool(
+        &pdftoppm,
+        &[
+            // Longest side 3508 px: an A4 page at 300 dpi.
+            "-scale-to".as_ref(),
+            "3508".as_ref(),
+            "-gray".as_ref(),
+            "-png".as_ref(),
+            "-l".as_ref(),
+            pages.as_ref(),
+            input.as_os_str(),
+            prefix.as_os_str(),
+        ],
+    )
+    .await?;
+    let mut images: Vec<PathBuf> = std::fs::read_dir(&scratch.0)
+        .map_err(|_| IntakeError::Failed)?
+        .filter_map(|e| e.ok().map(|e| e.path()))
+        .filter(|p| {
+            p.file_name()
+                .and_then(|n| n.to_str())
+                .is_some_and(|n| n.starts_with("page") && n.ends_with(".png"))
+        })
+        .collect();
+    if images.is_empty() {
+        return Err(IntakeError::Empty);
+    }
+    // page-01.png … page-10.png: zero-padded by pdftoppm, so name order is page order.
+    images.sort();
+    ocr(&scratch, &tesseract, &images).await
+}
+
+async fn ocr_image(
+    bytes: &[u8],
+    kind: &'static str,
+    tesseract: &Path,
+) -> Result<Table, IntakeError> {
+    let pages = image_pages(bytes, kind).ok_or(IntakeError::Unsupported)?;
+    if pages.is_empty() {
+        return Err(IntakeError::Unsupported);
+    }
+    if pages.len() > MAX_OCR_PAGES
+        || pages
+            .iter()
+            .any(|(w, h)| *w == 0 || *h == 0 || u64::from(*w) * u64::from(*h) > MAX_OCR_PIXELS)
+    {
+        return Err(IntakeError::TooLarge);
+    }
+    if !installed(tesseract) {
+        return Err(IntakeError::OcrUnavailable);
+    }
+    let scratch = Scratch::new()?;
+    let input = scratch.path(&format!("scan.{kind}"));
+    tokio::fs::write(&input, bytes)
+        .await
+        .map_err(|_| IntakeError::Failed)?;
+    ocr(&scratch, tesseract, &[input]).await
+}
+
+/// Japanese + English OCR of the images (each may be a multi-page TIFF), one uniform block
+/// of text per page so table rows stay whole lines.
+async fn ocr(
+    scratch: &Scratch,
+    tesseract: &Path,
+    images: &[PathBuf],
+) -> Result<Table, IntakeError> {
+    let list = scratch.path("pages.txt");
+    let mut names = String::new();
+    for i in images {
+        names.push_str(i.to_str().ok_or(IntakeError::Failed)?);
+        names.push('\n');
+    }
+    tokio::fs::write(&list, names)
+        .await
+        .map_err(|_| IntakeError::Failed)?;
+    let base = scratch.path("ocr");
+    run_tool(
+        tesseract,
+        &[
+            list.as_os_str(),
+            base.as_os_str(),
+            "-l".as_ref(),
+            "jpn+eng".as_ref(),
+            "--psm".as_ref(),
+            "6".as_ref(),
+            "-c".as_ref(),
+            "tessedit_create_tsv=1".as_ref(),
+            "-c".as_ref(),
+            "tessedit_create_txt=0".as_ref(),
+        ],
+    )
+    .await?;
+    let words = procure_domain::ocr_table::parse_tsv(&read_tsv(&scratch.path("ocr.tsv")).await?);
+    if words.is_empty() {
+        return Err(IntakeError::Empty);
+    }
+    Ok(words_table(&words, true))
+}
+
+/// PNG, JPEG or TIFF (the FAX format), by content.
+pub fn image_kind(b: &[u8]) -> Option<&'static str> {
+    if b.starts_with(b"\x89PNG\r\n\x1a\n") {
+        Some("png")
+    } else if b.starts_with(&[0xFF, 0xD8, 0xFF]) {
+        Some("jpg")
+    } else if b.starts_with(b"II*\0") || b.starts_with(b"MM\0*") {
+        Some("tif")
+    } else {
+        None
+    }
+}
+
+/// Width × height of each page, read from the headers before any decoder runs, so a
+/// small file declaring an enormous image (or hundreds of FAX pages) is refused up front.
+/// `None` when the headers cannot be read.
+pub fn image_pages(b: &[u8], kind: &str) -> Option<Vec<(u32, u32)>> {
+    let be32 = |o: usize| Some(u32::from_be_bytes(b.get(o..o + 4)?.try_into().ok()?));
+    let be16 = |o: usize| Some(u16::from_be_bytes(b.get(o..o + 2)?.try_into().ok()?));
+    match kind {
+        // The IHDR chunk comes first.
+        "png" if b.get(12..16)? == b"IHDR" => Some(vec![(be32(16)?, be32(20)?)]),
+        "jpg" => {
+            // Walk the segments to the first start-of-frame marker.
+            let mut o = 2;
+            loop {
+                if *b.get(o)? != 0xFF {
+                    return None;
+                }
+                let marker = *b.get(o + 1)?;
+                if marker == 0xFF {
+                    o += 1;
+                    continue;
+                }
+                let len = usize::from(be16(o + 2)?);
+                let sof = matches!(marker, 0xC0..=0xCF) && !matches!(marker, 0xC4 | 0xC8 | 0xCC);
+                if sof {
+                    return Some(vec![(u32::from(be16(o + 7)?), u32::from(be16(o + 5)?))]);
+                }
+                if len < 2 {
+                    return None;
+                }
+                o += 2 + len;
+            }
+        }
+        "tif" => {
+            let little = b.starts_with(b"II");
+            let u16_at = |o: usize| {
+                let v: [u8; 2] = b.get(o..o + 2)?.try_into().ok()?;
+                Some(if little {
+                    u16::from_le_bytes(v)
+                } else {
+                    u16::from_be_bytes(v)
+                })
+            };
+            let u32_at = |o: usize| {
+                let v: [u8; 4] = b.get(o..o + 4)?.try_into().ok()?;
+                Some(if little {
+                    u32::from_le_bytes(v)
+                } else {
+                    u32::from_be_bytes(v)
+                })
+            };
+            let mut pages = Vec::new();
+            let mut ifd = u32_at(4)? as usize;
+            while ifd != 0 {
+                // One more than allowed is enough to refuse; also stops offset loops.
+                if pages.len() > MAX_OCR_PAGES {
+                    break;
+                }
+                let entries = usize::from(u16_at(ifd)?);
+                let (mut w, mut h) = (0u32, 0u32);
+                for e in 0..entries {
+                    let at = ifd + 2 + e * 12;
+                    let tag = u16_at(at)?;
+                    let value = match u16_at(at + 2)? {
+                        3 => u32::from(u16_at(at + 8)?),
+                        4 => u32_at(at + 8)?,
+                        _ => continue,
+                    };
+                    match tag {
+                        256 => w = value,
+                        257 => h = value,
+                        _ => {}
+                    }
+                }
+                pages.push((w, h));
+                ifd = u32_at(ifd + 2 + entries * 12)? as usize;
+            }
+            Some(pages)
+        }
+        _ => None,
+    }
 }
 
 fn cell_text(cell: &calamine::Data) -> String {
@@ -589,14 +920,15 @@ mod tests {
         let csv = "日付,品名,単価\r\n2026/1/5,\"ボルト, M8\",12.5\r\n2026/1/6,\"say \"\"hi\"\"\nline 2\",3\n";
         let (sjis, _, _) = encoding_rs::SHIFT_JIS.encode(csv);
         for bytes in [csv.as_bytes(), &sjis] {
-            let rows = table_rows("history.csv", bytes).await.unwrap();
+            let rows = table_rows("history.csv", bytes).await.unwrap().rows;
             assert_eq!(rows.len(), 3);
             assert_eq!(rows[1], vec!["2026/1/5", "ボルト, M8", "12.5"]);
             assert_eq!(rows[2][1], "say \"hi\"\nline 2");
         }
         let rows = table_rows("h.tsv", b"date\titem\tprice\n2026-01-05\tnut\t3")
             .await
-            .unwrap();
+            .unwrap()
+            .rows;
         assert_eq!(rows[1], vec!["2026-01-05", "nut", "3"]);
         assert_eq!(
             table_rows("h.csv", b",,\n,,\n").await,
@@ -604,6 +936,10 @@ mod tests {
         );
         assert_eq!(
             table_rows("h.pdf", b"%PDF-1.4").await,
+            Err(IntakeError::Unsupported)
+        );
+        assert_eq!(
+            table_rows("h.docx", b"PK\x03\x04").await,
             Err(IntakeError::Unsupported)
         );
         let big = "a\n".repeat(MAX_TABLE_ROWS + 50);
@@ -665,6 +1001,98 @@ mod tests {
         let bomb = buf.into_inner();
         assert!(bomb.len() < 1024 * 1024, "small on disk");
         assert_eq!(check_workbook(&bomb), Err(IntakeError::Unsupported));
+    }
+
+    const SCAN: &[&str] = &[
+        "2024/01/15",
+        "山田商事",
+        "六角ボルト",
+        "M8-30",
+        "100",
+        "12.5",
+    ];
+
+    /// Real tesseract (jpn+eng) on a scan rendered from a Japanese purchase table: as a PNG,
+    /// a FAX-style 1-bit TIFF and an image-only PDF.
+    #[tokio::test]
+    async fn scanned_purchase_records_are_read_by_ocr() {
+        let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
+        for name in [
+            "purchase-scan.png",
+            "purchase-scan.tif",
+            "purchase-scan.pdf",
+        ] {
+            let bytes = std::fs::read(dir.join(name)).unwrap();
+            let t = table_rows(name, &bytes).await.unwrap();
+            assert!(t.ocr, "{name}");
+            let header = procure_domain::history::find_header(&t.rows).expect(name);
+            assert_eq!(t.rows[header][0], "日付", "{name}");
+            let row = &t.rows[header + 1];
+            for (i, want) in SCAN.iter().enumerate() {
+                assert!(
+                    row[i].replace(' ', "") == *want,
+                    "{name} column {i}: {:?}",
+                    row
+                );
+            }
+            assert_eq!(t.rows[header + 3][4], "200", "{name}");
+            assert_eq!(t.unclear.len(), t.rows.len());
+        }
+    }
+
+    #[tokio::test]
+    async fn pdf_text_layers_become_tables_without_ocr() {
+        let pdf = minimal_pdf("HG-KR43 servo bearing 6204ZZ quantity 20");
+        let t = table_rows("record.pdf", &pdf).await.unwrap();
+        assert!(!t.ocr);
+        assert!(t.unclear.is_empty());
+        assert!(t.rows.concat().join(" ").contains("6204ZZ"), "{:?}", t.rows);
+    }
+
+    #[tokio::test]
+    async fn scans_are_refused_before_decoding_when_too_large_or_ocr_is_missing() {
+        // A 100-byte PNG declaring 20000 × 20000 pixels.
+        let mut png = b"\x89PNG\r\n\x1a\n\0\0\0\x0dIHDR".to_vec();
+        png.extend(20_000u32.to_be_bytes());
+        png.extend(20_000u32.to_be_bytes());
+        png.extend([8, 0, 0, 0, 0]);
+        assert_eq!(image_pages(&png, "png"), Some(vec![(20_000, 20_000)]));
+        assert_eq!(table_rows("x.png", &png).await, Err(IntakeError::TooLarge));
+        // A JPEG: APP0 segment, then a baseline frame of 640 × 480.
+        let jpg = [
+            0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x04, 0x00, 0x00, 0xFF, 0xC0, 0x00, 0x0B, 0x08, 0x01,
+            0xE0, 0x02, 0x80, 0x01, 0x01, 0x11, 0x00,
+        ];
+        assert_eq!(image_pages(&jpg, "jpg"), Some(vec![(640, 480)]));
+        assert_eq!(image_pages(&jpg[..9], "jpg"), None);
+        // A little-endian TIFF whose IFD chain points back at itself (a FAX with "endless"
+        // pages): refused, not looped over.
+        let mut tif = b"II*\0\x08\0\0\0".to_vec();
+        tif.extend(2u16.to_le_bytes());
+        for (tag, v) in [(256u16, 1728u32), (257, 2200)] {
+            tif.extend(tag.to_le_bytes());
+            tif.extend(4u16.to_le_bytes());
+            tif.extend(1u32.to_le_bytes());
+            tif.extend(v.to_le_bytes());
+        }
+        tif.extend(8u32.to_le_bytes());
+        let pages = image_pages(&tif, "tif").unwrap();
+        assert_eq!(pages[0], (1728, 2200));
+        assert!(pages.len() > MAX_OCR_PAGES);
+        assert_eq!(
+            table_rows("fax.tif", &tif).await,
+            Err(IntakeError::TooLarge)
+        );
+        assert_eq!(image_pages(b"II*\0\xff\xff\0\0", "tif"), None);
+
+        let scan = std::fs::read(
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/purchase-scan.png"),
+        )
+        .unwrap();
+        assert_eq!(
+            ocr_image(&scan, "png", Path::new("/nonexistent/tesseract")).await,
+            Err(IntakeError::OcrUnavailable)
+        );
     }
 
     #[tokio::test]

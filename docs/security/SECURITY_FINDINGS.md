@@ -79,6 +79,10 @@
 - Installers are unsigned (Windows SmartScreen, macOS Gatekeeper warnings); Android builds are debug APKs. SHA256SUMS proves integrity only when sent over a separate channel.
 - Demo review was static plus a handful of read-only probes of the public address; no dynamic test of write paths on the public demo.
 
+## Residual risk (purchase-history OCR, 2026-11-02)
+- Scans (PNG/JPEG/TIFF/PDF) from customers are decoded natively by poppler and leptonica/tesseract on the server. Mitigations: type by content, image dimensions and TIFF page chain read from the headers before any decoder runs (≤ 10 pages, ≤ 40 MP per page), PDFs rendered at a fixed size and at most 10 pages, one upload permit, 240 s timeout, owner-only scratch directory, output read with a 16 MB cap, systemd limits. No sandbox beyond that.
+- OCR can misread a digit with high confidence. Cells under 70 % confidence in date/quantity/price/line total/part number are refused (`ocr_unclear`), every OCR preview warns the user to check against the paper, and OCR imports are marked `ocr` and can be withdrawn as a whole. Wrong numbers can still pass; the import is decision material, never an automatic decision.
+
 ## Residual risk (Phases E–F)
 - Consumer sign-up is open to the internet once the server is public (D8): limits are per address and global; there is no CAPTCHA. Watch sign-up volume in the audit log.
 - Stock is checked at ordering and reserved at confirmation; between the two, several consumers can order the last units (staff see it at confirmation).

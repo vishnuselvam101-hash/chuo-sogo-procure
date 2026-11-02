@@ -12,8 +12,9 @@
 **ありませんでした**。履歴はこのシステムを通した取引からしか貯まらず、初日は空でした。
 このため「入れれば強いが、入れるまでが重い（受注が難しい）」状態になっていました。
 
-本日、この部分を実装しました（下記 §2）。残るボトルネックは、紙・FAX の読み取り（OCR）、
-本物の AI モデル、取引からの自動蓄積、品目の名寄せ、日本国内ホスティングの順です（§3）。
+本日、この部分を実装しました（下記 §2）。2026-11-02 に B1（紙・FAX の OCR）、B3（取引からの自動蓄積）、
+B5（見積と前回価格の自動比較）も実装しました（§2b）。残るボトルネックは、本物の AI モデル、品目の名寄せ、
+日本国内ホスティング、配布の信頼性です（§3）。
 
 ## 1. ご指摘の構造
 
@@ -36,19 +37,27 @@
 | 当社スタッフによる代行 | 顧客に割り当てられた当社スタッフが、顧客の代わりにデータを取り込める（受注の壁を下げる「導入代行」） | 実装・テスト済み |
 | 権限と分離 | 依頼者は過去価格を見られない。経理は閲覧のみ。他社からは存在も見えない（PostgreSQL 行レベルセキュリティ） | 実装・テスト済み |
 
+## 2b. 追加実装（2026-11-02、テスト済み）
+
+| # | 機能 | 内容 | 状態 |
+|---|---|---|---|
+| B1 | 紙・FAX・スキャンの取り込み | PDF（文字のある PDF はそのまま、スキャン PDF は OCR）、PNG・JPEG・TIFF（FAX）を当社サーバー内の tesseract（日本語＋英語）で読み取り、文字の位置から表の行と列を復元して同じプレビュー画面へ。外部送信なし。最大10ページ・1ページ4,000万画素（ファイルのヘッダーで先に確認）。日付・数量・単価・金額・型番で認識の確信度が低いセルを含む行は推測せず除外（「スキャンの数字が不鮮明」）。プレビューに「原本と照合してください」の注意。取り込みは「スキャン（OCR）」として記録され、一括取り消し可 | 実装・テスト済み（合成スキャン：PNG・FAX 形式 TIFF・画像 PDF で全行正確。10ページ A4 300dpi で約18秒） |
+| B3 | 取引からの自動蓄積 | 当システムの注文が照合完了（請求書一致、または差異をすべて解決）した時点で、同じトランザクション内で購買履歴に自動登録（出典「当システムの注文」、PO 番号、発注日、仕入先、PO 単価、納期＝発注日から最終納品日まで、取り消された納品は除外）。重複登録なし、監査ログ記録、取り消し可 | 実装・テスト済み |
+| B5 | 見積と前回価格の自動比較 | 見積比較の実行時に、各見積行を前回の購買価格と比較し「前回比 +x.x%」を表示。購買基準の価格注意ラインを超えた行を赤で表示し、仕入先ごとに超過件数を表示。通貨が違う場合は換算せず「通貨が異なる」と表示。順位・適合判定は一切変えない（参考情報）。過去価格を見る権限のない人には表示しない | 実装・テスト済み |
+
 ## 3. 残るボトルネック（影響の大きい順）
 
 | # | ボトルネック | 現状 | 影響 | 解決策 | 目安 |
 |---|---|---|---|---|---|
-| B1 | 紙・FAX の購買記録 | スキャン PDF は文字が無く「読み取れない」になる。サーバーに OCR が無い | 中小製造業の約37%が FAX 中心。履歴の多くが紙 | 当社サーバー内で OCR（tesseract 日本語、外部送信なし）→ 表形式に変換 → 同じプレビュー画面で人が確認 | 3〜5日 |
+| B1 | 紙・FAX の購買記録 | **解決（§2b）**。残り：実際の FAX・手書き伝票での精度は未測定 | 中小製造業の約37%が FAX 中心。履歴の多くが紙 | 当社サーバー内で OCR（tesseract 日本語、外部送信なし）→ 表形式に変換 → 同じプレビュー画面で人が確認 | 3〜5日 |
 | B2 | AI がモック | 品目抽出・掲載支援は仮のモデル | 「AI で楽になる」をまだ実演できない | D5：国内・ローカルモデルか API かを決定し、実データで精度を測定 | 決定後 1〜2週 |
-| B3 | 取引からの自動蓄積 | 当システムで発注・検収した結果は履歴に自動では入らない | 使うほど賢くなる循環がまだ無い | 検収・照合完了時に購買履歴へ自動登録（出典「当システム」） | 2〜3日 |
+| B3 | 取引からの自動蓄積 | **解決（§2b）**。残り：導入前に照合済みだった注文は遡って登録しない | 使うほど賢くなる循環がまだ無い | 検収・照合完了時に購買履歴へ自動登録（出典「当システム」） | 2〜3日 |
 | B4 | 品目の名寄せ | 型番（記号・全角を正規化）か、品名の完全一致のみ | 「6204ZZ」と「6204-2Z」、表記ゆれは別物扱い | 別名表 → 担当者が確定した対応を学習 → 将来は類似検索 | 1週〜 |
-| B5 | 見積と前回価格の自動比較 | 判断材料パネルで人が見比べる | 価格上昇を見落とす可能性 | 見積比較に「前回比 +x%」と注意ライン超過の印を追加 | 2日 |
+| B5 | 見積と前回価格の自動比較 | **解決（§2b）** | 価格上昇を見落とす可能性 | 見積比較に「前回比 +x%」と注意ライン超過の印を追加 | 2日 |
 | B6 | データの置き場所への不安 | サーバーは国外・単一、バックアップは同一機 | 購買履歴を預ける心理的障壁（受注の壁そのもの） | D8：国内ホスティング、別拠点の暗号化バックアップ、NDA・取扱説明書 | 決定後 1週 |
 | B7 | 配布・信頼 | 署名なしインストーラー、Mac は GitHub 課金停止で再ビルド不可 | 初回インストール時の警告 | D9：コード署名、課金の解消 | 決定後 数日 |
 
-B1・B3・B5 は決定待ちが無く、すぐ着手できます。B2・B6・B7 は創業者の決定（費用・契約）が必要です。
+B1・B3・B5 は 2026-11-02 に実装済み。B4 は決定不要で次に着手可能。B2・B6・B7 は創業者の決定（費用・契約）が必要です。
 
 ## 4. 受注の壁を下げる運用の提案
 
@@ -65,7 +74,9 @@ B1・B3・B5 は決定待ちが無く、すぐ着手できます。B2・B6・B7 
 - 画面テスト：プレビュー→列修正→再確認→取り込み、閲覧のみの権限、判断材料パネル（6件）
 - 品質ゲート：`scripts/gate.sh full` の結果は reports/ に保存
 
-未検証：実際の顧客の Excel・基幹システム出力での試験はまだ（テスト用に作成したファイルのみ）。
+- 2026-11-02 追加：OCR 表復元の単体テスト（5件）、tesseract 実行テスト（PNG・TIFF・画像 PDF・文字 PDF・サイズ上限・OCR 未導入）、注文からの自動登録（3件）、見積比較の前回比（2件＋画面3件）
+
+未検証：実際の顧客の Excel・基幹システム出力、実際の FAX・手書き伝票での試験はまだ（テスト用に作成したファイルのみ）。
 50,000 行の取り込み速度は未計測。
 
 ---
@@ -83,7 +94,12 @@ withdrawal, audit), a per-line price reference on every request (last price, sup
 source), the customer's written buying criteria, and import by the assigned Chuo-Sogo staff so the
 customer does not have to do the work.
 
-Remaining bottlenecks, in order: OCR for paper/FAX records (B1), a real AI model instead of the mock (B2),
-feeding completed orders back into history (B3), item-name matching beyond exact part numbers (B4),
-automatic quote-vs-last-price flags (B5), Japan hosting and off-site backups (B6), and code signing / the
-GitHub billing block (B7). B1, B3 and B5 need no decision and can start now.
+Added 2026-11-02, with tests: B1 — scanned paper/FAX records (PDF, PNG, JPEG, TIFF) read by OCR on our
+own server (tesseract, Japanese + English), table rebuilt from word positions, low-confidence numbers refused,
+OCR imports marked and withdrawable; B3 — every order that reconciles is recorded into the history
+automatically; B5 — the quote comparison shows "vs last price +x.x%" per line and flags lines above the
+customer's alert line, without changing ranking or compliance.
+
+Remaining: a real AI model instead of the mock (B2), item-name matching beyond exact part numbers (B4),
+Japan hosting and off-site backups (B6), and code signing / the GitHub billing block (B7). Not yet measured:
+OCR accuracy on real FAXes and handwritten slips.

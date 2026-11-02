@@ -63,7 +63,8 @@ fn intake_error(e: IntakeError) -> ApiError {
 
 #[derive(Deserialize, utoipa::ToSchema)]
 pub struct ImportBody {
-    /// `.xlsx`, `.csv` or `.tsv` (UTF-8 or Shift_JIS).
+    /// `.xlsx`, `.csv` or `.tsv` (UTF-8 or Shift_JIS); a PDF (text layer, else OCR); or a
+    /// scanned page / photo / FAX as PNG, JPEG or TIFF (OCR, Japanese and English).
     pub file_name: String,
     /// File content, standard base64.
     pub data_base64: String,
@@ -104,6 +105,9 @@ pub struct ParsedRowView {
 
 #[derive(Serialize, utoipa::ToSchema)]
 pub struct PreviewView {
+    /// Read by OCR: dates, quantities, prices and part numbers must be checked against the
+    /// paper; cells the OCR was unsure of are refused (`ocr_unclear`).
+    pub ocr: bool,
     pub header_row: usize,
     pub headers: Vec<String>,
     pub mapping: Vec<Option<String>>,
@@ -117,6 +121,15 @@ pub struct PreviewView {
     /// The first rows as they would be stored.
     pub sample: Vec<ParsedRowView>,
 }
+
+/// Fields whose OCR must be confident: a misread digit here is a wrong price or a wrong match.
+const CHECKED_FIELDS: [Field; 5] = [
+    Field::Date,
+    Field::Quantity,
+    Field::UnitPrice,
+    Field::LineTotal,
+    Field::Mpn,
+];
 
 struct Parsed {
     preview: PreviewView,
@@ -151,11 +164,13 @@ async fn parse_file(body: &ImportBody, state: &AppState) -> ApiResult<Parsed> {
             .map_err(intake_error)?
     };
     let header_row = match body.header_row {
-        Some(h) if h < table.len().min(50) => h,
+        Some(h) if h < table.rows.len().min(50) => h,
         Some(_) => return Err(ApiError::Validation("header_row")),
-        None => history::find_header(&table).ok_or(ApiError::Validation("header_not_found"))?,
+        None => {
+            history::find_header(&table.rows).ok_or(ApiError::Validation("header_not_found"))?
+        }
     };
-    let headers = table[header_row].clone();
+    let headers = table.rows[header_row].clone();
     let mapping: Vec<Option<Field>> = match &body.mapping {
         None => history::detect_columns(&headers),
         Some(m) => {
@@ -191,19 +206,29 @@ async fn parse_file(body: &ImportBody, state: &AppState) -> ApiResult<Parsed> {
     let mut rows = Vec::new();
     let mut error_counts: BTreeMap<String, usize> = BTreeMap::new();
     let mut errors = Vec::new();
-    for (i, cells) in table.iter().enumerate().skip(header_row + 1) {
+    let unclear = |row: usize| {
+        mapping.iter().enumerate().any(|(col, f)| {
+            f.is_some_and(|f| CHECKED_FIELDS.contains(&f)) && table.is_unclear(row, col)
+        })
+    };
+    for (i, cells) in table.rows.iter().enumerate().skip(header_row + 1) {
         if history::is_blank(cells) {
             continue;
         }
         data_rows += 1;
-        match history::parse_row(cells, &mapping, currency) {
+        let parsed = if unclear(i) {
+            Err("ocr_unclear")
+        } else {
+            history::parse_row(cells, &mapping, currency).map_err(|e| e.code())
+        };
+        match parsed {
             Ok(r) => rows.push((i + 1, r)),
-            Err(e) => {
-                *error_counts.entry(e.code().to_string()).or_default() += 1;
+            Err(code) => {
+                *error_counts.entry(code.to_string()).or_default() += 1;
                 if errors.len() < LISTED_ERRORS {
                     errors.push(RowErrorView {
                         row: i + 1,
-                        code: e.code().to_string(),
+                        code: code.to_string(),
                     });
                 }
             }
@@ -234,6 +259,7 @@ async fn parse_file(body: &ImportBody, state: &AppState) -> ApiResult<Parsed> {
         .collect::<ApiResult<Vec<_>>>()?;
     Ok(Parsed {
         preview: PreviewView {
+            ocr: table.ocr,
             header_row,
             headers,
             mapping: mapping
@@ -281,6 +307,9 @@ pub async fn preview(
 pub struct ImportView {
     pub id: Uuid,
     pub file_name: String,
+    /// `file`, `ocr` (a scan read by OCR) or `order` (an order completed in this system).
+    pub source: String,
+    pub order_id: Option<Uuid>,
     pub rows_imported: i32,
     pub rows_skipped: i32,
     pub imported_by_name: Option<String>,
@@ -288,7 +317,8 @@ pub struct ImportView {
     pub withdrawn_at: Option<DateTime<Utc>>,
 }
 
-const IMPORT_COLUMNS: &str = "i.id, i.file_name, i.rows_imported, i.rows_skipped,
+const IMPORT_COLUMNS: &str =
+    "i.id, i.file_name, i.source, i.order_id, i.rows_imported, i.rows_skipped,
     u.display_name AS imported_by_name, i.imported_at, i.withdrawn_at";
 
 /// Rows stored per statement.
@@ -328,8 +358,8 @@ pub async fn import(
     let mut tx = db::tenant_tx(&state.pool, p.user_id, org_id).await?;
     sqlx::query(
         "INSERT INTO history_imports (id, org_id, file_name, mapping, rows_imported, rows_skipped,
-                                      imported_by)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)",
+                                      imported_by, source)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
     )
     .bind(id)
     .bind(org_id)
@@ -338,6 +368,7 @@ pub async fn import(
     .bind(count(parsed.rows.len())?)
     .bind(count(skipped)?)
     .bind(p.user_id)
+    .bind(if parsed.preview.ocr { "ocr" } else { "file" })
     .execute(&mut *tx)
     .await?;
     for chunk in parsed.rows.chunks(INSERT_CHUNK) {
@@ -421,6 +452,7 @@ pub async fn import(
                 "file_name": body.file_name.trim(),
                 "rows_imported": parsed.rows.len(),
                 "rows_skipped": skipped,
+                "ocr": parsed.preview.ocr,
             }),
         )
         .await?;

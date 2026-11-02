@@ -326,5 +326,16 @@
     "tax_mismatch": "வரித் தொகை வேறுபடுகிறது",
     "amount_overflow": "தொகை மிகப் பெரியது",
     "quantity_under_received": "பெற்றதை விடக் குறைவு"
+  },
+  "priceCheck": {
+    "alerts": "விலை எச்சரிக்கைகள்",
+    "alertLine": "வரம்பு {{pct}}%",
+    "alertCount": "{{n}} வரிகள்",
+    "line": "{{item}}: மேற்கோள் {{quoted}} / முந்தைய விலை {{last}} ({{supplier}}, {{date}})",
+    "change": "முந்தையதை விட {{pct}}%",
+    "noFx": "முந்தையதை விட — (வேறு நாணயம், மாற்றப்படவில்லை)",
+    "aboveAlert": "எச்சரிக்கை வரம்பை மீறியது",
+    "unknownItem": "தெரியாத பொருள்",
+    "unknownSupplier": "தெரியாத விநியோகஸ்தர்"
   }
 }

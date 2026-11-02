@@ -358,3 +358,73 @@ async fn excel_workbooks_are_read(pool: PgPool) {
     assert_eq!(resistor["quantity_milli"], 5_000_000);
     assert_eq!(resistor["unit_price_milli"], 850);
 }
+
+/// A scanned paper record (and the same page as a FAX TIFF and an image-only PDF) is read by
+/// OCR on this server, previewed with the OCR flag, and stored as an `ocr` import.
+#[sqlx::test(migrator = "procure_server::MIGRATOR")]
+async fn scanned_records_are_read_by_ocr(pool: PgPool) {
+    let w = world(pool).await;
+    let url = |p: &str| format!("/api/v1/orgs/{}/{p}", w.org_a);
+    let png = include_bytes!("fixtures/purchase-scan.png");
+    let r = w
+        .app
+        .post(
+            &url("purchase-history/preview"),
+            &w.admin_a,
+            body("購買記録.png", png),
+        )
+        .await;
+    assert_eq!(r.status, StatusCode::OK, "{:?}", r.body);
+    assert_eq!(r.body["ocr"], true);
+    assert_eq!(r.body["header_row"], 1);
+    assert_eq!(r.body["valid_rows"], 3, "{:?}", r.body);
+    let first = &r.body["sample"][0];
+    assert_eq!(first["purchased_on"], "2024-01-15");
+    assert_eq!(first["supplier_name"], "山田商事");
+    assert_eq!(first["mpn"], "M8-30");
+    assert_eq!(first["quantity_milli"], 100_000);
+    assert_eq!(first["unit_price_milli"], 12_500);
+    assert_eq!(r.body["sample"][2]["unit_price_milli"], 3_200);
+
+    let r = w
+        .app
+        .post(
+            &url("purchase-history/imports"),
+            &w.admin_a,
+            body("購買記録.png", png),
+        )
+        .await;
+    assert_eq!(r.status, StatusCode::CREATED, "{:?}", r.body);
+    assert_eq!(r.body["source"], "ocr");
+    assert_eq!(r.body["rows_imported"], 3);
+    let r = w.app.get(&url("purchase-history?q=6204"), &w.admin_a).await;
+    assert_eq!(r.body[0]["unit_price_milli"], 480_000);
+
+    // The same page as an image-only PDF goes through OCR too.
+    let pdf = include_bytes!("fixtures/purchase-scan.pdf");
+    let r = w
+        .app
+        .post(
+            &url("purchase-history/preview"),
+            &w.admin_a,
+            body("scan.pdf", pdf),
+        )
+        .await;
+    assert_eq!(r.status, StatusCode::OK, "{:?}", r.body);
+    assert_eq!(r.body["ocr"], true);
+    assert_eq!(r.body["valid_rows"], 3);
+
+    // A spreadsheet is not OCR.
+    let r = w
+        .app
+        .post(
+            &url("purchase-history/preview"),
+            &w.admin_a,
+            body(
+                "h.csv",
+                "日付,品名,数量,単価\n2024/1/5,ボルト,1,10\n".as_bytes(),
+            ),
+        )
+        .await;
+    assert_eq!(r.body["ocr"], false);
+}

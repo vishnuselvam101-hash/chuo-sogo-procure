@@ -2368,6 +2368,21 @@ export interface components {
       currency: string;
       /** Format: int32 */
       max_lead_time_days?: number | null;
+      /**
+       * Format: int64
+       * @description The customer's alert line when the comparison ran (`buying_criteria.price_alert_bps`).
+       */
+      price_alert_bps?: number | null;
+      /**
+       * Format: int32
+       * @description Lines whose change is above the customer's alert line.
+       */
+      price_alerts?: number;
+      /**
+       * @description Reference only: each quoted line against the customer's last purchase of the item.
+       *     Never affects compliance or rank. Empty for readers without purchase-history access.
+       */
+      price_checks?: components["schemas"]["PriceCheck"][];
       /** Format: uuid */
       quotation_id: string;
       /**
@@ -2671,7 +2686,10 @@ export interface components {
       currency?: string | null;
       /** @description File content, standard base64. */
       data_base64: string;
-      /** @description `.xlsx`, `.csv` or `.tsv` (UTF-8 or Shift_JIS). */
+      /**
+       * @description `.xlsx`, `.csv` or `.tsv` (UTF-8 or Shift_JIS); a PDF (text layer, else OCR); or a
+       *     scanned page / photo / FAX as PNG, JPEG or TIFF (OCR, Japanese and English).
+       */
       file_name: string;
       /** @description Header row (0-based); detected when omitted. */
       header_row?: number | null;
@@ -2689,10 +2707,14 @@ export interface components {
       /** Format: date-time */
       imported_at: string;
       imported_by_name?: string | null;
+      /** Format: uuid */
+      order_id?: string | null;
       /** Format: int32 */
       rows_imported: number;
       /** Format: int32 */
       rows_skipped: number;
+      /** @description `file`, `ocr` (a scan read by OCR) or `order` (an order completed in this system). */
+      source: string;
       /** Format: date-time */
       withdrawn_at?: string | null;
     };
@@ -3284,9 +3306,40 @@ export interface components {
       header_row: number;
       headers: string[];
       mapping: (string | null)[];
+      /**
+       * @description Read by OCR: dates, quantities, prices and part numbers must be checked against the
+       *     paper; cells the OCR was unsure of are refused (`ocr_unclear`).
+       */
+      ocr: boolean;
       /** @description The first rows as they would be stored. */
       sample: components["schemas"]["ParsedRowView"][];
       valid_rows: number;
+    };
+    /** @description A quoted line next to the last price the customer paid for the same item. */
+    PriceCheck: {
+      above_alert: boolean;
+      /**
+       * Format: int64
+       * @description Change against the last price in basis points (+1250 = 12.5 % dearer); null when the
+       *     currencies differ (no FX).
+       */
+      change_bps?: number | null;
+      last_currency: string;
+      /** Format: date */
+      last_purchased_on: string;
+      last_supplier_name: string;
+      /**
+       * Format: int64
+       * @description Thousandths of a minor unit of `last_currency`.
+       */
+      last_unit_price_milli: number;
+      /**
+       * Format: int64
+       * @description Quoted unit price, in the quotation currency.
+       */
+      quoted_unit_price_minor: number;
+      /** Format: uuid */
+      request_item_id: string;
     };
     PricePointView: {
       currency: string;

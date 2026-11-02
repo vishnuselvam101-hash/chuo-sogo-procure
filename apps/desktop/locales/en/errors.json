@@ -153,12 +153,13 @@
     "mapping": "Unknown column setting.",
     "mapping_duplicate": "Each kind of content can be chosen for one column only.",
     "mapping_incomplete": "Choose at least the date, the item (name or part number) and the unit price or amount.",
-    "too_many_rows": "Too many rows for one import (50,000 at most). Split the file.",
+    "too_many_rows": "Too much for one import (50,000 rows at most; scans up to 10 pages and 40 million pixels a page). Split the file.",
     "already_withdrawn": "This import was already withdrawn.",
     "supplier_both_lists": "A supplier cannot be both preferred and excluded.",
     "priorities": "Each priority can be chosen once.",
     "max_lead_time_days": "Enter a lead time between 1 and 3650 days.",
-    "price_alert_bps": "Enter a percentage between 0 and 1000."
+    "price_alert_bps": "Enter a percentage between 0 and 1000.",
+    "ocr_unavailable": "Text recognition (OCR) is not set up on this server. Import an Excel or CSV file instead, or contact your administrator."
   },
   "payload_too_large": "The file or request is too large.",
   "invalid_file_name": "This file name cannot be used.",

@@ -581,11 +581,12 @@ pub async fn get_recommendation(
     .filter(|r| matches!(access, Access::Assigned(_)) || r.sent_at.is_some())
     // Unsent drafts are internal to Chuo-Sogo.
     .ok_or(ApiError::NotFound)?;
-    let comparison: DbJson<Vec<ComparisonResult>> =
+    let mut comparison: DbJson<Vec<ComparisonResult>> =
         sqlx::query_scalar("SELECT results FROM comparison_runs WHERE id = $1")
             .bind(recommendation.comparison_id)
             .fetch_one(&mut *tx)
             .await?;
+    crate::api::rfqs::redact_price_checks(access, &mut comparison.0);
     let decisions = sqlx::query_as::<_, DecisionView>(
         "SELECT a.decided_by, u.display_name AS decided_by_name, a.decision, a.comment, a.created_at
          FROM approval_records a LEFT JOIN users u ON u.id = a.decided_by

@@ -18,6 +18,7 @@ use crate::AppState;
 use crate::api::common::{
     self, Audit, View, lock_request, request_view, require_perm, side, transition,
 };
+use crate::api::history_orders;
 use crate::api::suppliers::IdResponse;
 use crate::db;
 use crate::error::{ApiError, ApiJson, ApiPath, ApiResult, ErrorBody};
@@ -841,6 +842,9 @@ pub async fn record_invoice(
         json!({ "invoice": id, "discrepancies": found.len() }),
     )
     .await?;
+    if found.is_empty() {
+        history_orders::record_order(&mut tx, &audit, org_id, order_id, p.user_id).await?;
+    }
     tx.commit().await?;
     Ok((
         StatusCode::CREATED,
@@ -891,8 +895,8 @@ pub async fn resolve_discrepancy(
     }
     let note = common::required(&body.note, 2000, true, "note")?;
     let mut tx = db::tenant_tx(&state.pool, p.user_id, org_id).await?;
-    let (invoice_id, request_id): (Uuid, Uuid) = sqlx::query_as(
-        "SELECT d.invoice_id, o.request_id FROM discrepancies d
+    let (invoice_id, request_id, order_id): (Uuid, Uuid, Uuid) = sqlx::query_as(
+        "SELECT d.invoice_id, o.request_id, o.id FROM discrepancies d
          JOIN invoices i ON i.id = d.invoice_id JOIN purchase_orders o ON o.id = i.order_id
          WHERE d.id = $1",
     )
@@ -946,6 +950,7 @@ pub async fn resolve_discrepancy(
             json!({ "invoice": invoice_id }),
         )
         .await?;
+        history_orders::record_order(&mut tx, &audit, org_id, order_id, p.user_id).await?;
     }
     tx.commit().await?;
     Ok(StatusCode::NO_CONTENT)

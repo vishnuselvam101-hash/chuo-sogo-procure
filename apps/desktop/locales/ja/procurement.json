@@ -326,5 +326,16 @@
     "tax_mismatch": "税額が異なる",
     "amount_overflow": "金額が大きすぎます",
     "quantity_under_received": "受領数より少ない"
+  },
+  "priceCheck": {
+    "alerts": "前回比アラート",
+    "alertLine": "基準 {{pct}}%",
+    "alertCount": "{{n}}件",
+    "line": "{{item}}：見積 {{quoted}}／前回 {{last}}（{{supplier}}、{{date}}）",
+    "change": "前回比 {{pct}}%",
+    "noFx": "前回比 —（通貨が異なるため換算なし）",
+    "aboveAlert": "アラート基準超過",
+    "unknownItem": "品目不明",
+    "unknownSupplier": "仕入先不明"
   }
 }

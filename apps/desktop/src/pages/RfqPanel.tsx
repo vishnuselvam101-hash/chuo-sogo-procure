@@ -1,12 +1,21 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { formatDate, formatNumber, minorToInput, parseMinor } from "../lib/format";
+import {
+  bpsToPercent,
+  formatDate,
+  formatMilliPrice,
+  formatMoney,
+  formatNumber,
+  minorToInput,
+  parseMinor,
+} from "../lib/format";
 import type {
   ComparisonResult,
   ComparisonView,
   ItemView,
   MembershipView,
   OutboxMessage,
+  PriceCheck,
   RfqDetail,
 } from "../lib/types";
 import { useAction } from "../lib/useAction";
@@ -182,6 +191,7 @@ export function RfqPanel({ active, rfqId, requestId, requestStatus, currency, it
           active={active}
           comparisonId={data.latest_comparison_id}
           requestId={requestId}
+          items={items}
           canRecommend={operator && has(P.operateRequests) && requestStatus === "under_comparison"}
           onChanged={refresh}
         />
@@ -194,6 +204,7 @@ function LatestComparison(props: {
   active: MembershipView;
   comparisonId: string;
   requestId: string;
+  items: ItemView[];
   canRecommend: boolean;
   onChanged: () => void;
 }) {
@@ -219,6 +230,7 @@ function LatestComparison(props: {
       <ComparisonTable
         results={data.results}
         currency={data.currency}
+        items={props.items}
         action={
           props.canRecommend
             ? (r) =>
@@ -245,13 +257,20 @@ function LatestComparison(props: {
 export function ComparisonTable({
   results,
   currency,
+  items,
   action,
 }: {
   results: ComparisonResult[];
   currency: string;
+  items?: ItemView[] | undefined;
   action?: ((r: ComparisonResult) => React.ReactNode) | undefined;
 }) {
   const { t, i18n } = useTranslation();
+  const withChecks = results.some((r) => (r.price_checks?.length ?? 0) > 0);
+  const alertBps = results.find(
+    (r) => r.price_alert_bps !== null && r.price_alert_bps !== undefined,
+  )?.price_alert_bps;
+  const cols = 5 + (withChecks ? 1 : 0) + (action ? 1 : 0);
   return (
     <table className="table">
       <thead>
@@ -261,12 +280,22 @@ export function ComparisonTable({
           <th>{t("procurement:comparison.compliance")}</th>
           <th className="num">{t("procurement:comparison.total")}</th>
           <th className="num">{t("procurement:comparison.leadTime")}</th>
+          {withChecks && (
+            <th className="num">
+              {t("procurement:priceCheck.alerts")}
+              {alertBps !== null && alertBps !== undefined && (
+                <div className="muted small">
+                  {t("procurement:priceCheck.alertLine", { pct: signedPercent(alertBps) })}
+                </div>
+              )}
+            </th>
+          )}
           {action && <th />}
         </tr>
       </thead>
       <tbody>
         {results.map((r) => (
-          <tr key={r.quotation_id}>
+          <PriceRows key={r.quotation_id} checks={r.price_checks ?? []} cols={cols} result={r} items={items}>
             <td className="num">{r.rank ?? "—"}</td>
             <td>{r.supplier_name}</td>
             <td>
@@ -287,11 +316,78 @@ export function ComparisonTable({
                 ? "—"
                 : t("procurement:comparison.days", { n: formatNumber(r.max_lead_time_days, i18n.language) })}
             </td>
+            {withChecks && (
+              <td className={`num${(r.price_alerts ?? 0) > 0 ? " error" : ""}`}>
+                {(r.price_checks?.length ?? 0) > 0
+                  ? t("procurement:priceCheck.alertCount", {
+                      n: formatNumber(r.price_alerts ?? 0, i18n.language),
+                    })
+                  : "—"}
+              </td>
+            )}
             {action && <td className="row-actions">{action(r)}</td>}
-          </tr>
+          </PriceRows>
         ))}
       </tbody>
     </table>
+  );
+}
+
+/** "+9.09", "-5", "0": basis points as a signed percentage. */
+function signedPercent(bps: number): string {
+  if (bps === 0) return "0";
+  return `${bps > 0 ? "+" : "-"}${bpsToPercent(Math.abs(bps))}`;
+}
+
+/** A comparison row, followed by its past-price checks (reference only, never a decision). */
+function PriceRows({
+  result,
+  checks,
+  cols,
+  items,
+  children,
+}: {
+  result: ComparisonResult;
+  checks: PriceCheck[];
+  cols: number;
+  items?: ItemView[] | undefined;
+  children: React.ReactNode;
+}) {
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language;
+  function itemLabel(id: string): string {
+    const item = items?.find((i) => i.id === id);
+    return item ? `${item.line_no}. ${item.description}` : t("procurement:priceCheck.unknownItem");
+  }
+  return (
+    <>
+      <tr>{children}</tr>
+      {checks.length > 0 && (
+        <tr className="price-checks">
+          <td colSpan={cols}>
+            <ul className="small">
+              {checks.map((c) => (
+                <li key={c.request_item_id} className={c.above_alert ? "error" : undefined}>
+                  {t("procurement:priceCheck.line", {
+                    item: itemLabel(c.request_item_id),
+                    quoted: formatMoney(c.quoted_unit_price_minor, result.currency, lang),
+                    last: formatMilliPrice(c.last_unit_price_milli, c.last_currency, lang),
+                    supplier: c.last_supplier_name || t("procurement:priceCheck.unknownSupplier"),
+                    date: formatDate(c.last_purchased_on, lang),
+                  })}{" "}
+                  <strong>
+                    {c.change_bps === null || c.change_bps === undefined
+                      ? t("procurement:priceCheck.noFx")
+                      : t("procurement:priceCheck.change", { pct: signedPercent(c.change_bps) })}
+                  </strong>
+                  {c.above_alert && <> {t("procurement:priceCheck.aboveAlert")}</>}
+                </li>
+              ))}
+            </ul>
+          </td>
+        </tr>
+      )}
+    </>
   );
 }
 

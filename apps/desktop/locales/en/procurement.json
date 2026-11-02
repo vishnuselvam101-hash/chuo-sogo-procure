@@ -326,5 +326,16 @@
     "tax_mismatch": "Tax amount differs",
     "amount_overflow": "Amount too large",
     "quantity_under_received": "Less than received"
+  },
+  "priceCheck": {
+    "alerts": "Price alerts",
+    "alertLine": "Line {{pct}}%",
+    "alertCount": "{{n}}",
+    "line": "{{item}}: quoted {{quoted}} / last {{last}} ({{supplier}}, {{date}})",
+    "change": "vs last {{pct}}%",
+    "noFx": "vs last — (different currency, not converted)",
+    "aboveAlert": "Above alert line",
+    "unknownItem": "Unknown item",
+    "unknownSupplier": "Unknown supplier"
   }
 }

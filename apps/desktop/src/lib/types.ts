@@ -18,6 +18,8 @@ export type ItemView = Schemas["ItemView"];
 export type ItemInput = Schemas["ItemInput"];
 export type RfqDetail = Schemas["RfqDetail"];
 export type ComparisonView = Schemas["ComparisonView"];
+/** A quoted line next to the customer's last purchase of the item (reference only). */
+export type PriceCheck = Schemas["PriceCheck"];
 export type ComparisonResult = Schemas["ComparisonResult"];
 export type RecommendationDetail = Schemas["RecommendationDetail"];
 export type OutboxMessage = Schemas["OutboxMessage"];

@@ -2,11 +2,12 @@
   "lead": "Your past purchases and buying rules, in one place. Import the purchase records you already keep (Excel or CSV exports from your ERP or ledger). From then on, every request shows what you paid before, to whom and when, and whoever sources for you works to your own criteria. The data stays inside your organisation.",
   "import": {
     "heading": "Import purchase records",
-    "hint": "Excel (.xlsx) or CSV, Japanese or English headers, Shift_JIS or UTF-8. Nothing is stored until you press Import. Rows that cannot be read exactly are skipped and listed, never guessed.",
+    "hint": "Excel (.xlsx) or CSV, and also PDF and scans or photos of paper slips and FAXes (PNG, JPEG, TIFF; up to 10 pages). Japanese or English headings, Shift_JIS or UTF-8. Nothing is stored until you press Import. Rows that cannot be read exactly are not guessed: they are left out and listed.",
     "file": "File",
     "currency": "Currency when a row has none",
     "commit": "Import {{count}} rows",
-    "done": "Imported {{imported}} rows ({{skipped}} skipped)."
+    "done": "Imported {{imported}} rows ({{skipped}} skipped).",
+    "ocrNotice": "This scan or FAX was read by text recognition (OCR) on our own server; nothing was sent outside. Check every date, quantity, price and part number against the paper. Rows with a number the OCR was unsure of have been left out."
   },
   "preview": {
     "summary": "{{valid}} of {{total}} rows can be imported.",
@@ -42,7 +43,8 @@
     "price_invalid": "Price not readable",
     "currency_invalid": "Unknown currency",
     "lead_time_invalid": "Lead time not readable",
-    "text_too_long": "Text too long"
+    "text_too_long": "Text too long",
+    "ocr_unclear": "Number unclear on the scan"
   },
   "imports": {
     "heading": "Imports",
@@ -54,7 +56,8 @@
     "at": "When",
     "withdraw": "Withdraw",
     "confirmWithdraw": "Remove its rows",
-    "withdrawn": "Withdrawn"
+    "withdrawn": "Withdrawn",
+    "source": "Source"
   },
   "search": {
     "heading": "Past purchases",
@@ -94,5 +97,10 @@
     "count": "Purchases",
     "on_mpn": "by part number",
     "on_description": "by item name"
+  },
+  "source": {
+    "file": "File",
+    "ocr": "Scan (OCR)",
+    "order": "Order in this system"
   }
 }

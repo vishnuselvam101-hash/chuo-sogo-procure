@@ -14062,6 +14062,27 @@
             "format": "int32",
             "minimum": 0
           },
+          "price_alert_bps": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "The customer's alert line when the comparison ran (`buying_criteria.price_alert_bps`)."
+          },
+          "price_alerts": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Lines whose change is above the customer's alert line.",
+            "minimum": 0
+          },
+          "price_checks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PriceCheck"
+            },
+            "description": "Reference only: each quoted line against the customer's last purchase of the item.\nNever affects compliance or rank. Empty for readers without purchase-history access."
+          },
           "quotation_id": {
             "type": "string",
             "format": "uuid"
@@ -15037,7 +15058,7 @@
           },
           "file_name": {
             "type": "string",
-            "description": "`.xlsx`, `.csv` or `.tsv` (UTF-8 or Shift_JIS)."
+            "description": "`.xlsx`, `.csv` or `.tsv` (UTF-8 or Shift_JIS); a PDF (text layer, else OCR); or a\nscanned page / photo / FAX as PNG, JPEG or TIFF (OCR, Japanese and English)."
           },
           "header_row": {
             "type": [
@@ -15067,6 +15088,7 @@
         "required": [
           "id",
           "file_name",
+          "source",
           "rows_imported",
           "rows_skipped",
           "imported_at"
@@ -15089,6 +15111,13 @@
               "null"
             ]
           },
+          "order_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
           "rows_imported": {
             "type": "integer",
             "format": "int32"
@@ -15096,6 +15125,10 @@
           "rows_skipped": {
             "type": "integer",
             "format": "int32"
+          },
+          "source": {
+            "type": "string",
+            "description": "`file`, `ocr` (a scan read by OCR) or `order` (an order completed in this system)."
           },
           "withdrawn_at": {
             "type": [
@@ -16870,6 +16903,7 @@
       "PreviewView": {
         "type": "object",
         "required": [
+          "ocr",
           "header_row",
           "headers",
           "mapping",
@@ -16922,6 +16956,10 @@
               ]
             }
           },
+          "ocr": {
+            "type": "boolean",
+            "description": "Read by OCR: dates, quantities, prices and part numbers must be checked against the\npaper; cells the OCR was unsure of are refused (`ocr_unclear`)."
+          },
           "sample": {
             "type": "array",
             "items": {
@@ -16932,6 +16970,56 @@
           "valid_rows": {
             "type": "integer",
             "minimum": 0
+          }
+        }
+      },
+      "PriceCheck": {
+        "type": "object",
+        "description": "A quoted line next to the last price the customer paid for the same item.",
+        "required": [
+          "request_item_id",
+          "quoted_unit_price_minor",
+          "last_unit_price_milli",
+          "last_currency",
+          "last_purchased_on",
+          "last_supplier_name",
+          "above_alert"
+        ],
+        "properties": {
+          "above_alert": {
+            "type": "boolean"
+          },
+          "change_bps": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Change against the last price in basis points (+1250 = 12.5 % dearer); null when the\ncurrencies differ (no FX)."
+          },
+          "last_currency": {
+            "type": "string"
+          },
+          "last_purchased_on": {
+            "type": "string",
+            "format": "date"
+          },
+          "last_supplier_name": {
+            "type": "string"
+          },
+          "last_unit_price_milli": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Thousandths of a minor unit of `last_currency`."
+          },
+          "quoted_unit_price_minor": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Quoted unit price, in the quotation currency."
+          },
+          "request_item_id": {
+            "type": "string",
+            "format": "uuid"
           }
         }
       },

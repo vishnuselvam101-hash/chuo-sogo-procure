@@ -326,5 +326,16 @@
     "tax_mismatch": "कर राशि अलग",
     "amount_overflow": "राशि बहुत बड़ी",
     "quantity_under_received": "प्राप्त से कम"
+  },
+  "priceCheck": {
+    "alerts": "मूल्य चेतावनियाँ",
+    "alertLine": "सीमा {{pct}}%",
+    "alertCount": "{{n}} पंक्तियाँ",
+    "line": "{{item}}: कोटेशन {{quoted}} / पिछला मूल्य {{last}} ({{supplier}}, {{date}})",
+    "change": "पिछले से {{pct}}%",
+    "noFx": "पिछले से — (अलग मुद्रा, रूपांतरित नहीं)",
+    "aboveAlert": "चेतावनी सीमा से ऊपर",
+    "unknownItem": "अज्ञात वस्तु",
+    "unknownSupplier": "अज्ञात आपूर्तिकर्ता"
   }
 }

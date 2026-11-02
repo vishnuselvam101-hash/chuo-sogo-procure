@@ -8,6 +8,7 @@ pub mod invoicing;
 pub mod listing;
 pub mod matching;
 pub mod money;
+pub mod ocr_table;
 pub mod rbac;
 pub mod shop;
 pub mod workflow;
