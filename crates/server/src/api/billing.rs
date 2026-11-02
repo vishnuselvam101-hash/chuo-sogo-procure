@@ -417,7 +417,7 @@ async fn write_lines(tx: &mut Tx, org_id: Uuid, id: Uuid, lines: &[LineInput]) -
 
 /// Admin transaction scoped to the customer organisation `org_id` (which must exist and be
 /// a customer organisation); also returns the platform id and the issuer's rounding rule.
-async fn org_billing_tx(
+pub(crate) async fn org_billing_tx(
     state: &AppState,
     p: &Principal,
     org_id: Uuid,
@@ -496,19 +496,34 @@ pub async fn create_invoice(
     ApiPath(org_id): ApiPath<Uuid>,
     ApiJson(body): ApiJson<InvoiceInput>,
 ) -> ApiResult<(StatusCode, Json<CreatedInvoice>)> {
-    let currency = common::currency(body.currency.as_deref().unwrap_or("JPY"))?;
     let (mut tx, platform, issuer, org_name) = org_billing_tx(&state, &p, org_id).await?;
+    let id = insert_draft(&mut tx, &p, platform, org_id, &org_name, issuer, &body).await?;
+    tx.commit().await?;
+    Ok((StatusCode::CREATED, Json(CreatedInvoice { id })))
+}
+
+/// Writes a draft invoice for `org_id` in an `org_billing_tx` transaction and audits it.
+pub(crate) async fn insert_draft(
+    tx: &mut Tx,
+    p: &Principal,
+    platform: Uuid,
+    org_id: Uuid,
+    org_name: &str,
+    issuer: Option<IssuerProfile>,
+    body: &InvoiceInput,
+) -> ApiResult<Uuid> {
+    let currency = common::currency(body.currency.as_deref().unwrap_or("JPY"))?;
     let rounding_code = issuer.map_or_else(|| "floor".to_string(), |i| i.tax_rounding);
     let c = compute(&body.lines, currency, rounding(&rounding_code)?, false)?;
     let recipient = common::required(
-        body.recipient_name.as_deref().unwrap_or(&org_name),
+        body.recipient_name.as_deref().unwrap_or(org_name),
         200,
         false,
         "recipient_name",
     )?;
     let address = common::text(&body.recipient_address, 500, true, "recipient_address")?;
     let notes = common::text(&body.notes, 2000, true, "notes")?;
-    check_request(&mut tx, body.request_id).await?;
+    check_request(tx, body.request_id).await?;
     let id = Uuid::now_v7();
     sqlx::query(
         "INSERT INTO issued_invoices (id, org_id, kind, currency, recipient_name, recipient_address,
@@ -530,12 +545,12 @@ pub async fn create_invoice(
     .bind(c.total)
     .bind(serde_json::to_value(&c.per_rate).map_err(ApiError::internal)?)
     .bind(p.user_id)
-    .execute(&mut *tx)
+    .execute(&mut **tx)
     .await?;
-    write_lines(&mut tx, org_id, id, &body.lines).await?;
+    write_lines(tx, org_id, id, &body.lines).await?;
     audit_both(
-        &mut tx,
-        &p,
+        tx,
+        p,
         platform,
         org_id,
         "billing.draft_created",
@@ -543,8 +558,7 @@ pub async fn create_invoice(
         json!({ "kind": "invoice", "total_minor": c.total, "currency": currency.code() }),
     )
     .await?;
-    tx.commit().await?;
-    Ok((StatusCode::CREATED, Json(CreatedInvoice { id })))
+    Ok(id)
 }
 
 #[derive(sqlx::FromRow)]

@@ -12,5 +12,6 @@ pub mod matching;
 pub mod money;
 pub mod ocr_table;
 pub mod rbac;
+pub mod savings;
 pub mod shop;
 pub mod workflow;

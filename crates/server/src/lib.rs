@@ -361,6 +361,11 @@ pub fn router(state: AppState) -> Router {
             "/orgs/{org_id}/billing/invoices",
             get(api::billing::customer_list),
         )
+        .route("/orgs/{org_id}/savings", get(api::savings::get_savings))
+        .route(
+            "/orgs/{org_id}/savings/baselines/{baseline_id}/confirm",
+            post(api::savings::confirm_baseline),
+        )
         .route(
             "/orgs/{org_id}/listings",
             get(api::listings::list_own).post(api::listings::create),
@@ -639,6 +644,23 @@ pub fn router(state: AppState) -> Router {
         .route(
             "/orgs/{org_id}/billing/invoices/{id}/pdf",
             get(api::billing::admin_pdf),
+        )
+        .route("/orgs/{org_id}/savings", get(api::savings::admin_get_savings))
+        .route(
+            "/orgs/{org_id}/savings/agreement",
+            axum::routing::put(api::savings::put_agreement),
+        )
+        .route(
+            "/orgs/{org_id}/savings/baselines",
+            post(api::savings::add_agreed_baseline),
+        )
+        .route(
+            "/orgs/{org_id}/savings/baselines/{baseline_id}",
+            axum::routing::delete(api::savings::delete_baseline),
+        )
+        .route(
+            "/orgs/{org_id}/savings/invoice",
+            post(api::savings::create_savings_invoice),
         )
         .layer(RequestBodyLimitLayer::new(MAX_JSON_BODY))
         .layer(TimeoutLayer::with_status_code(

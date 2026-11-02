@@ -19,6 +19,7 @@ use crate::api::common::{
     self, Audit, View, lock_request, request_view, require_perm, side, transition,
 };
 use crate::api::history_orders;
+use crate::api::savings;
 use crate::api::suppliers::IdResponse;
 use crate::db;
 use crate::error::{ApiError, ApiJson, ApiPath, ApiResult, ErrorBody};
@@ -843,6 +844,7 @@ pub async fn record_invoice(
     )
     .await?;
     if found.is_empty() {
+        savings::record_order(&mut tx, &audit, org_id, order_id, p.user_id).await?;
         history_orders::record_order(&mut tx, &audit, org_id, order_id, p.user_id).await?;
     }
     tx.commit().await?;
@@ -950,6 +952,7 @@ pub async fn resolve_discrepancy(
             json!({ "invoice": invoice_id }),
         )
         .await?;
+        savings::record_order(&mut tx, &audit, org_id, order_id, p.user_id).await?;
         history_orders::record_order(&mut tx, &audit, org_id, order_id, p.user_id).await?;
     }
     tx.commit().await?;
