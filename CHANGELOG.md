@@ -2,6 +2,8 @@
 
 ## Unreleased — factory-side model (CEO direction 2026-11-02)
 
+- Supplier shortlist for each request (`GET …/requests/{id}/supplier-shortlist`): ranked from the factory's own record and directory categories, about 10 pre-ticked with reasons; the New RFQ form uses it.
+
 See `docs/architecture/FACTORY_SIDE_MODEL.md`.
 
 - **Savings share** instead of a monthly fee: half of the drop from the price the factory

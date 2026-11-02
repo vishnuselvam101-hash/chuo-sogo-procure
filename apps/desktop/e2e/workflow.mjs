@@ -176,8 +176,10 @@ try {
   await click("Start sourcing");
   check("sourcing only after verification", await headerStatus("Sourcing"));
 
+  // The supplier shortlist may already have selected them.
   for (const s of ["Tokyo Bearings KK", "Osaka Motion Ltd"]) {
-    await (await b.$(`//label[contains(normalize-space(.), '${s}')]/input`)).click();
+    const box = await b.$(`//label[contains(normalize-space(.), '${s}')]/input`);
+    if (!(await box.isSelected())) await box.click();
   }
   await click("Create RFQ");
   // A person on our side checks the RFQ before it can go out.

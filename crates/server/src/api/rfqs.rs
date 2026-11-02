@@ -27,7 +27,7 @@ use crate::principal::Principal;
 pub const MAX_RECIPIENTS: usize = 20;
 
 /// Staff assigned to the org with `perm`.
-async fn require_operator(
+pub(crate) async fn require_operator(
     p: &Principal,
     state: &AppState,
     org_id: Uuid,
@@ -1156,7 +1156,7 @@ async fn compare_rfq(
 }
 
 /// Supplier names compared as the customer writes them (width, case and spaces ignored).
-fn supplier_name_key(name: &str) -> String {
+pub(crate) fn supplier_name_key(name: &str) -> String {
     history::half_width(name)
         .to_lowercase()
         .split_whitespace()

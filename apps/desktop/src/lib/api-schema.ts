@@ -1879,6 +1879,22 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/orgs/{org_id}/requests/{request_id}/supplier-shortlist": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["supplier_shortlist"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/orgs/{org_id}/requests/{request_id}/tasks": {
     parameters: {
       query?: never;
@@ -4264,6 +4280,36 @@ export interface components {
        * @description Shipping per order, tax included.
        */
       shipping_fee_minor: number;
+    };
+    ShortlistPick: {
+      country: string;
+      name: string;
+      reasons: components["schemas"]["ShortlistReason"][];
+      /** @description Something says it sells these items (not only a good record). */
+      relevant: boolean;
+      /** Format: int64 */
+      score: number;
+      selected: boolean;
+      /** Format: uuid */
+      supplier_id: string;
+    };
+    ShortlistReason: {
+      category?: string | null;
+      /**
+       * @description quoted_before, cheapest_before, ordered_before, bought_before, category,
+       *     approved_by_factory, replies, no_replies, already_invited.
+       */
+      code: string;
+      /** Format: int32 */
+      count?: number | null;
+      /**
+       * Format: int32
+       * @description For replies: out of how many requests.
+       */
+      of?: number | null;
+    };
+    ShortlistView: {
+      picks: components["schemas"]["ShortlistPick"][];
     };
     SignupBody: {
       display_name: string;
@@ -12805,6 +12851,76 @@ export interface operations {
         };
       };
       /** @description No items, or missing clarification answer */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  supplier_shortlist: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+        request_id: string;
+        /** @description How many to pre-select (1–20, default 10). */
+        picks: number | null;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Ranked suppliers, with the pre-selected ones marked */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ShortlistView"];
+        };
+      };
+      /** @description Malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not assigned staff */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown request or not assigned */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description picks out of range */
       422: {
         headers: {
           [name: string]: unknown;

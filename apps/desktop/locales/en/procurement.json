@@ -384,5 +384,20 @@
     "confirmedOn": "Date the supplier confirmed",
     "note": "Note",
     "record": "Record date"
+  },
+  "shortlist": {
+    "hint": "Ranked from this factory's own record and the directory categories; {{count}} selected. Check the list before creating the RFQ.",
+    "noRecord": "No record with this factory yet",
+    "reason": {
+      "quoted_before": "Quoted {{count}} of these items before",
+      "cheapest_before": "Cheapest for {{count}} of them",
+      "ordered_before": "{{count}} orders placed",
+      "bought_before": "In the factory's purchase records",
+      "category": "Sells {{category}}",
+      "approved_by_factory": "Approved by the factory",
+      "replies": "Replied to {{count}} of {{of}} requests",
+      "no_replies": "No reply to {{of}} requests",
+      "already_invited": "Already asked for this request"
+    }
   }
 }

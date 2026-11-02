@@ -11465,6 +11465,114 @@
         ]
       }
     },
+    "/api/v1/orgs/{org_id}/requests/{request_id}/supplier-shortlist": {
+      "get": {
+        "tags": [
+          "rfqs"
+        ],
+        "operationId": "supplier_shortlist",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "request_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "picks",
+            "in": "path",
+            "description": "How many to pre-select (1–20, default 10).",
+            "required": true,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ranked suppliers, with the pre-selected ones marked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShortlistView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not assigned staff",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown request or not assigned",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "picks out of range",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/orgs/{org_id}/requests/{request_id}/tasks": {
       "get": {
         "tags": [
@@ -20252,6 +20360,96 @@
             "type": "integer",
             "format": "int64",
             "description": "Shipping per order, tax included."
+          }
+        }
+      },
+      "ShortlistPick": {
+        "type": "object",
+        "required": [
+          "supplier_id",
+          "name",
+          "country",
+          "score",
+          "selected",
+          "relevant",
+          "reasons"
+        ],
+        "properties": {
+          "country": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "reasons": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ShortlistReason"
+            }
+          },
+          "relevant": {
+            "type": "boolean",
+            "description": "Something says it sells these items (not only a good record)."
+          },
+          "score": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "selected": {
+            "type": "boolean"
+          },
+          "supplier_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "ShortlistReason": {
+        "type": "object",
+        "required": [
+          "code"
+        ],
+        "properties": {
+          "category": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "code": {
+            "type": "string",
+            "description": "quoted_before, cheapest_before, ordered_before, bought_before, category,\napproved_by_factory, replies, no_replies, already_invited."
+          },
+          "count": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
+          },
+          "of": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "For replies: out of how many requests.",
+            "minimum": 0
+          }
+        }
+      },
+      "ShortlistView": {
+        "type": "object",
+        "required": [
+          "picks"
+        ],
+        "properties": {
+          "picks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ShortlistPick"
+            }
           }
         }
       },

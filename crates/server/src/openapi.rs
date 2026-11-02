@@ -7,7 +7,7 @@ use utoipa::{Modify, OpenApi};
 
 use crate::api::{
     admin, ai, approvals, attachments, auth, billing, demo, history, listing_ai, listings, ops,
-    orders, orgs, products, requests, rfqs, savings, shop, suppliers,
+    orders, orgs, products, requests, rfqs, savings, shop, shortlist, suppliers,
 };
 use crate::error::{ErrorBody, ErrorInner};
 
@@ -68,6 +68,7 @@ impl Modify for BearerAuth {
         suppliers::propose_supplier,
         suppliers::decide_supplier,
         rfqs::create_rfq,
+        shortlist::supplier_shortlist,
         rfqs::check_rfq,
         rfqs::dispatch_rfq,
         rfqs::rfq_outbox,

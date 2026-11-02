@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { formatDate, formatNumber } from "../lib/format";
-import type { ItemView, MembershipView, RequestDetail as Detail, SupplierView } from "../lib/types";
+import type { ItemView, MembershipView, RequestDetail as Detail, SupplierShortlist } from "../lib/types";
 import { useAction } from "../lib/useAction";
 import { useApi } from "../lib/useApi";
 import { ErrorText, Loading, PageHeader, StatusBadge } from "../components/ui";
@@ -340,11 +340,13 @@ function ItemRow({ item, orgId, canVerify, canDelete, onVerify, onDelete }: Item
 
 function NewRfq({ base, onCreated }: { base: string; onCreated: () => void }) {
   const { t } = useTranslation();
-  const { data } = useApi<SupplierView[]>("/api/v1/suppliers?status=verified");
+  const { data, reload } = useApi<SupplierShortlist>(`${base}/supplier-shortlist`);
   const action = useAction();
-  const [chosen, setChosen] = useState<string[]>([]);
+  // null: the shortlist's own selection, until staff change it.
+  const [picked, setPicked] = useState<string[] | null>(null);
   const [due, setDue] = useState("");
   const [message, setMessage] = useState("");
+  const chosen = picked ?? data?.picks.filter((p) => p.selected).map((p) => p.supplier_id) ?? [];
 
   async function create() {
     const res = await action.run("POST", `${base}/rfqs`, {
@@ -353,8 +355,9 @@ function NewRfq({ base, onCreated }: { base: string; onCreated: () => void }) {
       message,
     });
     if (res) {
-      setChosen([]);
+      setPicked(null);
       setMessage("");
+      reload();
       onCreated();
     }
   }
@@ -364,23 +367,49 @@ function NewRfq({ base, onCreated }: { base: string; onCreated: () => void }) {
       <strong>{t("procurement:rfq.new")}</strong>
       {data === null ? (
         <p className="muted">{t("state.loading")}</p>
-      ) : data.length === 0 ? (
+      ) : data.picks.length === 0 ? (
         <p className="muted">{t("procurement:rfq.noVerifiedSuppliers")}</p>
       ) : (
-        <div className="checks">
-          {data.map((s) => (
-            <label key={s.id} className="radio">
-              <input
-                type="checkbox"
-                checked={chosen.includes(s.id)}
-                onChange={(e) =>
-                  setChosen(e.target.checked ? [...chosen, s.id] : chosen.filter((c) => c !== s.id))
-                }
-              />
-              {s.name} ({s.country})
-            </label>
-          ))}
-        </div>
+        <>
+          <p className="muted small">{t("procurement:shortlist.hint", { count: chosen.length })}</p>
+          <table className="table" data-testid="supplier-shortlist">
+            <tbody>
+              {data.picks.map((s) => (
+                <tr key={s.supplier_id}>
+                  <td>
+                    <label className="radio">
+                      <input
+                        type="checkbox"
+                        checked={chosen.includes(s.supplier_id)}
+                        onChange={(e) =>
+                          setPicked(
+                            e.target.checked
+                              ? [...chosen, s.supplier_id]
+                              : chosen.filter((c) => c !== s.supplier_id),
+                          )
+                        }
+                      />
+                      {s.name} ({s.country})
+                    </label>
+                  </td>
+                  <td className="muted small">
+                    {s.reasons.length === 0
+                      ? t("procurement:shortlist.noRecord")
+                      : s.reasons
+                          .map((r) =>
+                            t(`procurement:shortlist.reason.${r.code}`, {
+                              count: r.count ?? 0,
+                              of: r.of ?? 0,
+                              category: r.category ?? "",
+                            }),
+                          )
+                          .join(" · ")}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
       )}
       <div className="row">
         <label>

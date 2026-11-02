@@ -18,4 +18,5 @@ pub mod requests;
 pub mod rfqs;
 pub mod savings;
 pub mod shop;
+pub mod shortlist;
 pub mod suppliers;

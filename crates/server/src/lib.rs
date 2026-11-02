@@ -252,6 +252,10 @@ pub fn router(state: AppState) -> Router {
             post(api::rfqs::create_rfq),
         )
         .route(
+            "/orgs/{org_id}/requests/{request_id}/supplier-shortlist",
+            get(api::shortlist::supplier_shortlist),
+        )
+        .route(
             "/orgs/{org_id}/requests/{request_id}/recommendations",
             post(api::approvals::recommend),
         )

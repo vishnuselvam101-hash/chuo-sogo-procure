@@ -384,5 +384,20 @@
     "confirmedOn": "仕入先の回答納期",
     "note": "メモ",
     "record": "納期を記録"
+  },
+  "shortlist": {
+    "hint": "この工場の実績とディレクトリのカテゴリから順位付けしました（{{count}}社を選択）。RFQ作成前に確認してください。",
+    "noRecord": "この工場との実績なし",
+    "reason": {
+      "quoted_before": "この品目のうち{{count}}件を見積済み",
+      "cheapest_before": "うち{{count}}件で最安",
+      "ordered_before": "発注実績{{count}}件",
+      "bought_before": "工場の購買記録にあり",
+      "category": "取扱：{{category}}",
+      "approved_by_factory": "工場の承認済み",
+      "replies": "{{of}}件中{{count}}件に回答",
+      "no_replies": "{{of}}件の依頼に回答なし",
+      "already_invited": "この依頼で依頼済み"
+    }
   }
 }

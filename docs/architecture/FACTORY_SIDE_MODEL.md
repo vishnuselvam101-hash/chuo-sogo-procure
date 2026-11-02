@@ -26,7 +26,7 @@
 |---|---|---|
 | 1. Factory says what it wants | Request with lines; AI reads free text/files into lines (Phase 3) | `api/requests.rs`, `api/ai.rs` |
 | Check before sending | **RFQ check step**: an assigned staff member marks the RFQ checked (recipients, items, no factory name in the message); dispatch refuses without it (`rfq_not_checked`) | `api/rfqs.rs::check_rfq`, migration 0017 |
-| 2. Ask ~10 suppliers | One RFQ to up to 20 verified suppliers the factory has not rejected; messages recorded in the test outbox (no real email until approved) | `api/rfqs.rs` |
+| 2. Ask ~10 suppliers | **Supplier shortlist**: every verified supplier the factory has not rejected, ranked from this factory's own record (quoted these items before, cheapest, orders placed, named in its purchase records, approved by it, replies to requests) and the directory categories (English/Japanese words for consumables, tools, electrical, bearings, fasteners); about 10 with a sign they sell the items are pre-ticked, each with its reasons; suppliers already asked for the request are not ticked again. Staff adjust and create the RFQ (up to 20), then check it. Other factories' data is never used. Messages recorded in the test outbox (no real email until approved) | `domain/shortlist.rs`, `api/shortlist.rs`, `api/rfqs.rs` |
 | 3. Read replies (email, PDF, Excel) | **Reply files**: a saved email (`.eml`, ISO-2022-JP / Shift_JIS / UTF-8, attachments read too), PDF (text layer, else OCR), Excel/CSV, FAX scan (OCR) → text → AI extraction → staff confirm and save the quotation | `intake.rs::quote_reply_text`, `POST …/rfqs/{id}/reply-text` |
 | Compare, show the best | Deterministic comparison (compliance, total, lead time) + price vs the factory's last price + decision memo from its buying criteria | `domain/comparison.rs`, `domain/decision.rs` |
 | Check after comparing | **Comparison check step**: staff mark the recommendation checked (prices/quantities/lead times against the replies); sending to the factory refuses without it (`recommendation_not_checked`) | `api/approvals.rs::check_recommendation` |
@@ -93,7 +93,7 @@
   hand). Needs a sending address/provider and the founder's approval (CLAUDE.md).
 - **Reading replies straight from a mailbox** (IMAP): today staff save the email and upload
   it. Same decision as above.
-- **AI supplier shortlist** of ~10 for each request: staff pick suppliers from the directory.
+- The shortlist is rules over the factory's own record, not a language model. It can only rank suppliers already in the directory with categories set; finding *new* suppliers is still staff work.
 - The **AI model** for reading replies (D5 in RELEASE.md); the mock model is the default.
 - Live server and demo still run the older build until `scripts/install-server.sh` and
   `scripts/demo/install-demo.sh` are run again (migrations 0016–0018 apply then).

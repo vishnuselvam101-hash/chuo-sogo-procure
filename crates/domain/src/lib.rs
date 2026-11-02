@@ -14,4 +14,5 @@ pub mod ocr_table;
 pub mod rbac;
 pub mod savings;
 pub mod shop;
+pub mod shortlist;
 pub mod workflow;

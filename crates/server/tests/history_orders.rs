@@ -1294,3 +1294,165 @@ async fn baselines_our_staff_imported_wait_for_the_factory_then_price_the_waitin
         d.body
     );
 }
+
+impl Flow {
+    /// A directory supplier, verified unless `verified` is false.
+    async fn supplier(&self, name: &str, categories: Value, verified: bool) -> Uuid {
+        let r = self
+            .w
+            .app
+            .post(
+                "/api/v1/suppliers",
+                &self.operator,
+                json!({ "name": name, "country": "jp", "categories": categories }),
+            )
+            .await;
+        assert_eq!(r.status, StatusCode::CREATED, "{:?}", r.body);
+        let s = uuid(&r.body["id"]);
+        if verified {
+            self.ok(self
+                .w
+                .app
+                .post(
+                    &format!("/api/v1/suppliers/{s}/status"),
+                    &self.operator,
+                    json!({ "status": "verified" }),
+                )
+                .await);
+        }
+        s
+    }
+}
+
+#[sqlx::test(migrator = "procure_server::MIGRATOR")]
+async fn the_shortlist_ranks_suppliers_from_the_factorys_own_record(pool: PgPool) {
+    let f = Flow::new(pool).await;
+    let app = &f.w.app;
+    // Supplier A quoted and got the order for the bearing earlier.
+    let earlier = f
+        .ordered("PO-S-1", false, "2026-10-01T09:00:00+09:00")
+        .await;
+    let denki = f.supplier("Denki Shoji", json!(["electrical"]), true).await;
+    let kogu = f.supplier("Kogu Ya", json!(["tools"]), true).await;
+    let unverified = f
+        .supplier("Unverified Bearing", json!(["bearings"]), false)
+        .await;
+    let rejected = f
+        .supplier("Rejected Bearing", json!(["bearings"]), true)
+        .await;
+    f.ok(f
+        .op(&format!("suppliers/{rejected}/proposal"), json!({}))
+        .await);
+    f.ok(app
+        .put(
+            &f.url(&format!("suppliers/{rejected}/decision")),
+            &f.manager,
+            json!({ "decision": "rejected", "reason": "Late deliveries" }),
+        )
+        .await);
+
+    let r = app
+        .post(
+            &f.url("requests"),
+            &f.requester,
+            json!({
+                "title": "補充", "currency": "JPY", "needed_by": "2026-12-15",
+                "items": [
+                    { "description": "Ball bearing", "mpn": earlier.mpns[0], "quantity": 50 },
+                    { "description": "ＶＶＦケーブル 2.0mm 100m", "quantity": 3 }
+                ]
+            }),
+        )
+        .await;
+    assert_eq!(r.status, StatusCode::CREATED, "{:?}", r.body);
+    let request = uuid(&r.body["id"]);
+    f.ok(app
+        .post(
+            &f.url(&format!("requests/{request}/submit")),
+            &f.requester,
+            json!({}),
+        )
+        .await);
+    f.ok(f
+        .op(&format!("requests/{request}/pick-up"), json!({}))
+        .await);
+    let path = f.url(&format!("requests/{request}/supplier-shortlist"));
+
+    let r = app.get(&path, &f.operator).await;
+    assert_eq!(r.status, StatusCode::OK, "{:?}", r.body);
+    let picks = r.body["picks"].as_array().unwrap();
+    let ids: Vec<Uuid> = picks.iter().map(|p| uuid(&p["supplier_id"])).collect();
+    // Rejected by the factory, or not verified: never listed.
+    assert_eq!(ids, vec![f.supplier, denki, kogu], "{picks:?}");
+    assert!(!ids.contains(&unverified) && !ids.contains(&rejected));
+    let codes = |p: &Value| -> Vec<String> {
+        p["reasons"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|r| r["code"].as_str().unwrap().to_string())
+            .collect()
+    };
+    assert_eq!(
+        codes(&picks[0]),
+        vec![
+            "quoted_before",
+            "ordered_before",
+            "category",
+            "approved_by_factory"
+        ]
+    );
+    assert_eq!(picks[0]["score"], 30 + 6 + 12 + 10);
+    assert_eq!(picks[0]["reasons"][0]["count"], 1);
+    assert_eq!(picks[1]["reasons"][0]["category"], "electrical");
+    assert_eq!(
+        picks
+            .iter()
+            .map(|p| p["selected"].as_bool().unwrap())
+            .collect::<Vec<_>>(),
+        vec![true, true, false]
+    );
+    assert_eq!(picks[2]["relevant"], false);
+
+    // A supplier already asked for a request is not selected again for it.
+    let r = app
+        .get(
+            &f.url(&format!(
+                "requests/{}/supplier-shortlist?picks=1",
+                earlier.request
+            )),
+            &f.operator,
+        )
+        .await;
+    assert_eq!(r.status, StatusCode::OK, "{:?}", r.body);
+    let picks = r.body["picks"].as_array().unwrap();
+    let asked = picks
+        .iter()
+        .find(|p| uuid(&p["supplier_id"]) == f.supplier)
+        .unwrap();
+    assert_eq!(asked["selected"], false);
+    assert!(codes(asked).contains(&"already_invited".to_string()));
+    // Its own quotation for that request does not count as "quoted before".
+    assert!(!codes(asked).contains(&"quoted_before".to_string()));
+    assert!(picks.iter().filter(|p| p["selected"] == true).count() <= 1);
+
+    // Only our assigned staff use it; the factory's own users do not.
+    for token in [&f.requester, &f.manager] {
+        assert_eq!(app.get(&path, token).await.status, StatusCode::FORBIDDEN);
+    }
+    assert_eq!(
+        app.get(&format!("{path}?picks=0"), &f.operator)
+            .await
+            .status,
+        StatusCode::UNPROCESSABLE_ENTITY
+    );
+    assert_eq!(
+        app.get(
+            &f.url(&format!("requests/{}/supplier-shortlist", Uuid::now_v7())),
+            &f.operator
+        )
+        .await
+        .status,
+        StatusCode::NOT_FOUND
+    );
+}
