@@ -405,11 +405,13 @@ struct RecRow {
     total_minor: i64,
     required_approvals: Option<i32>,
     allow_self_approval: Option<bool>,
+    checked: bool,
 }
 
 async fn lock_recommendation(tx: &mut db::Tx, id: Uuid) -> ApiResult<RecRow> {
     sqlx::query_as::<_, RecRow>(
-        "SELECT id, quotation_id, status, currency, total_minor, required_approvals, allow_self_approval
+        "SELECT id, quotation_id, status, currency, total_minor, required_approvals, allow_self_approval,
+                checked_at IS NOT NULL AS checked
          FROM recommendations WHERE id = $1 FOR UPDATE",
     )
     .bind(id)
@@ -424,6 +426,58 @@ async fn recommendation_request(tx: &mut db::Tx, id: Uuid) -> ApiResult<Uuid> {
         .fetch_optional(&mut **tx)
         .await?
         .ok_or(ApiError::NotFound)
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/v1/orgs/{org_id}/recommendations/{recommendation_id}/check",
+    tag = "approvals",
+    params(("org_id" = Uuid, Path), ("recommendation_id" = Uuid, Path)),
+    request_body = crate::api::rfqs::CheckBody,
+    security(("bearer" = [])),
+    responses(
+        (status = 204, description = "Comparison checked by our staff; it may now go to the factory"),
+        (status = 403, description = "Not permitted", body = ErrorBody),
+        (status = 404, description = "Unknown recommendation", body = ErrorBody),
+        (status = 409, description = "Already sent or already checked", body = ErrorBody),
+        (status = 401, description = "No valid session", body = ErrorBody),
+    )
+)]
+pub async fn check_recommendation(
+    State(state): State<AppState>,
+    p: Principal,
+    ApiPath((org_id, recommendation_id)): ApiPath<(Uuid, Uuid)>,
+    ApiJson(body): ApiJson<crate::api::rfqs::CheckBody>,
+) -> ApiResult<StatusCode> {
+    let access = p
+        .require(&state, org_id, Permission::OperateRequests)
+        .await?;
+    if side(access)? != Side::Operator {
+        return Err(ApiError::Forbidden);
+    }
+    let note = common::text(&body.note, 2000, true, "note")?;
+    let mut tx = db::tenant_tx(&state.pool, p.user_id, org_id).await?;
+    let rec = lock_recommendation(&mut tx, recommendation_id).await?;
+    if rec.status != "recommended" {
+        return Err(ApiError::Conflict("invalid_transition"));
+    }
+    if rec.checked {
+        return Err(ApiError::Conflict("already_checked"));
+    }
+    sqlx::query(
+        "UPDATE recommendations SET checked_by = $2, checked_at = now(), check_note = $3
+         WHERE id = $1",
+    )
+    .bind(rec.id)
+    .bind(p.user_id)
+    .bind(&note)
+    .execute(&mut *tx)
+    .await?;
+    Audit { org_id, p: &p }
+        .record(&mut tx, "recommendation.checked", "recommendation", rec.id, json!({ "note": note }))
+        .await?;
+    tx.commit().await?;
+    Ok(StatusCode::NO_CONTENT)
 }
 
 #[utoipa::path(
@@ -458,6 +512,9 @@ pub async fn send_recommendation(
     let rec = lock_recommendation(&mut tx, recommendation_id).await?;
     if rec.status != "recommended" {
         return Err(ApiError::Conflict("invalid_transition"));
+    }
+    if !rec.checked {
+        return Err(ApiError::Conflict("recommendation_not_checked"));
     }
     ensure_still_valid(&mut tx, org_id, &rec).await?;
     let currency = common::currency(&rec.currency)?;
@@ -521,6 +578,10 @@ pub struct RecommendationHeader {
     pub created_at: DateTime<Utc>,
     pub sent_at: Option<DateTime<Utc>>,
     pub decided_at: Option<DateTime<Utc>>,
+    /// Our staff check of the comparison before the factory sees it (required for sending).
+    pub checked_at: Option<DateTime<Utc>>,
+    pub checked_by_name: Option<String>,
+    pub check_note: String,
 }
 
 #[derive(Serialize, utoipa::ToSchema)]
@@ -567,8 +628,10 @@ pub async fn get_recommendation(
         "SELECT rc.id, rc.request_id, r.number AS request_number, r.requested_by, rc.status,
                 rc.currency, rc.total_minor, rc.rank, rc.reason, rc.quotation_id, x.supplier_id,
                 s.name AS supplier_name, rc.comparison_run_id AS comparison_id,
-                rc.required_approvals, rc.policy_version, rc.created_at, rc.sent_at, rc.decided_at
+                rc.required_approvals, rc.policy_version, rc.created_at, rc.sent_at, rc.decided_at,
+                rc.checked_at, cu.display_name AS checked_by_name, rc.check_note
          FROM recommendations rc
+         LEFT JOIN users cu ON cu.id = rc.checked_by
          JOIN procurement_requests r ON r.id = rc.request_id
          JOIN quotations q ON q.id = rc.quotation_id
          JOIN rfq_recipients x ON x.id = q.rfq_recipient_id

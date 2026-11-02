@@ -209,6 +209,7 @@ impl Flow {
             .await;
         assert_eq!(r.status, StatusCode::CREATED, "{:?}", r.body);
         let rfq = uuid(&r.body["id"]);
+        self.ok(self.op(&format!("rfqs/{rfq}/check"), json!({})).await);
         self.ok(self.op(&format!("rfqs/{rfq}/dispatch"), json!({})).await);
         let mut second = json!({ "request_item_id": req_items[1], "unit_price_minor": 45_000,
                                  "quantity": 4, "lead_time_days": 21 });
@@ -242,6 +243,9 @@ impl Flow {
             .await;
         assert_eq!(r.status, StatusCode::CREATED, "{:?}", r.body);
         let rec = uuid(&r.body["id"]);
+        self.ok(self
+            .op(&format!("recommendations/{rec}/check"), json!({}))
+            .await);
         self.ok(self
             .op(&format!("recommendations/{rec}/send"), json!({}))
             .await);

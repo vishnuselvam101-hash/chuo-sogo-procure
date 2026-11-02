@@ -248,6 +248,15 @@ impl Flow {
             .await;
         assert_eq!(r.status, StatusCode::CREATED, "{:?}", r.body);
         let rfq = uuid(&r.body["id"]);
+        // Our staff check the RFQ before it goes out.
+        let r = self
+            .post_op(&format!("rfqs/{rfq}/dispatch"), json!({}))
+            .await;
+        assert_eq!(r.status, StatusCode::CONFLICT, "{:?}", r.body);
+        assert_eq!(r.body["error"]["detail"], "rfq_not_checked");
+        self.ok(self
+            .post_op(&format!("rfqs/{rfq}/check"), json!({ "note": "Recipients and items OK" }))
+            .await);
         let d = self.ok(self
             .post_op(&format!("rfqs/{rfq}/dispatch"), json!({}))
             .await);
@@ -304,6 +313,15 @@ impl Flow {
             .await;
         assert_eq!(r.status, StatusCode::CREATED, "{:?}", r.body);
         let rec = uuid(&r.body["id"]);
+        // Our staff check the comparison before the factory sees it.
+        let r = self
+            .post_op(&format!("recommendations/{rec}/send"), json!({}))
+            .await;
+        assert_eq!(r.status, StatusCode::CONFLICT, "{:?}", r.body);
+        assert_eq!(r.body["error"]["detail"], "recommendation_not_checked");
+        self.ok(self
+            .post_op(&format!("recommendations/{rec}/check"), json!({}))
+            .await);
         self.ok(self
             .post_op(&format!("recommendations/{rec}/send"), json!({}))
             .await);
@@ -1900,6 +1918,7 @@ async fn ops_queue_auto_tasks_and_follow_ups(pool: PgPool) {
         )
         .await;
     let rfq = uuid(&r.body["id"]);
+    f.ok(f.post_op(&format!("rfqs/{rfq}/check"), json!({})).await);
     f.ok(f.post_op(&format!("rfqs/{rfq}/dispatch"), json!({})).await);
     let q = app.get("/api/v1/ops/queue", &f.operator).await;
     let chase = q.body["tasks"]
@@ -2247,6 +2266,7 @@ async fn ops_review_regressions(pool: PgPool) {
             )
             .await;
         let rfq = uuid(&r.body["id"]);
+        f.ok(f.post_op(&format!("rfqs/{rfq}/check"), json!({})).await);
         f.ok(f.post_op(&format!("rfqs/{rfq}/dispatch"), json!({})).await);
         rfqs.push(rfq);
     }

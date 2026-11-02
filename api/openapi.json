@@ -2460,6 +2460,361 @@
         ]
       }
     },
+    "/api/admin/v1/orgs/{org_id}/savings": {
+      "get": {
+        "tags": [
+          "savings"
+        ],
+        "operationId": "admin_get_savings",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Agreement, ledger, totals and baselines",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavingsView"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown organisation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/admin/v1/orgs/{org_id}/savings/agreement": {
+      "put": {
+        "tags": [
+          "savings"
+        ],
+        "operationId": "put_agreement",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgreementInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Saved"
+          },
+          "403": {
+            "description": "Not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown organisation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Terms are fixed once savings were recorded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid share, term or date",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/admin/v1/orgs/{org_id}/savings/baselines": {
+      "post": {
+        "tags": [
+          "savings"
+        ],
+        "operationId": "add_agreed_baseline",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgreedBaselineInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Recorded; counts after the factory confirms it",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The item already has a baseline",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/admin/v1/orgs/{org_id}/savings/baselines/{baseline_id}": {
+      "delete": {
+        "tags": [
+          "savings"
+        ],
+        "operationId": "delete_baseline",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "baseline_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Removed"
+          },
+          "403": {
+            "description": "Not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown baseline",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Already used or confirmed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/admin/v1/orgs/{org_id}/savings/invoice": {
+      "post": {
+        "tags": [
+          "savings"
+        ],
+        "operationId": "create_savings_invoice",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SavingsInvoiceInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Draft invoice with one line per order",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatedInvoice"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown organisation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Nothing to bill",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/admin/v1/orgs/{org_id}/settings": {
       "get": {
         "tags": [
@@ -7877,6 +8232,94 @@
         ]
       }
     },
+    "/api/v1/orgs/{org_id}/recommendations/{recommendation_id}/check": {
+      "post": {
+        "tags": [
+          "approvals"
+        ],
+        "operationId": "check_recommendation",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "recommendation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Comparison checked by our staff; it may now go to the factory"
+          },
+          "401": {
+            "description": "No valid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown recommendation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Already sent or already checked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/orgs/{org_id}/recommendations/{recommendation_id}/decisions": {
       "post": {
         "tags": [
@@ -11420,6 +11863,94 @@
         ]
       }
     },
+    "/api/v1/orgs/{org_id}/rfqs/{rfq_id}/check": {
+      "post": {
+        "tags": [
+          "rfqs"
+        ],
+        "operationId": "check_rfq",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "rfq_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Checked by our staff; the RFQ may now be sent"
+          },
+          "401": {
+            "description": "No valid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown RFQ or not assigned",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Already sent or already checked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/orgs/{org_id}/rfqs/{rfq_id}/comparisons": {
       "post": {
         "tags": [
@@ -11797,6 +12328,130 @@
           },
           "422": {
             "description": "Invalid quotation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/orgs/{org_id}/savings": {
+      "get": {
+        "tags": [
+          "savings"
+        ],
+        "operationId": "get_savings",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Agreement, ledger, totals and baselines",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavingsView"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown organisation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/orgs/{org_id}/savings/baselines/{baseline_id}/confirm": {
+      "post": {
+        "tags": [
+          "savings"
+        ],
+        "operationId": "confirm_baseline",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "baseline_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Confirmed by the factory"
+          },
+          "403": {
+            "description": "Only a factory approver confirms",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown baseline",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Already confirmed",
             "content": {
               "application/json": {
                 "schema": {
@@ -14017,6 +14672,109 @@
           }
         }
       },
+      "AgreedBaselineInput": {
+        "type": "object",
+        "required": [
+          "unit_price_milli",
+          "note"
+        ],
+        "properties": {
+          "currency": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "description": {
+            "type": "string"
+          },
+          "mpn": {
+            "type": "string",
+            "description": "Part number and/or description of the item, as on the factory's request."
+          },
+          "note": {
+            "type": "string",
+            "description": "Where the number comes from (e.g. \"factory's invoice 2026-03, no. 1234\")."
+          },
+          "unit": {
+            "type": "string"
+          },
+          "unit_price_milli": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The price the factory paid before, in thousandths of a minor unit."
+          }
+        }
+      },
+      "AgreementInput": {
+        "type": "object",
+        "required": [
+          "starts_on"
+        ],
+        "properties": {
+          "notes": {
+            "type": "string"
+          },
+          "share_bps": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "Our share of the saving in basis points; default 5000 (half).",
+            "minimum": 0
+          },
+          "starts_on": {
+            "type": "string",
+            "format": "date"
+          },
+          "term_months": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "Default 36.",
+            "minimum": 0
+          }
+        }
+      },
+      "AgreementView": {
+        "type": "object",
+        "required": [
+          "share_bps",
+          "term_months",
+          "starts_on",
+          "ends_on",
+          "notes",
+          "updated_at"
+        ],
+        "properties": {
+          "ends_on": {
+            "type": "string",
+            "format": "date"
+          },
+          "notes": {
+            "type": "string"
+          },
+          "share_bps": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "starts_on": {
+            "type": "string",
+            "format": "date"
+          },
+          "term_months": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
       "AliasInput": {
         "type": "object",
         "required": [
@@ -14231,6 +14989,83 @@
           "seq": {
             "type": "integer",
             "format": "int64"
+          }
+        }
+      },
+      "BaselineView": {
+        "type": "object",
+        "required": [
+          "id",
+          "item_key",
+          "source",
+          "supplier_name",
+          "unit_price_milli",
+          "currency",
+          "unit",
+          "note",
+          "set_at",
+          "used"
+        ],
+        "properties": {
+          "confirmed_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "item_key": {
+            "type": "string"
+          },
+          "note": {
+            "type": "string"
+          },
+          "purchased_on": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "set_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "source": {
+            "type": "string",
+            "description": "`history` (the factory's own record before the agreement) or `agreed`."
+          },
+          "supplier_name": {
+            "type": "string"
+          },
+          "unit": {
+            "type": "string"
+          },
+          "unit_price_milli": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Thousandths of a minor unit."
+          },
+          "used": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Ledger rows that used this baseline; a used baseline can no longer be removed."
+          }
+        }
+      },
+      "CheckBody": {
+        "type": "object",
+        "properties": {
+          "note": {
+            "type": "string",
+            "description": "What was checked or corrected (optional)."
           }
         }
       },
@@ -14833,6 +15668,33 @@
           }
         }
       },
+      "CurrencyTotal": {
+        "type": "object",
+        "required": [
+          "currency",
+          "saving_minor",
+          "fee_minor",
+          "unbilled_fee_minor"
+        ],
+        "properties": {
+          "currency": {
+            "type": "string"
+          },
+          "fee_minor": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "saving_minor": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "unbilled_fee_minor": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Fees not yet on a Chuo-Sogo invoice."
+          }
+        }
+      },
       "DecisionBody": {
         "type": "object",
         "required": [
@@ -15179,6 +16041,95 @@
           "secret": {
             "type": "string",
             "description": "Base32 secret to type into an authenticator app."
+          }
+        }
+      },
+      "EntryView": {
+        "type": "object",
+        "required": [
+          "id",
+          "order_id",
+          "po_number",
+          "request_number",
+          "description",
+          "ordered_on",
+          "quantity",
+          "unit_price_minor",
+          "currency",
+          "saving_minor",
+          "fee_minor",
+          "status"
+        ],
+        "properties": {
+          "baseline_unit_price_milli": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "fee_minor": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "invoice_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "invoice_number": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "order_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "ordered_on": {
+            "type": "string",
+            "format": "date"
+          },
+          "po_number": {
+            "type": "string"
+          },
+          "quantity": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "request_number": {
+            "type": "string"
+          },
+          "saving_minor": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "share_bps": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          },
+          "status": {
+            "type": "string"
+          },
+          "unit_price_minor": {
+            "type": "integer",
+            "format": "int64"
           }
         }
       },
@@ -18044,9 +18995,27 @@
           "quotation_id",
           "supplier_id",
           "comparison_id",
-          "created_at"
+          "created_at",
+          "check_note"
         ],
         "properties": {
+          "check_note": {
+            "type": "string"
+          },
+          "checked_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Our staff check of the comparison before the factory sees it (required for sending)."
+          },
+          "checked_by_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "comparison_id": {
             "type": "string",
             "format": "uuid"
@@ -18458,9 +19427,27 @@
           "number",
           "status",
           "message",
-          "created_at"
+          "created_at",
+          "check_note"
         ],
         "properties": {
+          "check_note": {
+            "type": "string"
+          },
+          "checked_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Our staff check before the RFQ goes out (required for dispatch)."
+          },
+          "checked_by_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "created_at": {
             "type": "string",
             "format": "date-time"
@@ -18549,6 +19536,63 @@
             "type": "integer",
             "description": "1-based row number in the file, as the spreadsheet shows it.",
             "minimum": 0
+          }
+        }
+      },
+      "SavingsInvoiceInput": {
+        "type": "object",
+        "required": [
+          "through"
+        ],
+        "properties": {
+          "currency": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "through": {
+            "type": "string",
+            "format": "date",
+            "description": "Bill fees of orders placed up to and including this day."
+          }
+        }
+      },
+      "SavingsView": {
+        "type": "object",
+        "required": [
+          "totals",
+          "entries",
+          "baselines"
+        ],
+        "properties": {
+          "agreement": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AgreementView"
+              }
+            ]
+          },
+          "baselines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BaselineView"
+            }
+          },
+          "entries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EntryView"
+            }
+          },
+          "totals": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CurrencyTotal"
+            }
           }
         }
       },

@@ -195,6 +195,7 @@ impl Setup {
             )
             .await;
         let rfq = uuid(&r["id"]);
+        self.op(&format!("rfqs/{rfq}/check"), json!({})).await;
         self.op(&format!("rfqs/{rfq}/dispatch"), json!({})).await;
         (rfq, items)
     }

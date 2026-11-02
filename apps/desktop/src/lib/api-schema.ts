@@ -468,6 +468,86 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/admin/v1/orgs/{org_id}/savings": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["admin_get_savings"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/admin/v1/orgs/{org_id}/savings/agreement": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put: operations["put_agreement"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/admin/v1/orgs/{org_id}/savings/baselines": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["add_agreed_baseline"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/admin/v1/orgs/{org_id}/savings/baselines/{baseline_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete: operations["delete_baseline"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/admin/v1/orgs/{org_id}/savings/invoice": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["create_savings_invoice"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/admin/v1/orgs/{org_id}/settings": {
     parameters: {
       query?: never;
@@ -1399,6 +1479,22 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/orgs/{org_id}/recommendations/{recommendation_id}/check": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["check_recommendation"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/orgs/{org_id}/recommendations/{recommendation_id}/decisions": {
     parameters: {
       query?: never;
@@ -1831,6 +1927,22 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/orgs/{org_id}/rfqs/{rfq_id}/check": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["check_rfq"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/orgs/{org_id}/rfqs/{rfq_id}/comparisons": {
     parameters: {
       query?: never;
@@ -1889,6 +2001,38 @@ export interface paths {
     get?: never;
     put?: never;
     post: operations["record_quotation"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/orgs/{org_id}/savings": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["get_savings"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/orgs/{org_id}/savings/baselines/{baseline_id}/confirm": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["confirm_baseline"];
     delete?: never;
     options?: never;
     head?: never;
@@ -2310,6 +2454,48 @@ export interface components {
       expires_at: string;
       token: string;
     };
+    AgreedBaselineInput: {
+      currency?: string | null;
+      description?: string;
+      /** @description Part number and/or description of the item, as on the factory's request. */
+      mpn?: string;
+      /** @description Where the number comes from (e.g. "factory's invoice 2026-03, no. 1234"). */
+      note: string;
+      unit?: string;
+      /**
+       * Format: int64
+       * @description The price the factory paid before, in thousandths of a minor unit.
+       */
+      unit_price_milli: number;
+    };
+    AgreementInput: {
+      notes?: string;
+      /**
+       * Format: int32
+       * @description Our share of the saving in basis points; default 5000 (half).
+       */
+      share_bps?: number | null;
+      /** Format: date */
+      starts_on: string;
+      /**
+       * Format: int32
+       * @description Default 36.
+       */
+      term_months?: number | null;
+    };
+    AgreementView: {
+      /** Format: date */
+      ends_on: string;
+      notes: string;
+      /** Format: int32 */
+      share_bps: number;
+      /** Format: date */
+      starts_on: string;
+      /** Format: int32 */
+      term_months: number;
+      /** Format: date-time */
+      updated_at: string;
+    };
     AliasInput: {
       /** @description The key written differently (usually the request line's `item_key`). */
       alias_key: string;
@@ -2375,6 +2561,37 @@ export interface components {
       request_id?: string | null;
       /** Format: int64 */
       seq: number;
+    };
+    BaselineView: {
+      /** Format: date-time */
+      confirmed_at?: string | null;
+      currency: string;
+      /** Format: uuid */
+      id: string;
+      item_key: string;
+      note: string;
+      /** Format: date */
+      purchased_on?: string | null;
+      /** Format: date-time */
+      set_at: string;
+      /** @description `history` (the factory's own record before the agreement) or `agreed`. */
+      source: string;
+      supplier_name: string;
+      unit: string;
+      /**
+       * Format: int64
+       * @description Thousandths of a minor unit.
+       */
+      unit_price_milli: number;
+      /**
+       * Format: int64
+       * @description Ledger rows that used this baseline; a used baseline can no longer be removed.
+       */
+      used: number;
+    };
+    CheckBody: {
+      /** @description What was checked or corrected (optional). */
+      note?: string;
     };
     ClarificationBody: {
       question: string;
@@ -2564,6 +2781,18 @@ export interface components {
       updated_at?: string | null;
       updated_by_name?: string | null;
     };
+    CurrencyTotal: {
+      currency: string;
+      /** Format: int64 */
+      fee_minor: number;
+      /** Format: int64 */
+      saving_minor: number;
+      /**
+       * Format: int64
+       * @description Fees not yet on a Chuo-Sogo invoice.
+       */
+      unbilled_fee_minor: number;
+    };
     DecisionBody: {
       /** @description true: applied to the editor; false: discarded. */
       accepted: boolean;
@@ -2680,6 +2909,34 @@ export interface components {
       otpauth_uri: string;
       /** @description Base32 secret to type into an authenticator app. */
       secret: string;
+    };
+    EntryView: {
+      /** Format: int64 */
+      baseline_unit_price_milli?: number | null;
+      currency: string;
+      description: string;
+      /** Format: int64 */
+      fee_minor: number;
+      /** Format: uuid */
+      id: string;
+      /** Format: uuid */
+      invoice_id?: string | null;
+      invoice_number?: string | null;
+      /** Format: uuid */
+      order_id: string;
+      /** Format: date */
+      ordered_on: string;
+      po_number: string;
+      /** Format: int32 */
+      quantity: number;
+      request_number: string;
+      /** Format: int64 */
+      saving_minor: number;
+      /** Format: int32 */
+      share_bps?: number | null;
+      status: string;
+      /** Format: int64 */
+      unit_price_minor: number;
     };
     /** @description Every error response. `code` is stable and localised by the client. */
     ErrorBody: {
@@ -3625,6 +3882,13 @@ export interface components {
       remaining_approvals?: number | null;
     };
     RecommendationHeader: {
+      check_note: string;
+      /**
+       * Format: date-time
+       * @description Our staff check of the comparison before the factory sees it (required for sending).
+       */
+      checked_at?: string | null;
+      checked_by_name?: string | null;
       /** Format: uuid */
       comparison_id: string;
       /** Format: date-time */
@@ -3750,6 +4014,13 @@ export interface components {
       rfq: components["schemas"]["RfqHeader"];
     };
     RfqHeader: {
+      check_note: string;
+      /**
+       * Format: date-time
+       * @description Our staff check before the RFQ goes out (required for dispatch).
+       */
+      checked_at?: string | null;
+      checked_by_name?: string | null;
       /** Format: date-time */
       created_at: string;
       /** Format: uuid */
@@ -3780,6 +4051,20 @@ export interface components {
       code: string;
       /** @description 1-based row number in the file, as the spreadsheet shows it. */
       row: number;
+    };
+    SavingsInvoiceInput: {
+      currency?: string | null;
+      /**
+       * Format: date
+       * @description Bill fees of orders placed up to and including this day.
+       */
+      through: string;
+    };
+    SavingsView: {
+      agreement?: null | components["schemas"]["AgreementView"];
+      baselines: components["schemas"]["BaselineView"][];
+      entries: components["schemas"]["EntryView"][];
+      totals: components["schemas"]["CurrencyTotal"][];
     };
     SetPasswordRequest: {
       password: string;
@@ -5971,6 +6256,260 @@ export interface operations {
       };
       /** @description Not permitted */
       403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  admin_get_savings: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Agreement, ledger, totals and baselines */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SavingsView"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown organisation */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  put_agreement: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["AgreementInput"];
+      };
+    };
+    responses: {
+      /** @description Saved */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown organisation */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Terms are fixed once savings were recorded */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Invalid share, term or date */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  add_agreed_baseline: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["AgreedBaselineInput"];
+      };
+    };
+    responses: {
+      /** @description Recorded; counts after the factory confirms it */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["IdResponse"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description The item already has a baseline */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  delete_baseline: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+        baseline_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Removed */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown baseline */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Already used or confirmed */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  create_savings_invoice: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["SavingsInvoiceInput"];
+      };
+    };
+    responses: {
+      /** @description Draft invoice with one line per order */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CreatedInvoice"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown organisation */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Nothing to bill */
+      409: {
         headers: {
           [name: string]: unknown;
         };
@@ -9931,6 +10470,67 @@ export interface operations {
       };
     };
   };
+  check_recommendation: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+        recommendation_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CheckBody"];
+      };
+    };
+    responses: {
+      /** @description Comparison checked by our staff; it may now go to the factory */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown recommendation */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Already sent or already checked */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
   decide: {
     parameters: {
       query?: never;
@@ -12422,6 +13022,67 @@ export interface operations {
       };
     };
   };
+  check_rfq: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+        rfq_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CheckBody"];
+      };
+    };
+    responses: {
+      /** @description Checked by our staff; the RFQ may now be sent */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown RFQ or not assigned */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Already sent or already checked */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
   run_comparison: {
     parameters: {
       query?: never;
@@ -12689,6 +13350,94 @@ export interface operations {
       };
       /** @description Invalid quotation */
       422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  get_savings: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Agreement, ledger, totals and baselines */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SavingsView"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown organisation */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  confirm_baseline: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+        baseline_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Confirmed by the factory */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Only a factory approver confirms */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown baseline */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Already confirmed */
+      409: {
         headers: {
           [name: string]: unknown;
         };

@@ -257,6 +257,10 @@ pub fn router(state: AppState) -> Router {
         )
         .route("/orgs/{org_id}/rfqs/{rfq_id}", get(api::rfqs::get_rfq))
         .route(
+            "/orgs/{org_id}/rfqs/{rfq_id}/check",
+            post(api::rfqs::check_rfq),
+        )
+        .route(
             "/orgs/{org_id}/rfqs/{rfq_id}/dispatch",
             post(api::rfqs::dispatch_rfq),
         )
@@ -279,6 +283,10 @@ pub fn router(state: AppState) -> Router {
         .route(
             "/orgs/{org_id}/recommendations/{recommendation_id}",
             get(api::approvals::get_recommendation),
+        )
+        .route(
+            "/orgs/{org_id}/recommendations/{recommendation_id}/check",
+            post(api::approvals::check_recommendation),
         )
         .route(
             "/orgs/{org_id}/recommendations/{recommendation_id}/send",

@@ -88,11 +88,13 @@ struct RfqRow {
     request_id: Uuid,
     number: String,
     status: String,
+    checked: bool,
 }
 
 async fn lock_rfq(tx: &mut db::Tx, rfq_id: Uuid) -> ApiResult<RfqRow> {
     sqlx::query_as::<_, RfqRow>(
-        "SELECT id, request_id, number, status FROM rfqs WHERE id = $1 FOR UPDATE",
+        "SELECT id, request_id, number, status, checked_at IS NOT NULL AS checked
+         FROM rfqs WHERE id = $1 FOR UPDATE",
     )
     .bind(rfq_id)
     .fetch_optional(&mut **tx)
@@ -260,6 +262,58 @@ pub struct DispatchResponse {
     pub messages: usize,
 }
 
+#[derive(Deserialize, utoipa::ToSchema)]
+pub struct CheckBody {
+    /// What was checked or corrected (optional).
+    #[serde(default)]
+    pub note: String,
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/v1/orgs/{org_id}/rfqs/{rfq_id}/check",
+    tag = "rfqs",
+    params(("org_id" = Uuid, Path), ("rfq_id" = Uuid, Path)),
+    request_body = CheckBody,
+    security(("bearer" = [])),
+    responses(
+        (status = 204, description = "Checked by our staff; the RFQ may now be sent"),
+        (status = 403, description = "Not permitted", body = ErrorBody),
+        (status = 404, description = "Unknown RFQ or not assigned", body = ErrorBody),
+        (status = 409, description = "Already sent or already checked", body = ErrorBody),
+        (status = 401, description = "No valid session", body = ErrorBody),
+    )
+)]
+pub async fn check_rfq(
+    State(state): State<AppState>,
+    p: Principal,
+    ApiPath((org_id, rfq_id)): ApiPath<(Uuid, Uuid)>,
+    ApiJson(body): ApiJson<CheckBody>,
+) -> ApiResult<StatusCode> {
+    require_operator(&p, &state, org_id, Permission::ManageRfqs).await?;
+    let note = common::text(&body.note, 2000, true, "note")?;
+    let mut tx = db::tenant_tx(&state.pool, p.user_id, org_id).await?;
+    db::enable_staff_scope(&mut tx).await?;
+    let rfq = lock_rfq(&mut tx, rfq_id).await?;
+    if rfq.status != "draft" {
+        return Err(ApiError::Conflict("already_sent"));
+    }
+    if rfq.checked {
+        return Err(ApiError::Conflict("already_checked"));
+    }
+    sqlx::query("UPDATE rfqs SET checked_by = $2, checked_at = now(), check_note = $3 WHERE id = $1")
+        .bind(rfq.id)
+        .bind(p.user_id)
+        .bind(&note)
+        .execute(&mut *tx)
+        .await?;
+    Audit { org_id, p: &p }
+        .record(&mut tx, "rfq.checked", "rfq", rfq.id, json!({ "number": rfq.number, "note": note }))
+        .await?;
+    tx.commit().await?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
 #[utoipa::path(
     post,
     path = "/api/v1/orgs/{org_id}/rfqs/{rfq_id}/dispatch",
@@ -287,6 +341,9 @@ pub async fn dispatch_rfq(
     let req = lock_request(&mut tx, rfq.request_id, View::All).await?;
     if rfq.status != "draft" {
         return Err(ApiError::Conflict("already_sent"));
+    }
+    if !rfq.checked {
+        return Err(ApiError::Conflict("rfq_not_checked"));
     }
     let (due, message): (Option<NaiveDate>, String) =
         sqlx::query_as("SELECT response_due, message FROM rfqs WHERE id = $1")
@@ -670,6 +727,10 @@ pub struct RfqHeader {
     pub message: String,
     pub created_at: DateTime<Utc>,
     pub sent_at: Option<DateTime<Utc>>,
+    /// Our staff check before the RFQ goes out (required for dispatch).
+    pub checked_at: Option<DateTime<Utc>>,
+    pub checked_by_name: Option<String>,
+    pub check_note: String,
 }
 
 #[derive(Serialize, utoipa::ToSchema)]
@@ -704,8 +765,9 @@ pub async fn get_rfq(
     require_quote_reader(&p, &state, org_id).await?;
     let mut tx = db::tenant_tx(&state.pool, p.user_id, org_id).await?;
     let rfq = sqlx::query_as::<_, RfqHeader>(
-        "SELECT id, request_id, number, status, response_due, message, created_at, sent_at
-         FROM rfqs WHERE id = $1",
+        "SELECT f.id, f.request_id, f.number, f.status, f.response_due, f.message, f.created_at,
+                f.sent_at, f.checked_at, u.display_name AS checked_by_name, f.check_note
+         FROM rfqs f LEFT JOIN users u ON u.id = f.checked_by WHERE f.id = $1",
     )
     .bind(rfq_id)
     .fetch_optional(&mut *tx)
