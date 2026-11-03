@@ -795,6 +795,7 @@ pub async fn submit(
         identify_due,
     )
     .await?;
+    crate::api::ops::flag_unknown_items(&mut tx, org_id, row.id, &row.number, identify_due).await?;
     tx.commit().await?;
     Ok(StatusCode::NO_CONTENT)
 }
@@ -889,6 +890,7 @@ async fn operator_step(
     .await?;
     if to == RequestStatus::Sourcing {
         crate::api::ops::close_auto_tasks(&mut tx, row.id, None, "identify").await?;
+        crate::api::ops::close_auto_tasks(&mut tx, row.id, None, "unknown_item").await?;
     }
     tx.commit().await?;
     Ok(StatusCode::NO_CONTENT)
@@ -1121,4 +1123,176 @@ pub async fn verify_item(
         .await?;
     tx.commit().await?;
     Ok(StatusCode::NO_CONTENT)
+}
+
+// ---------------------------------------------------------------------------------------
+// CSV exchange with the factory (CEO, 2026-11-03): purchase requests from its own file.
+
+#[derive(Deserialize, utoipa::ToSchema)]
+pub struct ImportRequestsBody {
+    /// `.csv`, `.tsv` (UTF-8 or Shift_JIS) or `.xlsx`. One row per line; rows with the same
+    /// value in the request column (件名 / request) become one request.
+    pub file_name: String,
+    /// File content, standard base64.
+    pub data_base64: String,
+    /// ISO 4217; default JPY.
+    pub currency: Option<String>,
+}
+
+#[derive(Serialize, utoipa::ToSchema)]
+pub struct SkippedRow {
+    /// 1-based row in the file.
+    pub row: usize,
+    /// `no_item`, `quantity`, `unit`, `needed_by`, `too_long`, `too_many_lines`,
+    /// `too_many_requests`.
+    pub reason: &'static str,
+}
+
+#[derive(Serialize, utoipa::ToSchema)]
+pub struct ImportRequestsResponse {
+    /// Draft requests created (the requester reviews and submits each one).
+    pub created: Vec<Created>,
+    pub lines: usize,
+    pub skipped: Vec<SkippedRow>,
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/v1/orgs/{org_id}/requests/import",
+    tag = "requests",
+    params(("org_id" = Uuid, Path)),
+    request_body = ImportRequestsBody,
+    security(("bearer" = [])),
+    responses(
+        (status = 201, description = "Draft requests created from the file; rows that could not be read are listed", body = ImportRequestsResponse),
+        (status = 403, description = "Not permitted", body = ErrorBody),
+        (status = 404, description = "Unknown or unrelated organisation", body = ErrorBody),
+        (status = 422, description = "Unsupported or empty file, no header, or no readable row", body = ErrorBody),
+        (status = 400, description = "Malformed request", body = ErrorBody),
+        (status = 401, description = "No valid session", body = ErrorBody),
+    )
+)]
+pub async fn import_requests(
+    State(state): State<AppState>,
+    p: Principal,
+    ApiPath(org_id): ApiPath<Uuid>,
+    ApiJson(body): ApiJson<ImportRequestsBody>,
+) -> ApiResult<(StatusCode, Json<ImportRequestsResponse>)> {
+    use base64::Engine;
+    use procure_domain::request_import;
+    p.require(&state, org_id, Permission::SubmitRequest).await?;
+    let file_name = common::required(&body.file_name, 255, false, "file_name")?;
+    let currency = common::currency(body.currency.as_deref().unwrap_or("JPY"))?;
+    // A file exchanged with the factory's systems: spreadsheets only, read exactly (scans
+    // and free text go through the AI intake, which a person confirms).
+    let ext = file_name
+        .rsplit_once('.')
+        .map(|(_, e)| e.to_ascii_lowercase())
+        .unwrap_or_default();
+    if !matches!(ext.as_str(), "csv" | "tsv" | "txt" | "xlsx") {
+        return Err(ApiError::Validation("unsupported"));
+    }
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(body.data_base64.as_bytes())
+        .map_err(|_| ApiError::BadRequest("invalid_base64"))?;
+    if bytes.is_empty() || bytes.len() > crate::storage::MAX_ATTACHMENT_BYTES {
+        return Err(ApiError::Validation("file_size"));
+    }
+    if bytes.starts_with(b"%PDF-") || crate::intake::image_kind(&bytes).is_some() {
+        return Err(ApiError::Validation("unsupported"));
+    }
+    let table = {
+        let _permit = state
+            .upload_permits
+            .acquire()
+            .await
+            .map_err(ApiError::internal)?;
+        crate::intake::table_rows(&file_name, &bytes)
+            .await
+            .map_err(crate::api::history::intake_error)?
+    };
+    let header =
+        request_import::find_header(&table.rows).ok_or(ApiError::Validation("header_not_found"))?;
+    let parsed = request_import::parse(&table.rows, header);
+    if parsed.groups.is_empty() {
+        return Err(ApiError::Validation("no_readable_rows"));
+    }
+    let stem = file_name
+        .rsplit_once('.')
+        .map_or(file_name.as_str(), |(s, _)| s)
+        .to_string();
+    let mut tx = db::tenant_tx(&state.pool, p.user_id, org_id).await?;
+    let mut created = Vec::with_capacity(parsed.groups.len());
+    let mut lines = 0usize;
+    for g in &parsed.groups {
+        let title: String = if g.name.is_empty() {
+            stem.chars().take(200).collect()
+        } else {
+            g.name.clone()
+        };
+        let title = common::required(&title, 200, false, "title")?;
+        let needed_by = g
+            .needed_by
+            .and_then(|d| NaiveDate::from_ymd_opt(d.year, d.month, d.day));
+        let id = Uuid::now_v7();
+        let number: String = sqlx::query_scalar("SELECT next_number($1, 'PR')")
+            .bind(org_id)
+            .fetch_one(&mut *tx)
+            .await?;
+        sqlx::query(
+            "INSERT INTO procurement_requests (id, org_id, number, title, description, currency,
+                                               needed_by, delivery_location, requested_by)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
+        )
+        .bind(id)
+        .bind(org_id)
+        .bind(&number)
+        .bind(&title)
+        .bind(format!("Imported from {file_name}"))
+        .bind(currency.code())
+        .bind(needed_by)
+        .bind(&g.delivery_location)
+        .bind(p.user_id)
+        .execute(&mut *tx)
+        .await?;
+        for l in &g.lines {
+            let item = clean_item(&ItemInput {
+                description: l.description.clone(),
+                manufacturer: l.manufacturer.clone(),
+                mpn: l.mpn.clone(),
+                quantity: l.quantity,
+                unit: l.unit.clone(),
+                notes: l.notes.clone(),
+            })?;
+            insert_item(&mut tx, org_id, id, &item).await?;
+        }
+        lines += g.lines.len();
+        Audit { org_id, p: &p }
+            .record(
+                &mut tx,
+                "request.created",
+                "procurement_request",
+                id,
+                json!({ "number": number, "items": g.lines.len(), "currency": currency.code(),
+                        "imported_from": file_name, "rows": g.rows }),
+            )
+            .await?;
+        created.push(Created { id, number });
+    }
+    tx.commit().await?;
+    Ok((
+        StatusCode::CREATED,
+        Json(ImportRequestsResponse {
+            created,
+            lines,
+            skipped: parsed
+                .skipped
+                .iter()
+                .map(|(row, e)| SkippedRow {
+                    row: *row,
+                    reason: e.code(),
+                })
+                .collect(),
+        }),
+    ))
 }

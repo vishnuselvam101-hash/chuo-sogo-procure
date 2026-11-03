@@ -55,7 +55,7 @@ async fn require_read(state: &AppState, p: &Principal, org_id: Uuid) -> ApiResul
     }
 }
 
-fn intake_error(e: IntakeError) -> ApiError {
+pub(crate) fn intake_error(e: IntakeError) -> ApiError {
     match e {
         IntakeError::Failed => ApiError::Conflict("intake_failed"),
         other => ApiError::Validation(other.code()),

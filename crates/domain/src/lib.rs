@@ -13,6 +13,7 @@ pub mod money;
 pub mod ocr_table;
 pub mod opportunity;
 pub mod rbac;
+pub mod request_import;
 pub mod savings;
 pub mod shop;
 pub mod shortlist;

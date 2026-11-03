@@ -185,7 +185,7 @@ pub fn half_width(s: &str) -> String {
 }
 
 /// Header text without case, spaces, punctuation or a bracketed suffix ("単価（円）" → "単価").
-fn header_key(raw: &str) -> String {
+pub(crate) fn header_key(raw: &str) -> String {
     let s = half_width(raw).to_lowercase();
     let mut out = String::new();
     let mut depth = 0u32;
