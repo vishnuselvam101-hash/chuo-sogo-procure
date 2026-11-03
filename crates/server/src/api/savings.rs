@@ -193,7 +193,7 @@ fn percent_text(bps: i32) -> String {
 }
 
 /// "JPY 12,345" / "USD 1,234.50" for invoice line text.
-fn amount_text(m: Money) -> String {
+pub(crate) fn amount_text(m: Money) -> String {
     let digits = m.currency().minor_digits();
     let scale = 10i64.pow(digits);
     let (whole, frac) = (m.minor() / scale, m.minor() % scale);
@@ -496,7 +496,11 @@ async fn load_view(tx: &mut Tx, admin: bool) -> ApiResult<SavingsView> {
 // ---------------------------------------------------------------------------------------
 // Factory side.
 
-async fn require_read(state: &AppState, p: &Principal, org_id: Uuid) -> ApiResult<Access> {
+pub(crate) async fn require_read(
+    state: &AppState,
+    p: &Principal,
+    org_id: Uuid,
+) -> ApiResult<Access> {
     let access = p.access(state, org_id).await?;
     if access == Access::None {
         return Err(ApiError::NotFound);
@@ -855,6 +859,96 @@ pub async fn add_agreed_baseline(
     ))
 }
 
+#[derive(Serialize, utoipa::ToSchema)]
+pub struct FixedBaselines {
+    /// Items whose baseline was fixed now.
+    pub fixed: usize,
+    /// Of those, waiting for a factory approver to confirm them.
+    pub waiting_for_factory: usize,
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/admin/v1/orgs/{org_id}/savings/baselines/from-records",
+    tag = "savings",
+    params(("org_id" = Uuid, Path)),
+    security(("bearer" = [])),
+    responses(
+        (status = 200, description = "Baselines fixed for every item with a purchase record before the start", body = FixedBaselines),
+        (status = 409, description = "No agreement yet", body = ErrorBody),
+        (status = 403, description = "Not permitted", body = ErrorBody),
+        (status = 404, description = "Unknown organisation", body = ErrorBody),
+    )
+)]
+/// Decides the price paid before for every item at once, at the start of the agreement
+/// (CEO, 2026-11-03: "the price on the last invoice before we start; we decide it for each
+/// item and do not change it later"). Same rule as at reconciliation: the factory's last
+/// purchase record dated before the start date, never one of our own orders; items already
+/// fixed keep their baseline.
+pub async fn fix_baselines_from_records(
+    State(state): State<AppState>,
+    AdminPrincipal(p): AdminPrincipal,
+    ApiPath(org_id): ApiPath<Uuid>,
+) -> ApiResult<Json<FixedBaselines>> {
+    let (mut tx, platform, _, _) = billing::org_billing_tx(&state, &p, org_id).await?;
+    let starts_on: NaiveDate =
+        sqlx::query_scalar("SELECT starts_on FROM savings_agreements WHERE org_id = $1")
+            .bind(org_id)
+            .fetch_optional(&mut *tx)
+            .await?
+            .ok_or(ApiError::Conflict("no_agreement"))?;
+    let keys: Vec<String> = sqlx::query_scalar(
+        "SELECT DISTINCT h.item_key FROM purchase_history h
+         JOIN history_imports i ON i.id = h.import_id
+         WHERE i.source <> 'order' AND i.withdrawn_at IS NULL AND h.purchased_on < $1
+         ORDER BY h.item_key",
+    )
+    .bind(starts_on)
+    .fetch_all(&mut *tx)
+    .await?;
+    let groups = key_groups(&mut tx, &keys).await?;
+    let before: Vec<Uuid> = sqlx::query_scalar("SELECT id FROM savings_baselines")
+        .fetch_all(&mut *tx)
+        .await?;
+    let mut seen: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+    for k in &keys {
+        if seen.contains(k) {
+            continue;
+        }
+        let group = ordered_group(k, groups.get(k).map_or(&[][..], |g| g.as_slice()));
+        seen.extend(group.iter().cloned());
+        baseline_for(&mut tx, org_id, &group, starts_on, p.user_id).await?;
+    }
+    let (fixed, waiting): (i64, i64) = sqlx::query_as(
+        "SELECT count(*), count(*) FILTER (WHERE confirmed_at IS NULL)
+         FROM savings_baselines WHERE NOT (id = ANY($1))",
+    )
+    .bind(&before)
+    .fetch_one(&mut *tx)
+    .await?;
+    let out = FixedBaselines {
+        fixed: usize::try_from(fixed).map_err(ApiError::internal)?,
+        waiting_for_factory: usize::try_from(waiting).map_err(ApiError::internal)?,
+    };
+    for target in [platform, org_id] {
+        Audit {
+            org_id: target,
+            p: &p,
+        }
+        .record(
+            &mut tx,
+            "savings.baselines_fixed",
+            "organisation",
+            org_id,
+            json!({ "fixed": out.fixed, "waiting_for_factory": out.waiting_for_factory,
+                    "before": starts_on }),
+        )
+        .await?;
+    }
+    tx.commit().await?;
+    Ok(Json(out))
+}
+
 #[utoipa::path(
     delete,
     path = "/api/admin/v1/orgs/{org_id}/savings/baselines/{baseline_id}",
@@ -908,7 +1002,10 @@ pub async fn delete_baseline(
 #[derive(Deserialize, utoipa::ToSchema)]
 pub struct SavingsInvoiceInput {
     /// Bill fees of orders placed up to and including this day.
-    pub through: NaiveDate,
+    pub through: Option<NaiveDate>,
+    /// The monthly invoice, `YYYY-MM`: fees of orders placed up to the end of that month
+    /// (earlier unbilled fees included). Give `month` or `through`.
+    pub month: Option<String>,
     pub currency: Option<String>,
 }
 
@@ -933,6 +1030,15 @@ pub async fn create_savings_invoice(
     ApiJson(body): ApiJson<SavingsInvoiceInput>,
 ) -> ApiResult<(StatusCode, Json<CreatedInvoice>)> {
     let currency = common::currency(body.currency.as_deref().unwrap_or("JPY"))?;
+    let (through, period) = match (&body.month, body.through) {
+        (Some(m), None) => {
+            let (first, last) =
+                crate::api::exports::month_range(m).ok_or(ApiError::Validation("month"))?;
+            (last, format!("{:04}-{:02}", first.year(), first.month()))
+        }
+        (None, Some(t)) => (t, t.to_string()),
+        _ => return Err(ApiError::Validation("month")),
+    };
     let (mut tx, platform, issuer, org_name) = billing::org_billing_tx(&state, &p, org_id).await?;
     #[derive(sqlx::FromRow)]
     struct Open {
@@ -958,7 +1064,7 @@ pub async fn create_savings_invoice(
          LIMIT $3",
     )
     .bind(currency.code())
-    .bind(body.through)
+    .bind(through)
     .bind(i64::try_from(MAX_ORDERS_PER_INVOICE).map_err(ApiError::internal)?)
     .fetch_all(&mut *tx)
     .await?;
@@ -990,9 +1096,10 @@ pub async fn create_savings_invoice(
         due_date: None,
         request_id: None,
         notes: format!(
-            "Savings share for orders placed through {}. The saving is the price paid before \
-             minus the price now, times the quantity; no saving, no fee.",
-            body.through
+            "Savings share for {period} (orders placed through {through}). The saving is the \
+             price on the factory's last invoice before the agreement minus the price now, \
+             times the quantity; no saving, no fee. Line detail: savings ledger CSV for the \
+             same period."
         ),
         lines,
     };
@@ -1007,7 +1114,7 @@ pub async fn create_savings_invoice(
     .bind(id)
     .bind(&orders)
     .bind(currency.code())
-    .bind(body.through)
+    .bind(through)
     .execute(&mut *tx)
     .await?;
     tx.commit().await?;
