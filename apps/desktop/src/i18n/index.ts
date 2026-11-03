@@ -22,6 +22,7 @@ export const NAMESPACES = [
   "catalogue",
   "history",
   "records",
+  "local",
 ] as const;
 export const DEFAULT_LANGUAGE: LanguageCode = "ja";
 export const FALLBACK_LANGUAGE: LanguageCode = "en";

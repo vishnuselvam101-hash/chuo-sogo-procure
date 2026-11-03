@@ -54,6 +54,53 @@ export interface Prefs {
   /** Reading comfort; older prefs files and test fakes may leave these out. */
   text_size?: TextSize;
   high_contrast?: boolean;
+  /** "server" or "local"; null only on a fresh install that offers "use on this PC only". */
+  mode?: "server" | "local" | null;
+}
+
+/** Standalone mode ("use on this PC only"), from the native layer. */
+export interface LocalStatus {
+  available: boolean;
+  phase: "off" | "starting" | "running" | "failed";
+  error: string | null;
+  server_url: string | null;
+  needs_setup: boolean;
+  ai: "off" | "starting" | "ready" | "failed";
+  voice: "ready" | "no_model" | "no_ffmpeg";
+  ocr: "ready" | "no_data" | "no_tesseract";
+}
+
+export interface PackVariant {
+  variant: string;
+  title_en: string;
+  title_ja: string;
+  min_ram_gb: number;
+  size: number;
+  installed: boolean;
+}
+
+export interface PackInfo {
+  id: string;
+  kind: "core" | "large";
+  version: string;
+  title_en: string;
+  title_ja: string;
+  licence: string;
+  licence_url: string | null;
+  size: number;
+  variants: PackVariant[];
+  status: "installed" | "missing" | "installing" | "failed";
+  done: number;
+  total: number;
+  error: string | null;
+}
+
+export interface PacksStatus {
+  platform: string;
+  ram_bytes: number;
+  free_bytes: number;
+  recommended_variant: string | null;
+  packs: PackInfo[];
 }
 
 export type TextSize = "normal" | "large" | "xlarge";

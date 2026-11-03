@@ -26,6 +26,7 @@ import { MailInbox } from "./pages/MailInbox";
 import { Listings } from "./pages/Listings";
 import { Catalogue } from "./pages/Catalogue";
 import { PurchaseHistory } from "./pages/PurchaseHistory";
+import { LocalGate, ModeChoice } from "./pages/LocalMode";
 
 const HOME: PageId = "dashboard";
 const PROCUREMENT: PageId = "procurement";
@@ -118,6 +119,11 @@ export function App() {
   }, [bridge]);
 
   if (!prefs) return null;
+  // Fresh installation that can also run on its own: ask once where the data lives.
+  if (prefs.mode === null)
+    return <ModeChoice onChosen={(mode) => setPrefs((p) => (p ? { ...p, mode } : p))} />;
+  if (!me && prefs.mode === "local")
+    return <LocalGate>{(url) => <Login key={url} serverUrl={url} onLoggedIn={setMe} />}</LocalGate>;
   if (!me) return <Login serverUrl={prefs.server_url} onLoggedIn={setMe} />;
 
   if (!active) {
@@ -232,6 +238,7 @@ export function App() {
           textSize={prefs.text_size ?? DEFAULT_TEXT_SIZE}
           highContrast={prefs.high_contrast ?? false}
           onDisplay={(size, contrast) => void chooseDisplay(size, contrast)}
+          localMode={prefs.mode === "local"}
         />
       );
       break;

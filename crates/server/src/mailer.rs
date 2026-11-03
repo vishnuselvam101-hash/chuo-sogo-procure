@@ -39,13 +39,16 @@ impl Mailer for FileMailer {
             body.push_str(&format!("{k}: {v}\n"));
         }
         // Contains one-time tokens: owner-readable only.
+        // (On Windows the per-user data directory already limits access to its owner.)
         use std::io::Write;
-        use std::os::unix::fs::OpenOptionsExt;
-        let mut f = std::fs::OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .mode(0o600)
-            .open(self.dir.join(name))?;
+        let mut opts = std::fs::OpenOptions::new();
+        opts.write(true).create_new(true);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::OpenOptionsExt;
+            opts.mode(0o600);
+        }
+        let mut f = opts.open(self.dir.join(name))?;
         f.write_all(body.as_bytes())
     }
 }

@@ -1,0 +1,91 @@
+{
+  "gb": "{{n}} GB",
+  "choice": {
+    "title": "How will you use Chuo-Sogo Procure?",
+    "lead": "You can change this later in Settings.",
+    "local": "Use on this PC only",
+    "localHelp": "Everything (data, AI, voice) stays on this computer. No server or internet connection is needed after setup.",
+    "server": "Connect to a server",
+    "serverHelp": "Your company or Chuo-Sogo runs the server. Enter its address when you sign in."
+  },
+  "start": {
+    "title": "Starting on this PC…",
+    "lead": "Preparing the database and the server on this computer. The first start takes about a minute.",
+    "failed": "Could not start on this PC",
+    "retry": "Try again"
+  },
+  "setup": {
+    "title": "Set up your factory",
+    "lead": "Create your factory and your own administrator account. They are stored only on this PC.",
+    "factory": "Factory or company name",
+    "name": "Your name",
+    "create": "Create and continue",
+    "creating": "Creating…"
+  },
+  "packs": {
+    "title": "Software packs",
+    "lead": "The AI model and the voice model are large. Download them once; they are checked before use and then work without internet.",
+    "machine": "This PC: {{ram}} memory, {{free}} free disk space",
+    "meta": "{{size}} · licence {{licence}}",
+    "bundled": "included in the installer",
+    "download": "downloaded from the official source",
+    "minRam": "for {{n}} GB memory or more",
+    "recommended": "Recommended for this PC ({{n}} GB)",
+    "progress": "Download progress",
+    "cancel": "Pause",
+    "install": "Install",
+    "downloadButton": "Download ({{size}})",
+    "continue": "Continue to sign in",
+    "status": {
+      "installed": "Installed",
+      "missing": "Not installed",
+      "installing": "Installing…"
+    },
+    "progressText": "{{pct}}% ({{done}} / {{total}})"
+  },
+  "services": {
+    "ai": "AI",
+    "voice": "Voice input",
+    "ocr": "Reading scanned documents",
+    "state": {
+      "ai_off": "install the AI model to use it",
+      "ai_starting": "starting…",
+      "ai_ready": "ready",
+      "ai_failed": "could not start (see the log)",
+      "voice_ready": "ready",
+      "voice_no_model": "install the voice model to use it",
+      "voice_no_ffmpeg": "needs FFmpeg on this PC",
+      "ocr_ready": "ready",
+      "ocr_no_data": "not installed",
+      "ocr_no_tesseract": "needs Tesseract OCR on this PC"
+    }
+  },
+  "settings": {
+    "title": "This PC",
+    "lead": "Chuo-Sogo Procure is running on this computer only. Data is kept in your user folder."
+  },
+  "errors": {
+    "unknown": "Something went wrong. Please try again.",
+    "not_available": "This installation cannot run on its own. Please connect to a server.",
+    "no_postgres": "The built-in database is missing. Please reinstall the app.",
+    "initdb": "The database could not be created.",
+    "postgres_start": "The database did not start.",
+    "roles": "The database could not be prepared.",
+    "migrate": "The database could not be updated.",
+    "server_start": "The server on this PC did not start.",
+    "ai_start": "The AI could not start.",
+    "data_dir": "Cannot write to the app's data folder.",
+    "job_object": "Could not start the background programs.",
+    "port": "No free network port on this PC.",
+    "log": "Cannot write the log files.",
+    "pack_manifest": "The pack list is damaged. Please reinstall the app.",
+    "pack_unknown": "Unknown pack.",
+    "pack_mismatch": "The download was damaged and has been deleted. Please try again.",
+    "pack_io": "Could not save the file. Check the free disk space.",
+    "pack_network": "Download interrupted. It will continue where it stopped.",
+    "pack_cancelled": "Paused. It will continue where it stopped.",
+    "pack_no_space": "Not enough free disk space (the pack size plus 2 GB is needed).",
+    "pack_not_bundled": "This file is not in the installer. Please reinstall the app.",
+    "pack_busy": "Already installing."
+  }
+}

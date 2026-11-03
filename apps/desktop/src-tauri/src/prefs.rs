@@ -15,6 +15,15 @@ pub struct Prefs {
     /// Stronger colours and outlines. Display only.
     #[serde(default)]
     pub high_contrast: bool,
+    /// "server" (connect to a server) or "local" (this PC only). `None` only on a fresh
+    /// installation that carries the standalone bundle: the app then asks. Prefs files from
+    /// before this setting mean "server", so existing installations behave as before.
+    #[serde(default = "server_mode")]
+    pub mode: Option<String>,
+}
+
+fn server_mode() -> Option<String> {
+    Some("server".into())
 }
 
 /// Text sizes the UI offers (Settings → Display).
@@ -39,6 +48,7 @@ impl Default for Prefs {
             server_url: DEFAULT_SERVER.into(),
             text_size: default_text_size(),
             high_contrast: false,
+            mode: None,
         }
     }
 }
@@ -69,6 +79,9 @@ pub fn load(app: &tauri::AppHandle) -> Prefs {
             }
             if !TEXT_SIZES.contains(&prefs.text_size.as_str()) {
                 prefs.text_size = default_text_size();
+            }
+            if !matches!(prefs.mode.as_deref(), Some("server" | "local")) {
+                prefs.mode = server_mode();
             }
             match crate::validate::server_url(&prefs.server_url) {
                 Ok(u) => prefs.server_url = u,
@@ -101,5 +114,6 @@ mod tests {
             serde_json::from_str(r#"{"language":"ja","server_url":"https://a.test"}"#).unwrap();
         assert_eq!(p.text_size, "normal");
         assert!(!p.high_contrast);
+        assert_eq!(p.mode.as_deref(), Some("server"));
     }
 }

@@ -43,6 +43,14 @@ fn main() {
         "document_download",
         "api_image",
         "client_log",
+        // Business app: standalone mode ("use on this PC only") and the pack manager.
+        "local_status",
+        "local_choose_mode",
+        "local_start",
+        "local_setup",
+        "packs_status",
+        "packs_install",
+        "packs_cancel",
         // Admin console only (feature `admin`, granted in capabilities/admin.json).
         "auth_enroll",
         "auth_code",

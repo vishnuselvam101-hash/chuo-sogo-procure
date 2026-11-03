@@ -2443,3 +2443,78 @@ ul.plain {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* ---- Standalone mode: first-run choice and the pack manager ---- */
+.mode-choice {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+button.mode-option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp-2);
+  padding: var(--sp-4);
+  min-height: 6rem;
+  text-align: start;
+  border: 2px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: var(--fs-body);
+}
+
+button.mode-option strong {
+  font-size: var(--fs-lg);
+}
+
+button.mode-option:hover {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+}
+
+.pack-list,
+.local-services {
+  list-style: none;
+  padding: 0;
+  margin: var(--sp-3) 0;
+  display: grid;
+  gap: var(--sp-3);
+}
+
+.local-services {
+  gap: var(--sp-1);
+}
+
+.pack-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.pack-head h3 {
+  margin: 0;
+  font-size: var(--fs-md);
+}
+
+.pack-progress {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  margin: var(--sp-3) 0;
+}
+
+.pack-progress progress {
+  flex: 1 1 12rem;
+  height: 1rem;
+  accent-color: var(--brand);
+}
+
+.local-first-run {
+  max-width: 56rem;
+  margin: 0 auto;
+}

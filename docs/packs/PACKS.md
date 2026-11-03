@@ -67,3 +67,11 @@ scripts/packs/verify.sh [pack-id ...]         # size + SHA-256 of every manifest
 5. **Updates:** a new manifest `version` for a pack means re-download only the files whose `sha256` changed, then delete the old files.
 6. **Licences:** show each pack's `licence` and `licence_url` in Settings → About. Keep each LICENSE/OFL file installed.
 7. **Offline / air-gapped sites:** an admin can copy a verified `/srv/procure-packs` tree (or a USB copy) into the pack root, and the app accepts it if every hash matches.
+
+## Full Windows installer and standalone mode
+
+`scripts/demo/build-full-local.sh` builds `reports/builds/<version>/full/ChuoSogo-Setup-<version>.exe` (NSIS, **unsigned**): the Procure app, `procure-server.exe`, a trimmed portable PostgreSQL 18.6 (official EDB Windows x64 binaries, PostgreSQL licence; no pgAdmin, StackBuilder, docs, headers or symbols; the zip is pinned by SHA-256) and the Windows core packs, all under the app's resources in `full/`. Large packs are not inside.
+
+On first run the app asks "use on this PC only" or "connect to a server" (installations without `full/` and older prefs files always mean "server"). In standalone mode the native layer (`apps/desktop/src-tauri/src/local.rs`) verifies and unpacks the core packs into the per-user data dir, runs `initdb` (random passwords in `secrets.json`), starts PostgreSQL, procure-server and, when the AI model is installed, llama-server, all on 127.0.0.1 with free ports, runs `procure-server migrate`, and on first setup creates the local operator, the user's factory and its administrator through the API. Children are killed with the app (Windows job object; kill on drop and a clean `pg_ctl stop` on exit). Logs: `<data>/logs/`. The pack manager (`packs.rs`) installs packs by id only, downloads large packs over HTTPS from the manifest URLs with Range resume, checks free space (size + 2 GB) and verifies size and SHA-256 before recording a file in `installed.json`.
+
+Not bundled: FFmpeg (voice notes), Tesseract and Poppler (scanned documents and PDFs without text); the app reports them as missing.

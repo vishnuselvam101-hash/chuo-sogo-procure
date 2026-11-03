@@ -107,6 +107,7 @@ impl Scratch {
         );
         std::fs::create_dir_all(&base).map_err(|_| IntakeError::Failed)?;
         let dir = base.join(format!("intake-{}", uuid::Uuid::new_v4()));
+        #[cfg_attr(not(unix), allow(unused_mut))]
         let mut builder = std::fs::DirBuilder::new();
         #[cfg(unix)]
         {

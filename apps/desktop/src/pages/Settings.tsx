@@ -4,6 +4,7 @@ import { formatDateTime, formatMoney } from "../lib/format";
 import { PageHeader } from "../components/ui";
 import { TEXT_SIZES } from "../lib/display";
 import type { TextSize } from "../lib/types";
+import { PackManager } from "./LocalMode";
 
 interface Props {
   language: LanguageCode;
@@ -14,6 +15,8 @@ interface Props {
   textSize: TextSize;
   highContrast: boolean;
   onDisplay: (textSize: TextSize, highContrast: boolean) => void;
+  /** Standalone mode: show the pack manager. */
+  localMode?: boolean;
 }
 
 // Fixed sample values for the preview; display only.
@@ -29,6 +32,7 @@ export function Settings({
   textSize,
   highContrast,
   onDisplay,
+  localMode = false,
 }: Props) {
   const { t } = useTranslation();
   const orgDefaultName = LANGUAGES.find((l) => l.code === orgDefault)?.nativeName ?? orgDefault;
@@ -90,6 +94,13 @@ export function Settings({
           </span>
         </label>
       </fieldset>
+      {localMode && (
+        <fieldset className="card">
+          <legend>{t("local:settings.title")}</legend>
+          <p className="muted">{t("local:settings.lead")}</p>
+          <PackManager />
+        </fieldset>
+      )}
     </section>
   );
 }

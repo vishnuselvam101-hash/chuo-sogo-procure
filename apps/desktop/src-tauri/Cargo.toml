@@ -20,9 +20,21 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 uuid = { version = "1", features = ["v4"] }
-tokio = { version = "1", features = ["sync"] }
+tokio = { version = "1", features = ["sync", "process", "time", "io-util", "fs"] }
+# Standalone mode ("use on this PC only") and the pack manager.
+sha2 = "0.10"
+hex = "0.4"
+getrandom = "0.3"
+zip = { version = "9.2.0", default-features = false, features = ["deflate"] }
+flate2 = "1"
+tar = { version = "0.4", default-features = false }
+sysinfo = { version = "0.40", default-features = false, features = ["system", "disk"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[target.'cfg(windows)'.dependencies]
+# Child processes (database, server, AI) die with the app, even if it crashes.
+win32job = "2"
 
 [features]
 # Enabled by `cargo tauri dev` only; release builds never include devtools.
@@ -30,6 +42,9 @@ devtools = ["tauri/devtools"]
 # The Chuo-Sogo admin console: only /api/admin/v1/, authenticator sign-in, no file access.
 # Built with `--config tauri.admin.conf.json --features admin`.
 admin = []
+
+[dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 
 [lints]
 workspace = true

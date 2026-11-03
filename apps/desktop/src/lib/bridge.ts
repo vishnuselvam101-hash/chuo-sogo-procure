@@ -1,7 +1,7 @@
 // The only way the UI talks to the outside world: typed calls into the Rust layer.
 // The session token never enters JavaScript.
 import { invoke } from "@tauri-apps/api/core";
-import type { ApiResponse, Me, Prefs } from "./types";
+import type { ApiResponse, LocalStatus, Me, PacksStatus, Prefs } from "./types";
 
 export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
@@ -36,6 +36,17 @@ export const bridge = {
     invoke<ApiResponse<{ saved_to: string }>>("document_download", { orgId, documentId, fileName }),
   /** A listing photo as a `data:` URL (fetched and checked by the native layer). */
   image: (path: string) => invoke<ApiResponse<{ data_url: string }>>("api_image", { path }),
+  /** Standalone mode: the local database, server and AI on this PC. */
+  localStatus: () => invoke<LocalStatus>("local_status"),
+  localChooseMode: (mode: "server" | "local") => invoke<null>("local_choose_mode", { mode }),
+  localStart: () => invoke<null>("local_start"),
+  localSetup: (factoryName: string, adminName: string, email: string, password: string, locale: string) =>
+    invoke<null>("local_setup", { factoryName, adminName, email, password, locale }),
+  /** Pack manager: packs are named by id only; URLs and paths come from the installed manifest. */
+  packsStatus: () => invoke<PacksStatus>("packs_status"),
+  packsInstall: (packId: string, variant: string | null) =>
+    invoke<null>("packs_install", { packId, variant }),
+  packsCancel: (packId: string) => invoke<null>("packs_cancel", { packId }),
   log: (level: "info" | "warn" | "error", message: string, requestId?: string) =>
     invoke<null>("client_log", { level, message, requestId: requestId ?? null }).catch(() => undefined),
 };

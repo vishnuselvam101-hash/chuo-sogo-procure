@@ -8,7 +8,13 @@
 
 #[cfg(feature = "admin")]
 mod admin;
+#[cfg(not(feature = "admin"))]
+mod local;
+#[cfg(not(feature = "admin"))]
+mod packs;
 mod prefs;
+#[cfg(not(feature = "admin"))]
+mod standalone;
 mod validate;
 
 use std::sync::Mutex;
@@ -25,7 +31,7 @@ struct BoundToken {
     token: String,
 }
 
-struct Session {
+pub(crate) struct Session {
     token: Mutex<Option<BoundToken>>,
     /// Admin console: the step token between password and authenticator code.
     #[cfg(feature = "admin")]
@@ -583,7 +589,14 @@ fn handlers() -> impl Fn(tauri::ipc::Invoke) -> bool + Send + Sync + 'static {
         invoice_download,
         document_download,
         api_image,
-        client_log
+        client_log,
+        standalone::local_status,
+        standalone::local_choose_mode,
+        standalone::local_start,
+        standalone::local_setup,
+        standalone::packs_status,
+        standalone::packs_install,
+        standalone::packs_cancel
     ]
 }
 
@@ -640,16 +653,56 @@ pub fn run() {
             http,
         })
         .setup(|app| {
-            let loaded = prefs::load(app.handle());
+            #[allow(unused_mut)]
+            let mut loaded = prefs::load(app.handle());
+            #[cfg(not(feature = "admin"))]
+            {
+                let local = local::LOCAL.get_or_init(local::Local::new);
+                match (
+                    local::bundle_dir(app.handle()),
+                    app.path().app_local_data_dir(),
+                ) {
+                    (Some(bundle), Ok(data)) => {
+                        let _ = local.paths.set(local::Paths { bundle, data });
+                    }
+                    // No standalone bundle in this build: always "connect to a server".
+                    _ => {
+                        if loaded.mode.is_none() {
+                            loaded.mode = Some("server".into());
+                        }
+                    }
+                }
+                if loaded.mode.as_deref() == Some("local") {
+                    standalone::start_in_background(app.handle().clone());
+                }
+            }
+            #[cfg(feature = "admin")]
+            if loaded.mode.is_none() {
+                loaded.mode = Some("server".into());
+            }
             app.manage(Mutex::new(loaded));
             Ok(())
         })
         .invoke_handler(handlers())
-        .run(tauri::generate_context!());
-    if let Err(e) = result {
-        eprintln!("application error: {e}");
-        std::process::exit(1);
-    }
+        .build(tauri::generate_context!());
+    let app = match result {
+        Ok(a) => a,
+        Err(e) => {
+            eprintln!("application error: {e}");
+            std::process::exit(1);
+        }
+    };
+    app.run(|_app, event| {
+        // Child processes never outlive the app (Windows also has the job object for crashes).
+        #[cfg(not(feature = "admin"))]
+        if let tauri::RunEvent::Exit = event
+            && let Some(l) = local::LOCAL.get()
+        {
+            tauri::async_runtime::block_on(l.stop());
+        }
+        #[cfg(feature = "admin")]
+        let _ = event;
+    });
 }
 
 #[cfg(test)]
