@@ -4,7 +4,8 @@
 # Windows x64 binaries, PostgreSQL licence) and the Windows core packs. The large packs (AI and
 # voice models) are not inside: the app downloads them from the manifest's upstream URLs.
 #   scripts/demo/build-full-local.sh            -> reports/builds/<version>/full/ChuoSogo-Setup-<version>.exe
-# Optional: PROCURE_DEFAULT_SERVER=https://... presets the address for "connect to a server".
+# "Connect to a server" defaults to the demo server (DEMO_URL, as in build-trial-local.sh);
+# set DEMO_URL to preset another https address.
 # Needs: cargo-xwin (Microsoft SDK licence accepted by the founder on 2026-11-01), lld/llvm,
 # makensis, unzip, the packs in $PACK_ROOT (scripts/packs/fetch.sh). The installer is UNSIGNED.
 # Nothing is uploaded or published.
@@ -25,6 +26,7 @@ PG_SHA256="fbe23da234ee31547bf8a36d29dfd81e82b849df2d2b78d2eecb43d360252f8c"
 export RUSTUP_HOME="${RUSTUP_HOME:-/opt/rust/rustup}" CARGO_HOME="${CARGO_HOME:-/opt/rust/cargo}"
 export PATH="/opt/rust/cargo/bin:$PATH" RUSTUP_TOOLCHAIN="${RUSTUP_TOOLCHAIN:-1.95}"
 export XWIN_ACCEPT_LICENSE=1 XWIN_CACHE_DIR="$ROOT/target/xwin-cache"
+export PROCURE_DEFAULT_SERVER="${DEMO_URL:-https://vnx-hostinger.taild091df.ts.net:8443}"
 TARGET_DIR="$ROOT/target/trial-win-business"
 WIN="$TARGET_DIR/x86_64-pc-windows-msvc/release"
 
@@ -101,6 +103,8 @@ OVERLAY="$ROOT/target/full-stage/tauri.full.windows.json"
 printf '{"bundle":{"resources":{"%s/full/":"full/"}}}\n' "$STAGE" > "$OVERLAY"
 (cd apps/desktop && CARGO_TARGET_DIR="$TARGET_DIR" cargo tauri build --config "$OVERLAY" \
   --runner cargo-xwin --target x86_64-pc-windows-msvc --bundles nsis >/dev/null)
+grep -qaF "$PROCURE_DEFAULT_SERVER" "$WIN/procure-desktop.exe" ||
+  { echo "the app does not contain $PROCURE_DEFAULT_SERVER" >&2; exit 1; }
 mkdir -p "$OUT"
 SETUP="$OUT/ChuoSogo-Setup-$VERSION.exe"
 cp "$WIN"/bundle/nsis/*-setup.exe "$SETUP"
@@ -110,5 +114,6 @@ cp "$WIN"/bundle/nsis/*-setup.exe "$SETUP"
   echo "UNSIGNED (founder decision): Windows SmartScreen will warn before the first run."
   echo "installer: $(basename "$SETUP") $(stat -c %s "$SETUP") bytes"
   echo "PostgreSQL: $PG_ZIP sha256 $PG_SHA256"
+  echo "connect-to-a-server default: $PROCURE_DEFAULT_SERVER"
 } > "$OUT/BUILD-INFO.txt"
 cat "$OUT/BUILD-INFO.txt"

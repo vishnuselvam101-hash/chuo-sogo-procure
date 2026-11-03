@@ -3,7 +3,7 @@
   "variants_note": "A pack with `variants` installs exactly one of them: the `default` one unless the machine has less than its `min_ram_gb` RAM, then the next variant whose min_ram_gb fits. total_size counts default variants.",
   "root_note": "Each file path is relative to the pack root (/srv/procure-packs on the build server; the app's packs directory on a user machine).",
   "total_size": {
-    "core": 168332242,
+    "core": 348222066,
     "large": 10626320857
   },
   "packs": [
@@ -297,6 +297,102 @@
       "licence": "Proprietary (Chuo-Sogo Inc., written for this product)",
       "licence_url": null,
       "source": "packs/item-dictionary in this repository"
+    },
+    {
+      "id": "ocr-runtime",
+      "version": "tesseract-5.4.0.20240606",
+      "kind": "core",
+      "title_en": "OCR engine (Tesseract)",
+      "title_ja": "文字認識エンジン（Tesseract）",
+      "files": [
+        {
+          "path": "ocr-runtime/tesseract-5.4.0.20240606-w64.zip",
+          "platform": "windows-x64",
+          "url": null,
+          "upstream_url": "https://github.com/UB-Mannheim/tesseract/releases/download/v5.4.0.20240606/tesseract-ocr-w64-setup-5.4.0.20240606.exe",
+          "repack": {
+            "script": "scripts/packs/repack-tesseract.py",
+            "sha256": "c885fff6998e0608ba4bb8ab51436e1c6775c2bafc2559a19b423e18678b60c9",
+            "size": 50175248
+          },
+          "sha256": "17684ee3ed23f6d32293306c24e07d42e869b9bc1a400a7c0b34a2fb82ed1cce",
+          "size": 55800409
+        },
+        {
+          "path": "ocr-runtime/NOTICE.txt",
+          "url": null,
+          "repo_path": "packs/ocr-runtime/NOTICE.txt",
+          "sha256": "fa6382cf31a032d541d50dc3978d1ea404e2bc5dee8cd9be5e4bee446d1029c6",
+          "size": 1149
+        }
+      ],
+      "size": 55801558,
+      "licence": "Apache-2.0 (bundled libraries: see NOTICE.txt)",
+      "licence_url": "https://github.com/tesseract-ocr/tesseract/blob/5.4.0/LICENSE",
+      "source": "UB Mannheim Windows build https://github.com/UB-Mannheim/tesseract/releases/tag/v5.4.0.20240606, repacked (files unchanged) by scripts/packs/repack-tesseract.py. Windows only; Linux uses the system tesseract."
+    },
+    {
+      "id": "pdf-tools",
+      "version": "poppler-26.09.0",
+      "kind": "core",
+      "title_en": "PDF tools (Poppler)",
+      "title_ja": "PDFツール（Poppler）",
+      "files": [
+        {
+          "path": "pdf-tools/Release-26.09.0-0.zip",
+          "platform": "windows-x64",
+          "url": null,
+          "upstream_url": "https://github.com/oschwartz10612/poppler-windows/releases/download/v26.09.0-0/Release-26.09.0-0.zip",
+          "sha256": "7a6f256a0ddf7536182246a5733331bf4677cbcc34f4663774947ad34556c8d0",
+          "size": 43709956
+        },
+        {
+          "path": "pdf-tools/COPYING",
+          "url": null,
+          "upstream_url": "https://gitlab.freedesktop.org/poppler/poppler/-/raw/poppler-26.09.0/COPYING",
+          "sha256": "ab15fd526bd8dd18a9e77ebc139656bf4d33e97fc7238cd11bf60e2b9b8666c6",
+          "size": 17987
+        },
+        {
+          "path": "pdf-tools/SOURCE-OFFER.txt",
+          "url": null,
+          "repo_path": "packs/pdf-tools/SOURCE-OFFER.txt",
+          "sha256": "0287b2464a7f0b74400b92524e55f50863f9719e9da2554ff0a34891f5b62869",
+          "size": 1262
+        }
+      ],
+      "size": 43729205,
+      "licence": "GPL-2.0-or-later (source offer included)",
+      "licence_url": "https://gitlab.freedesktop.org/poppler/poppler/-/blob/poppler-26.09.0/COPYING",
+      "source": "https://github.com/oschwartz10612/poppler-windows/releases/tag/v26.09.0-0 (conda-forge builds, unmodified). Windows only; Linux uses the system poppler-utils."
+    },
+    {
+      "id": "media-tools",
+      "version": "ffmpeg-n8.1.3-32-lgpl",
+      "kind": "core",
+      "title_en": "Audio conversion (FFmpeg, LGPL build)",
+      "title_ja": "音声変換（FFmpeg、LGPL版）",
+      "files": [
+        {
+          "path": "media-tools/ffmpeg-n8.1.3-32-g760d10603e-win64-lgpl-shared-8.1.zip",
+          "platform": "windows-x64",
+          "url": null,
+          "upstream_url": "https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-11-02-12-51/ffmpeg-n8.1.3-32-g760d10603e-win64-lgpl-shared-8.1.zip",
+          "sha256": "424ee1ebefd41bda90247db6a08d510d11e14a20ca19ecc168a50d4e63eb7fee",
+          "size": 80357941
+        },
+        {
+          "path": "media-tools/SOURCE-OFFER.txt",
+          "url": null,
+          "repo_path": "packs/media-tools/SOURCE-OFFER.txt",
+          "sha256": "7feadf6276cef4d399777e877b60949fd51dcfa3a6417262b2159580bbe914e3",
+          "size": 1120
+        }
+      ],
+      "size": 80359061,
+      "licence": "LGPL-2.1-or-later (source offer included)",
+      "licence_url": "https://github.com/FFmpeg/FFmpeg/blob/760d10603e/COPYING.LGPLv2.1",
+      "source": "https://github.com/BtbN/FFmpeg-Builds/releases/tag/autobuild-2026-11-02-12-51 (lgpl-shared, unmodified). Windows only; Linux uses the system ffmpeg."
     }
   ]
 }

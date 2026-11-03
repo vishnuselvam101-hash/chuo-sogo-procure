@@ -1,0 +1,20 @@
+Poppler utilities (pdftoppm, pdftotext and their libraries) for Windows x64
+==========================================================================
+
+Licence: GNU General Public License, version 2 or later (see COPYING). The bundled libraries
+keep their own licences (listed in the conda-forge packages they come from).
+
+Binaries: unmodified "Release-26.09.0-0.zip" from
+  https://github.com/oschwartz10612/poppler-windows/releases/tag/v26.09.0-0
+  (built from conda-forge packages; SHA-256 7a6f256a0ddf7536182246a5733331bf4677cbcc34f4663774947ad34556c8d0)
+
+Corresponding source:
+  Poppler 26.09.0     https://poppler.freedesktop.org/poppler-26.09.0.tar.xz
+  build recipes       https://github.com/oschwartz10612/poppler-windows (tag v26.09.0-0)
+                      and https://github.com/conda-forge/poppler-feedstock
+  dependencies        the conda-forge feedstock of each bundled library (https://github.com/conda-forge)
+
+Written offer: for at least three years after we last distribute this program, Chuo-Sogo Inc.
+will give anyone who asks a complete machine-readable copy of the corresponding source code
+for these binaries, for no more than the cost of physically performing the distribution.
+Ask through the contact address on the Chuo-Sogo website.

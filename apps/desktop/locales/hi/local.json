@@ -57,7 +57,8 @@
       "voice_no_ffmpeg": "इस पीसी पर FFmpeg चाहिए",
       "ocr_ready": "तैयार",
       "ocr_no_data": "इंस्टॉल नहीं है",
-      "ocr_no_tesseract": "इस पीसी पर Tesseract OCR चाहिए"
+      "ocr_no_tesseract": "इस पीसी पर Tesseract OCR चाहिए",
+      "ocr_no_pdf_tools": "इस पीसी पर PDF टूल (Poppler) चाहिए"
     }
   },
   "settings": {

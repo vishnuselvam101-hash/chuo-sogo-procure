@@ -24,12 +24,12 @@ Every licence was checked for redistribution and commercial use: Apache-2.0 (Qwe
 
 | | bytes | |
 |---|---:|---|
-| core (all platforms) | 168,332,242 | 168 MB |
-| core in one Windows installer (only the Windows runtime archives) | 118,816,763 | 119 MB |
+| core (all platforms) | 348,222,066 | 348 MB |
+| core in one Windows installer (only the Windows archives) | 298,706,587 | 299 MB |
 | large, standard (14B + voice) | 10,626,320,857 | 10.63 GB |
 | large, light (8B + voice) | 6,652,351,385 | 6.65 GB |
-| **installed total, standard** (core all platforms + large) | **10,794,653,099** | **10.79 GB (10.05 GiB)** |
-| installed total, light | 6,820,683,627 | 6.82 GB |
+| **installed total, standard** (core all platforms + large) | **10,974,542,923** | **10.97 GB** |
+| installed total, light | 7,000,573,451 | 7.00 GB |
 
 ### Per-platform runtime files
 
@@ -74,4 +74,6 @@ scripts/packs/verify.sh [pack-id ...]         # size + SHA-256 of every manifest
 
 On first run the app asks "use on this PC only" or "connect to a server" (installations without `full/` and older prefs files always mean "server"). In standalone mode the native layer (`apps/desktop/src-tauri/src/local.rs`) verifies and unpacks the core packs into the per-user data dir, runs `initdb` (random passwords in `secrets.json`), starts PostgreSQL, procure-server and, when the AI model is installed, llama-server, all on 127.0.0.1 with free ports, runs `procure-server migrate`, and on first setup creates the local operator, the user's factory and its administrator through the API. Children are killed with the app (Windows job object; kill on drop and a clean `pg_ctl stop` on exit). Logs: `<data>/logs/`. The pack manager (`packs.rs`) installs packs by id only, downloads large packs over HTTPS from the manifest URLs with Range resume, checks free space (size + 2 GB) and verifies size and SHA-256 before recording a file in `installed.json`.
 
-Not bundled: FFmpeg (voice notes), Tesseract and Poppler (scanned documents and PDFs without text); the app reports them as missing.
+Windows helper tools are core packs in the installer, each pinned by SHA-256 and unpacked on first run: `ocr-runtime` (Tesseract 5.4.0 from the UB Mannheim build, repacked without its installer by `scripts/packs/repack-tesseract.py`, Apache-2.0), `pdf-tools` (Poppler 26.09.0 for pdftoppm/pdftotext, GPL-2.0-or-later, with COPYING and a written source offer) and `media-tools` (FFmpeg 8.1.3 LGPL shared build from BtbN, with a source offer). In local mode the app passes them to the server as `PROCURE_TESSERACT`, `PROCURE_PDFTOPPM`, `PROCURE_PDFTOTEXT`, `PROCURE_FFMPEG` and `TESSDATA_PREFIX` (the ocr-data pack); on Linux and macOS the system's tools on PATH are used.
+
+"Run as administrator": PostgreSQL refuses administrator rights, so the app starts it through `pg_ctl`, which drops them with a restricted token (EDB's approach); the app then works either way. Starting it normally is still recommended.

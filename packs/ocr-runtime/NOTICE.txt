@@ -1,0 +1,18 @@
+Tesseract OCR for Windows x64
+=============================
+
+Tesseract: Apache License 2.0 (tesseract/doc/LICENSE inside the archive).
+
+Files: repacked, unmodified, from the official UB Mannheim Windows build
+  https://github.com/UB-Mannheim/tesseract/releases/tag/v5.4.0.20240606
+  tesseract-ocr-w64-setup-5.4.0.20240606.exe (SHA-256 c885fff6998e0608ba4bb8ab51436e1c6775c2bafc2559a19b423e18678b60c9)
+by scripts/packs/repack-tesseract.py: tesseract.exe, the DLLs next to it, tessdata/configs and
+doc/ are kept; training tools, the bundled traineddata (the ocr-data pack replaces it), the
+uninstaller and installer plugins are dropped. No file is changed.
+
+The DLLs come from MSYS2 packages (Leptonica: BSD-2-Clause; libpng, zlib, libjpeg, libtiff,
+libwebp, openjpeg: permissive; cairo, pango, glib, harfbuzz, fribidi and others: LGPL or MIT).
+Sources: https://github.com/tesseract-ocr/tesseract (tag 5.4.0), https://github.com/UB-Mannheim/tesseract,
+and https://packages.msys2.org (each package page links its source). On request Chuo-Sogo Inc.
+will provide the corresponding source of the LGPL libraries (contact address on the
+Chuo-Sogo website).

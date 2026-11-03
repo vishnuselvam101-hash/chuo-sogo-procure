@@ -43,11 +43,16 @@ def repo_files(pack: dict) -> list[dict]:
 
 
 def upstream_file(pack: dict, f: dict) -> dict:
+    if "repo_path" in f:  # a file we wrote (notice, source offer), hashed from the repo
+        p = REPO / f["repo_path"]
+        return {"path": f["path"], "url": None, "repo_path": f["repo_path"], "sha256": sha256(p), "size": p.stat().st_size}
     g = {"path": f["path"]}
     if "platform" in f:
         g["platform"] = f["platform"]
     g["url"] = f["upstream_url"] if pack["kind"] == "large" else None
     g["upstream_url"] = f["upstream_url"]
+    if "repack" in f:  # built from the pinned upstream file by a repo script (core only)
+        g["repack"] = f["repack"]
     g["sha256"] = f["sha256"]
     g["size"] = f["size"]
     return g

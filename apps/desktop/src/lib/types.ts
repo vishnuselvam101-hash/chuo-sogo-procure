@@ -67,7 +67,7 @@ export interface LocalStatus {
   needs_setup: boolean;
   ai: "off" | "starting" | "ready" | "failed";
   voice: "ready" | "no_model" | "no_ffmpeg";
-  ocr: "ready" | "no_data" | "no_tesseract";
+  ocr: "ready" | "no_data" | "no_tesseract" | "no_pdf_tools";
 }
 
 export interface PackVariant {

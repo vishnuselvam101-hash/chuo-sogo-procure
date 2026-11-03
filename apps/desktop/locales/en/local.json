@@ -57,7 +57,8 @@
       "voice_no_ffmpeg": "needs FFmpeg on this PC",
       "ocr_ready": "ready",
       "ocr_no_data": "not installed",
-      "ocr_no_tesseract": "needs Tesseract OCR on this PC"
+      "ocr_no_tesseract": "needs Tesseract OCR on this PC",
+      "ocr_no_pdf_tools": "needs the PDF tools (Poppler) on this PC"
     }
   },
   "settings": {

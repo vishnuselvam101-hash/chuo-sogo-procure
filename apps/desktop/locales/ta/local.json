@@ -57,7 +57,8 @@
       "voice_no_ffmpeg": "இந்தக் கணினியில் FFmpeg தேவை",
       "ocr_ready": "தயார்",
       "ocr_no_data": "நிறுவப்படவில்லை",
-      "ocr_no_tesseract": "இந்தக் கணினியில் Tesseract OCR தேவை"
+      "ocr_no_tesseract": "இந்தக் கணினியில் Tesseract OCR தேவை",
+      "ocr_no_pdf_tools": "இந்தக் கணினியில் PDF கருவிகள் (Poppler) தேவை"
     }
   },
   "settings": {

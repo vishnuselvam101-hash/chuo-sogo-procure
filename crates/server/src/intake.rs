@@ -135,14 +135,16 @@ const MAX_TOOL_OUTPUT: u64 = (MAX_TEXT_CHARS as u64) * 4 + 4096;
 /// tool is killed if it produces more, or runs too long).
 async fn run_tool(program: &Path, args: &[&std::ffi::OsStr]) -> Result<Vec<u8>, IntakeError> {
     use tokio::io::AsyncReadExt;
-    let mut child = Command::new(program)
-        .args(args)
+    let mut cmd = Command::new(program);
+    cmd.args(args)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
-        .kill_on_drop(true)
-        .spawn()
-        .map_err(|_| IntakeError::Failed)?;
+        .kill_on_drop(true);
+    // Windows (the desktop app's local server has no console): no console window per tool run.
+    #[cfg(windows)]
+    cmd.creation_flags(0x0800_0000);
+    let mut child = cmd.spawn().map_err(|_| IntakeError::Failed)?;
     let mut stdout = child.stdout.take().ok_or(IntakeError::Failed)?;
     let work = async {
         let mut out = Vec::new();

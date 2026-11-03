@@ -398,22 +398,35 @@ pub fn unpack(archive: &Path, dest: &Path) -> Result<(), PackError> {
     std::fs::rename(&tmp, dest).map_err(io)
 }
 
-/// Finds an executable by file name under `dir` (archives keep it at the top or one folder
-/// down: `llama-b11960/llama-server`, `Release/whisper-cli.exe`).
+/// Finds an executable by file name under `dir`, up to four folders down (archives keep it
+/// in their own layout: `llama-b11960/llama-server`, `Release/whisper-cli.exe`,
+/// `poppler-26.09.0/Library/bin/pdftoppm.exe`, `ffmpeg-.../bin/ffmpeg.exe`).
 pub fn find_program(dir: &Path, name: &str) -> Option<PathBuf> {
     let file = if cfg!(windows) {
         format!("{name}.exe")
     } else {
         name.to_string()
     };
-    let direct = dir.join(&file);
+    find_in(dir, &file, 4)
+}
+
+/// Breadth first, so the shallowest match wins; no links are followed.
+fn find_in(dir: &Path, file: &str, depth: usize) -> Option<PathBuf> {
+    let direct = dir.join(file);
     if direct.is_file() {
         return Some(direct);
     }
-    std::fs::read_dir(dir).ok()?.flatten().find_map(|e| {
-        let p = e.path().join(&file);
-        (e.path().is_dir() && p.is_file()).then_some(p)
-    })
+    if depth == 0 {
+        return None;
+    }
+    let mut subdirs: Vec<PathBuf> = std::fs::read_dir(dir)
+        .ok()?
+        .flatten()
+        .filter(|e| e.file_type().is_ok_and(|t| t.is_dir()))
+        .map(|e| e.path())
+        .collect();
+    subdirs.sort();
+    subdirs.iter().find_map(|d| find_in(d, file, depth - 1))
 }
 
 /// Installs a core pack from the installer's copy (`src` root): copies each file, verifies
@@ -806,6 +819,19 @@ mod tests {
         }
         unpack(&b, &d.join("out")).unwrap();
         assert!(d.join("out/Release/whisper-cli.exe").is_file());
+        let deep = d.join("out/poppler-1/Library/bin");
+        std::fs::create_dir_all(&deep).unwrap();
+        let name = if cfg!(windows) {
+            "pdftoppm.exe"
+        } else {
+            "pdftoppm"
+        };
+        std::fs::write(deep.join(name), b"x").unwrap();
+        assert_eq!(
+            find_program(&d.join("out"), "pdftoppm"),
+            Some(deep.join(name))
+        );
+        assert_eq!(find_program(&d.join("out"), "missing"), None);
         std::fs::remove_dir_all(d).unwrap();
     }
 }

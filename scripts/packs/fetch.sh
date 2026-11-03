@@ -14,8 +14,8 @@ want_ids=("$@")
 
 hash_of() { sha256sum "$1" | cut -c1-64; }
 
-jq -r '.packs[] | .id as $id | (((.files // []) + [.variants[]?.files[]]) | unique_by(.path))[] | [$id, .path, (.upstream_url // ""), (.repo_path // ""), .sha256, (.size|tostring)] | join("|")' "$MANIFEST" |
-while IFS='|' read -r id path url repo_path sha size; do
+jq -r '.packs[] | .id as $id | (((.files // []) + [.variants[]?.files[]]) | unique_by(.path))[] | [$id, .path, (.upstream_url // ""), (.repo_path // ""), .sha256, (.size|tostring), (.repack.script // ""), (.repack.sha256 // "")] | join("|")' "$MANIFEST" |
+while IFS='|' read -r id path url repo_path sha size repack repack_sha; do
   if [ ${#want_ids[@]} -gt 0 ] && [[ ! " ${want_ids[*]} " == *" $id "* ]]; then continue; fi
   dest="$ROOT/$path"
   mkdir -p "$(dirname "$dest")"
@@ -24,6 +24,15 @@ while IFS='|' read -r id path url repo_path sha size; do
   fi
   if [ -n "$repo_path" ]; then
     cp "$REPO/$repo_path" "$dest.part"
+  elif [ -n "$repack" ]; then
+    # Upstream file (pinned) -> repo script -> pinned result.
+    src="$ROOT/.upstream/$(basename "$url")"
+    mkdir -p "$ROOT/.upstream"
+    [ -f "$src" ] && [ "$(hash_of "$src")" = "$repack_sha" ] ||
+      curl -fsSL --proto '=https' --retry 5 -o "$src" "$url" || { echo "FAIL    $path: download" >&2; continue; }
+    [ "$(hash_of "$src")" = "$repack_sha" ] || { echo "FAIL    $path: upstream sha" >&2; rm -f "$src"; continue; }
+    echo "repack  $path"
+    python3 -I "$REPO/$repack" "$src" "$dest.part" >/dev/null || { echo "FAIL    $path: repack" >&2; continue; }
   elif [ -f "$dest.part" ] && [ "$(stat -c %s "$dest.part")" = "$size" ]; then
     echo "check   $path (complete .part)"
   else

@@ -145,7 +145,7 @@ pub struct Status {
     pub ai: &'static str,
     /// "ready", "no_model", "no_ffmpeg".
     pub voice: &'static str,
-    /// "ready", "no_data", "no_tesseract".
+    /// "ready", "no_data", "no_tesseract", "no_pdf_tools".
     pub ocr: &'static str,
 }
 
@@ -166,7 +166,9 @@ impl Default for Status {
 
 #[derive(Default)]
 struct Procs {
-    pg: Option<tokio::process::Child>,
+    /// PostgreSQL runs detached under `pg_ctl` (which drops administrator rights on Windows);
+    /// this records that this app started it.
+    pg: bool,
     server: Option<tokio::process::Child>,
     llama: Option<tokio::process::Child>,
 }
@@ -330,10 +332,7 @@ impl Local {
 
         let pg_bin = paths.pg_bin().ok_or("no_postgres")?;
         let pgdata = paths.data.join("pgdata");
-        let running = lock(&self.procs)
-            .pg
-            .as_mut()
-            .is_some_and(|c| matches!(c.try_wait(), Ok(None)));
+        let running = lock(&self.procs).pg && pg_ready(&pg_bin, cfg.pg_port).await;
         if !running {
             if !pgdata.join("PG_VERSION").is_file() {
                 self.initdb(&paths, &pg_bin, &pgdata, &secrets).await?;
@@ -350,19 +349,23 @@ impl Local {
                 .await;
             }
             cfg.pg_port = free_port(cfg.pg_port)?;
-            let mut c = command(&pg_bin.join(exe("postgres")));
-            c.arg("-D")
+            // pg_ctl, not postgres directly: on Windows it starts the server with a restricted
+            // token, so this also works when the app was started "as administrator" (postgres
+            // refuses administrator rights). The server stays inside the app's job object.
+            let mut opts = format!("-p {} -c listen_addresses=127.0.0.1", cfg.pg_port);
+            if cfg!(unix) {
+                opts.push_str(" -c unix_socket_directories=''");
+            }
+            let mut c = command(&pg_bin.join(exe("pg_ctl")));
+            c.args(["start", "-w", "-t", "60", "-D"])
                 .arg(&pgdata)
-                .args(["-p", &cfg.pg_port.to_string()])
-                .args([
-                    "-c",
-                    "listen_addresses=127.0.0.1",
-                    "-c",
-                    "unix_socket_directories=",
-                ]);
-            log_to(&paths, "postgres", &mut c)?;
-            let child = c.spawn().map_err(|_| "postgres_start")?;
-            lock(&self.procs).pg = Some(child);
+                .arg("-l")
+                .arg(paths.logs().join("postgres.log"))
+                .args(["-o", &opts]);
+            if !run_logged(&paths, "pg_ctl", &mut c).await? {
+                return Err("postgres_start".into());
+            }
+            lock(&self.procs).pg = true;
             wait_pg(&pg_bin, cfg.pg_port).await?;
         }
         let owner_url = format!(
@@ -482,8 +485,22 @@ impl Local {
                     .find(|f| f.path.ends_with(".bin"))
                     .and_then(|f| packs::resolve(&packs_root, &p.id, &f.path).ok())
             });
+        // Helper programs: the bundled Windows builds (core packs), else the system's on PATH.
+        let mut tool = |pack: &str, name: &str, var: &str| -> bool {
+            match packs::find_program(&packs::unpack_dir(&packs_root, pack), name) {
+                Some(p) => {
+                    env.push((var.into(), p.into()));
+                    true
+                }
+                None => on_path(name),
+            }
+        };
+        let ffmpeg = tool("media-tools", "ffmpeg", "PROCURE_FFMPEG");
+        let tesseract = tool("ocr-runtime", "tesseract", "PROCURE_TESSERACT");
+        let pdftoppm = tool("pdf-tools", "pdftoppm", "PROCURE_PDFTOPPM");
+        let pdftotext = tool("pdf-tools", "pdftotext", "PROCURE_PDFTOTEXT");
         let voice = match (whisper, voice_model) {
-            (Some(w), Some(m)) if on_path("ffmpeg") => {
+            (Some(w), Some(m)) if ffmpeg => {
                 env.push(("PROCURE_STT_COMMAND".into(), w.into()));
                 env.push(("PROCURE_STT_MODEL".into(), m.into()));
                 "ready"
@@ -491,16 +508,17 @@ impl Local {
             (Some(_), Some(_)) => "no_ffmpeg",
             _ => "no_model",
         };
-        // Scanned documents: the installed OCR data, used by tesseract if it is on PATH.
+        // Scanned documents and FAXes: tesseract with the installed tessdata_best; scanned
+        // PDFs also need pdftoppm (and text PDFs pdftotext).
         let tessdata = packs_root.join("ocr-data");
         let ocr = if !tessdata.join("jpn.traineddata").is_file() {
             "no_data"
         } else {
             env.push(("TESSDATA_PREFIX".into(), tessdata.into()));
-            if on_path("tesseract") {
-                "ready"
-            } else {
-                "no_tesseract"
+            match (tesseract, pdftoppm && pdftotext) {
+                (true, true) => "ready",
+                (true, false) => "no_pdf_tools",
+                (false, _) => "no_tesseract",
             }
         };
 
@@ -764,21 +782,19 @@ SELECT 'CREATE DATABASE procure OWNER procure ENCODING ''UTF8'' TEMPLATE templat
     pub async fn stop(&self) {
         let (server, llama, pg) = {
             let mut p = lock(&self.procs);
-            (p.server.take(), p.llama.take(), p.pg.take())
+            (p.server.take(), p.llama.take(), std::mem::take(&mut p.pg))
         };
         for mut c in [server, llama].into_iter().flatten() {
             let _ = c.kill().await;
         }
-        if let Some(mut pg) = pg {
-            if let (Some(paths), true) = (self.paths.get(), matches!(pg.try_wait(), Ok(None)))
-                && let Some(bin) = paths.pg_bin()
-            {
-                let mut c = command(&bin.join(exe("pg_ctl")));
-                c.args(["stop", "-m", "fast", "-w", "-t", "20", "-D"])
-                    .arg(paths.data.join("pgdata"));
-                let _ = run_logged(paths, "pg_ctl", &mut c).await;
-            }
-            let _ = pg.kill().await;
+        if pg
+            && let Some(paths) = self.paths.get()
+            && let Some(bin) = paths.pg_bin()
+        {
+            let mut c = command(&bin.join(exe("pg_ctl")));
+            c.args(["stop", "-m", "fast", "-w", "-t", "20", "-D"])
+                .arg(paths.data.join("pgdata"));
+            let _ = run_logged(paths, "pg_ctl", &mut c).await;
         }
         self.set(|s| {
             s.phase = "off";
@@ -847,16 +863,20 @@ fn on_path(program: &str) -> bool {
         .is_some_and(|paths| std::env::split_paths(&paths).any(|d| d.join(&file).is_file()))
 }
 
-async fn wait_pg(bin: &Path, port: u16) -> Result<(), String> {
-    for _ in 0..120 {
-        let ok = command(&bin.join(exe("pg_isready")))
+async fn pg_ready(bin: &Path, port: u16) -> bool {
+    port != 0
+        && command(&bin.join(exe("pg_isready")))
             .args(["-q", "-h", "127.0.0.1", "-p", &port.to_string()])
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .status()
             .await
-            .is_ok_and(|s| s.success());
-        if ok {
+            .is_ok_and(|s| s.success())
+}
+
+async fn wait_pg(bin: &Path, port: u16) -> Result<(), String> {
+    for _ in 0..120 {
+        if pg_ready(bin, port).await {
             return Ok(());
         }
         tokio::time::sleep(Duration::from_millis(250)).await;
@@ -1082,6 +1102,8 @@ mod tests {
             l.status().phase
         );
         assert!(l.status().needs_setup);
+        // This machine has tesseract, poppler-utils and ffmpeg installed (Windows: bundled).
+        assert_eq!((l.status().ocr, l.status().voice), ("ready", "ready"));
         let http = reqwest::Client::builder()
             .redirect(reqwest::redirect::Policy::none())
             .timeout(Duration::from_secs(300))

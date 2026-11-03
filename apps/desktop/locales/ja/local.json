@@ -57,7 +57,8 @@
       "voice_no_ffmpeg": "この PC に FFmpeg が必要です",
       "ocr_ready": "使用できます",
       "ocr_no_data": "未インストール",
-      "ocr_no_tesseract": "この PC に Tesseract OCR が必要です"
+      "ocr_no_tesseract": "この PC に Tesseract OCR が必要です",
+      "ocr_no_pdf_tools": "この PC に PDF ツール（Poppler）が必要です"
     }
   },
   "settings": {
