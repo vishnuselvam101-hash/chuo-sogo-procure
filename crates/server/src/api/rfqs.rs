@@ -383,6 +383,7 @@ pub async fn dispatch_rfq(
         "rfq",
         &body,
         &recipients,
+        None,
     )
     .await?;
     sqlx::query("UPDATE rfq_recipients SET status = 'exported' WHERE rfq_id = $1")
@@ -444,17 +445,19 @@ pub async fn dispatch_rfq(
 
 #[derive(sqlx::FromRow)]
 pub(crate) struct Recipient {
-    id: Uuid,
-    name: String,
-    email: Option<String>,
-    fax: Option<String>,
-    rfq_channel: String,
+    pub(crate) id: Uuid,
+    pub(crate) name: String,
+    pub(crate) email: Option<String>,
+    pub(crate) fax: Option<String>,
+    pub(crate) rfq_channel: String,
 }
 
 /// Records (test mode) or queues (live) one message per recipient, each with its reply
 /// token. Live refuses the whole batch if any recipient cannot be reached, so nobody is
-/// left out silently. Returns "test" or "live".
-async fn queue_messages(
+/// left out silently. Returns "test" or "live". `order` is (order id, the person who checked
+/// it) for an order email.
+#[allow(clippy::too_many_arguments)]
+pub(crate) async fn queue_messages(
     state: &AppState,
     tx: &mut db::Tx,
     org_id: Uuid,
@@ -462,6 +465,7 @@ async fn queue_messages(
     kind: &str,
     body: &str,
     recipients: &[Recipient],
+    order: Option<(Uuid, Uuid)>,
 ) -> ApiResult<&'static str> {
     let mut rows = Vec::with_capacity(recipients.len());
     for r in recipients {
@@ -483,10 +487,10 @@ async fn queue_messages(
         let token = crate::supplier_mail::reply_token();
         sqlx::query(
             "INSERT INTO outbox (id, org_id, rfq_recipient_id, channel, to_address, subject, body,
-                                 kind, reply_token, status, next_attempt_at)
+                                 kind, reply_token, status, next_attempt_at, order_id, checked_by)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9,
                      CASE WHEN $4 = 'test' THEN 'recorded' ELSE 'queued' END,
-                     CASE WHEN $4 = 'test' THEN NULL ELSE now() END)",
+                     CASE WHEN $4 = 'test' THEN NULL ELSE now() END, $10, $11)",
         )
         .bind(Uuid::now_v7())
         .bind(org_id)
@@ -497,6 +501,8 @@ async fn queue_messages(
         .bind(body)
         .bind(kind)
         .bind(&token)
+        .bind(order.map(|o| o.0))
+        .bind(order.map(|o| o.1))
         .execute(&mut **tx)
         .await?;
     }
@@ -587,6 +593,7 @@ pub async fn remind_rfq(
         "reminder",
         &body,
         &recipients,
+        None,
     )
     .await?;
     Audit { org_id, p: &p }

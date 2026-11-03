@@ -153,6 +153,24 @@ pub async fn record_order(
     )
     .await?;
     open_delivery_check(&mut tx, org_id, req.id, id).await?;
+    // Our staff read the prepared order email and send it to the supplier today.
+    let today: NaiveDate = sqlx::query_scalar(
+        "SELECT (now() AT TIME ZONE timezone)::date FROM organisations WHERE id = $1",
+    )
+    .bind(org_id)
+    .fetch_one(&mut *tx)
+    .await?;
+    let today_end = crate::api::ops::end_of_local_day(&mut tx, org_id, today).await?;
+    crate::api::ops::open_auto_task(
+        &mut tx,
+        org_id,
+        req.id,
+        None,
+        "send_order",
+        &format!("Check and send the order email for PO {po_number}"),
+        today_end,
+    )
+    .await?;
     tx.commit().await?;
     Ok((StatusCode::CREATED, Json(IdResponse { id })))
 }
@@ -246,7 +264,7 @@ pub struct OrderDetail {
 
 /// Who may read orders: view_orders / finance roles, receivers of their own requests, and
 /// assigned staff with view_orders.
-async fn order_reader(p: &Principal, state: &AppState, org_id: Uuid) -> ApiResult<View> {
+pub(crate) async fn order_reader(p: &Principal, state: &AppState, org_id: Uuid) -> ApiResult<View> {
     let (access, view) = request_view(p, state, org_id).await?;
     let ok = [
         Permission::ViewOrders,

@@ -222,6 +222,7 @@ pub fn reply_token() -> String {
 pub fn subject(kind: &str, number: &str, token: &str) -> String {
     match kind {
         "reminder" => format!("【再送】見積依頼 / Reminder: RFQ {number} [#{token}]"),
+        "order" => format!("注文書 / Purchase order {number} [#{token}]"),
         _ => format!("見積依頼 / Request for quotation {number} [#{token}]"),
     }
 }
@@ -449,7 +450,7 @@ impl Inbox for ImapInbox {
 }
 
 /// Organisations whose data the background jobs look at (customers; few).
-async fn customer_orgs(state: &AppState) -> Result<Vec<Uuid>, sqlx::Error> {
+pub(crate) async fn customer_orgs(state: &AppState) -> Result<Vec<Uuid>, sqlx::Error> {
     let mut tx = state.pool.begin().await?;
     db::enable_platform_scope(&mut tx).await?;
     let ids = sqlx::query_scalar("SELECT id FROM organisations WHERE kind = 'customer'")
@@ -567,7 +568,7 @@ pub async fn send_queued(state: &AppState, m: &SupplierMail) -> Result<usize, sq
                             q.request_id,
                             Some(q.rfq_id),
                             "exception",
-                            "A quote request could not be sent: check the address",
+                            "A message to a supplier could not be sent: check the address",
                             Utc::now(),
                         )
                         .await
