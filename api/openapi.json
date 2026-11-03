@@ -2671,6 +2671,73 @@
         ]
       }
     },
+    "/api/admin/v1/orgs/{org_id}/savings/baselines/from-records": {
+      "post": {
+        "tags": [
+          "savings"
+        ],
+        "summary": "Decides the price paid before for every item at once, at the start of the agreement\n(CEO, 2026-11-03: \"the price on the last invoice before we start; we decide it for each\nitem and do not change it later\"). Same rule as at reconciliation: the factory's last\npurchase record dated before the start date, never one of our own orders; items already\nfixed keep their baseline.",
+        "operationId": "fix_baselines_from_records",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Baselines fixed for every item with a purchase record before the start",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FixedBaselines"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown organisation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "No agreement yet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/admin/v1/orgs/{org_id}/savings/baselines/{baseline_id}": {
       "delete": {
         "tags": [
@@ -5859,6 +5926,168 @@
         ]
       }
     },
+    "/api/v1/orgs/{org_id}/exports/orders.csv": {
+      "get": {
+        "tags": [
+          "orders"
+        ],
+        "operationId": "orders_csv",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "month",
+            "in": "path",
+            "description": "`YYYY-MM`: orders placed in that month (default: all).",
+            "required": true,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Order lines as CSV (text/csv, UTF-8 with BOM)"
+          },
+          "401": {
+            "description": "No valid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown organisation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid month",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/orgs/{org_id}/exports/savings.csv": {
+      "get": {
+        "tags": [
+          "savings"
+        ],
+        "operationId": "savings_csv",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "month",
+            "in": "path",
+            "description": "`YYYY-MM`: orders placed in that month (default: all).",
+            "required": true,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Savings ledger lines as CSV (text/csv, UTF-8 with BOM)"
+          },
+          "401": {
+            "description": "No valid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown organisation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid month",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/orgs/{org_id}/item-aliases": {
       "get": {
         "tags": [
@@ -8051,6 +8280,176 @@
         ]
       }
     },
+    "/api/v1/orgs/{org_id}/orders/{order_id}/order-email": {
+      "get": {
+        "tags": [
+          "orders"
+        ],
+        "operationId": "get_order_email",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "order_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The order email: prepared text, or what was written to the outbox",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderEmailView"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown order or not visible",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/orgs/{org_id}/orders/{order_id}/order-email/send": {
+      "post": {
+        "tags": [
+          "orders"
+        ],
+        "operationId": "send_order_email",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "order_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendOrderEmailBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Checked and written to the outbox (recorded in test mode)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SendOrderEmailResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Only our assigned staff send it",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown order",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Already sent, not checked, request closed, or the supplier cannot be reached",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/orgs/{org_id}/products/{product_id}": {
       "get": {
         "tags": [
@@ -9515,6 +9914,102 @@
           },
           "422": {
             "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/orgs/{org_id}/requests/import": {
+      "post": {
+        "tags": [
+          "requests"
+        ],
+        "operationId": "import_requests",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportRequestsBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Draft requests created from the file; rows that could not be read are listed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportRequestsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown or unrelated organisation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unsupported or empty file, no header, or no readable row",
             "content": {
               "application/json": {
                 "schema": {
@@ -17634,6 +18129,25 @@
           }
         }
       },
+      "FixedBaselines": {
+        "type": "object",
+        "required": [
+          "fixed",
+          "waiting_for_factory"
+        ],
+        "properties": {
+          "fixed": {
+            "type": "integer",
+            "description": "Items whose baseline was fixed now.",
+            "minimum": 0
+          },
+          "waiting_for_factory": {
+            "type": "integer",
+            "description": "Of those, waiting for a factory approver to confirm them.",
+            "minimum": 0
+          }
+        }
+      },
       "FollowUp": {
         "type": "object",
         "required": [
@@ -17827,6 +18341,57 @@
               ]
             },
             "description": "Field code per column (`date`, `supplier`, `description`, `manufacturer`, `mpn`,\n`quantity`, `unit`, `unit_price`, `line_total`, `currency`, `lead_time_days`, `notes`;\nnull = ignore). Detected from the header when omitted."
+          }
+        }
+      },
+      "ImportRequestsBody": {
+        "type": "object",
+        "required": [
+          "file_name",
+          "data_base64"
+        ],
+        "properties": {
+          "currency": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "ISO 4217; default JPY."
+          },
+          "data_base64": {
+            "type": "string",
+            "description": "File content, standard base64."
+          },
+          "file_name": {
+            "type": "string",
+            "description": "`.csv`, `.tsv` (UTF-8 or Shift_JIS) or `.xlsx`. One row per line; rows with the same\nvalue in the request column (件名 / request) become one request."
+          }
+        }
+      },
+      "ImportRequestsResponse": {
+        "type": "object",
+        "required": [
+          "created",
+          "lines",
+          "skipped"
+        ],
+        "properties": {
+          "created": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Created"
+            },
+            "description": "Draft requests created (the requester reviews and submits each one)."
+          },
+          "lines": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "skipped": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SkippedRow"
+            }
           }
         }
       },
@@ -19333,6 +19898,71 @@
           },
           "order": {
             "$ref": "#/components/schemas/OrderHeader"
+          }
+        }
+      },
+      "OrderEmailView": {
+        "type": "object",
+        "required": [
+          "supplier_name",
+          "status",
+          "body"
+        ],
+        "properties": {
+          "body": {
+            "type": "string"
+          },
+          "channel": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`test`, `email` or `fax` once written to the outbox."
+          },
+          "checked_by_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "created_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "last_error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sent_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string",
+            "description": "`draft` (prepared, not yet checked and sent), `recorded` (test mode), `queued`,\n`sent` or `failed`."
+          },
+          "subject": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "supplier_name": {
+            "type": "string"
+          },
+          "to_address": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         }
       },
@@ -21325,9 +21955,6 @@
       },
       "SavingsInvoiceInput": {
         "type": "object",
-        "required": [
-          "through"
-        ],
         "properties": {
           "currency": {
             "type": [
@@ -21335,8 +21962,18 @@
               "null"
             ]
           },
+          "month": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The monthly invoice, `YYYY-MM`: fees of orders placed up to the end of that month\n(earlier unbilled fees included). Give `month` or `through`."
+          },
           "through": {
-            "type": "string",
+            "type": [
+              "string",
+              "null"
+            ],
             "format": "date",
             "description": "Bill fees of orders placed up to and including this day."
           }
@@ -21377,6 +22014,30 @@
             "items": {
               "$ref": "#/components/schemas/CurrencyTotal"
             }
+          }
+        }
+      },
+      "SendOrderEmailBody": {
+        "type": "object",
+        "required": [
+          "checked"
+        ],
+        "properties": {
+          "checked": {
+            "type": "boolean",
+            "description": "The sender confirms having read the order against the approved quotation."
+          }
+        }
+      },
+      "SendOrderEmailResponse": {
+        "type": "object",
+        "required": [
+          "channel"
+        ],
+        "properties": {
+          "channel": {
+            "type": "string",
+            "description": "`test` (recorded only) or `live` (queued for sending)."
           }
         }
       },
@@ -21934,6 +22595,24 @@
             "type": "integer",
             "format": "int32",
             "description": "How alike it looks, 0–1000 (part number or description characters).",
+            "minimum": 0
+          }
+        }
+      },
+      "SkippedRow": {
+        "type": "object",
+        "required": [
+          "row",
+          "reason"
+        ],
+        "properties": {
+          "reason": {
+            "type": "string",
+            "description": "`no_item`, `quantity`, `unit`, `needed_by`, `too_long`, `too_many_lines`,\n`too_many_requests`."
+          },
+          "row": {
+            "type": "integer",
+            "description": "1-based row in the file.",
             "minimum": 0
           }
         }

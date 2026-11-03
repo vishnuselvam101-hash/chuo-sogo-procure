@@ -404,6 +404,26 @@ pub fn router(state: AppState) -> Router {
             post(api::orders::confirm_delivery_date),
         )
         .route(
+            "/orgs/{org_id}/orders/{order_id}/order-email",
+            get(api::order_email::get_order_email),
+        )
+        .route(
+            "/orgs/{org_id}/orders/{order_id}/order-email/send",
+            post(api::order_email::send_order_email),
+        )
+        .route(
+            "/orgs/{org_id}/exports/orders.csv",
+            get(api::exports::orders_csv),
+        )
+        .route(
+            "/orgs/{org_id}/exports/savings.csv",
+            get(api::exports::savings_csv),
+        )
+        .route(
+            "/orgs/{org_id}/requests/import",
+            post(api::requests::import_requests),
+        )
+        .route(
             "/orgs/{org_id}/discrepancies/{discrepancy_id}/resolve",
             post(api::orders::resolve_discrepancy),
         )
@@ -710,6 +730,10 @@ pub fn router(state: AppState) -> Router {
         .route(
             "/orgs/{org_id}/savings/baselines",
             post(api::savings::add_agreed_baseline),
+        )
+        .route(
+            "/orgs/{org_id}/savings/baselines/from-records",
+            post(api::savings::fix_baselines_from_records),
         )
         .route(
             "/orgs/{org_id}/savings/baselines/{baseline_id}",

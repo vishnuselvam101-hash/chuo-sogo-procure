@@ -516,6 +516,29 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/admin/v1/orgs/{org_id}/savings/baselines/from-records": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Decides the price paid before for every item at once, at the start of the agreement
+     *     (CEO, 2026-11-03: "the price on the last invoice before we start; we decide it for each
+     *     item and do not change it later"). Same rule as at reconciliation: the factory's last
+     *     purchase record dated before the start date, never one of our own orders; items already
+     *     fixed keep their baseline.
+     */
+    post: operations["fix_baselines_from_records"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/admin/v1/orgs/{org_id}/savings/baselines/{baseline_id}": {
     parameters: {
       query?: never;
@@ -1175,6 +1198,38 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/orgs/{org_id}/exports/orders.csv": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["orders_csv"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/orgs/{org_id}/exports/savings.csv": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["savings_csv"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/orgs/{org_id}/item-aliases": {
     parameters: {
       query?: never;
@@ -1479,6 +1534,38 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/orgs/{org_id}/orders/{order_id}/order-email": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["get_order_email"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/orgs/{org_id}/orders/{order_id}/order-email/send": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["send_order_email"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/orgs/{org_id}/products/{product_id}": {
     parameters: {
       query?: never;
@@ -1681,6 +1768,22 @@ export interface paths {
     get: operations["list_requests"];
     put?: never;
     post: operations["create_request"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/orgs/{org_id}/requests/import": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["import_requests"];
     delete?: never;
     options?: never;
     head?: never;
@@ -3256,6 +3359,12 @@ export interface components {
       /** Format: uuid */
       listing_id?: string | null;
     };
+    FixedBaselines: {
+      /** @description Items whose baseline was fixed now. */
+      fixed: number;
+      /** @description Of those, waiting for a factory approver to confirm them. */
+      waiting_for_factory: number;
+    };
     FollowUp: {
       /** Format: uuid */
       org_id: string;
@@ -3329,6 +3438,23 @@ export interface components {
        *     null = ignore). Detected from the header when omitted.
        */
       mapping?: (string | null)[] | null;
+    };
+    ImportRequestsBody: {
+      /** @description ISO 4217; default JPY. */
+      currency?: string | null;
+      /** @description File content, standard base64. */
+      data_base64: string;
+      /**
+       * @description `.csv`, `.tsv` (UTF-8 or Shift_JIS) or `.xlsx`. One row per line; rows with the same
+       *     value in the request column (件名 / request) become one request.
+       */
+      file_name: string;
+    };
+    ImportRequestsResponse: {
+      /** @description Draft requests created (the requester reviews and submits each one). */
+      created: components["schemas"]["Created"][];
+      lines: number;
+      skipped: components["schemas"]["SkippedRow"][];
     };
     ImportView: {
       file_name: string;
@@ -3825,6 +3951,25 @@ export interface components {
       invoice?: null | components["schemas"]["InvoiceView"];
       items: components["schemas"]["OrderItemView"][];
       order: components["schemas"]["OrderHeader"];
+    };
+    OrderEmailView: {
+      body: string;
+      /** @description `test`, `email` or `fax` once written to the outbox. */
+      channel?: string | null;
+      checked_by_name?: string | null;
+      /** Format: date-time */
+      created_at?: string | null;
+      last_error?: string | null;
+      /** Format: date-time */
+      sent_at?: string | null;
+      /**
+       * @description `draft` (prepared, not yet checked and sent), `recorded` (test mode), `queued`,
+       *     `sent` or `failed`.
+       */
+      status: string;
+      subject?: string | null;
+      supplier_name: string;
+      to_address?: string | null;
     };
     OrderHeader: {
       currency: string;
@@ -4494,16 +4639,29 @@ export interface components {
     SavingsInvoiceInput: {
       currency?: string | null;
       /**
+       * @description The monthly invoice, `YYYY-MM`: fees of orders placed up to the end of that month
+       *     (earlier unbilled fees included). Give `month` or `through`.
+       */
+      month?: string | null;
+      /**
        * Format: date
        * @description Bill fees of orders placed up to and including this day.
        */
-      through: string;
+      through?: string | null;
     };
     SavingsView: {
       agreement?: null | components["schemas"]["AgreementView"];
       baselines: components["schemas"]["BaselineView"][];
       entries: components["schemas"]["EntryView"][];
       totals: components["schemas"]["CurrencyTotal"][];
+    };
+    SendOrderEmailBody: {
+      /** @description The sender confirms having read the order against the approved quotation. */
+      checked: boolean;
+    };
+    SendOrderEmailResponse: {
+      /** @description `test` (recorded only) or `live` (queued for sending). */
+      channel: string;
     };
     SetPasswordRequest: {
       password: string;
@@ -4690,6 +4848,15 @@ export interface components {
        * @description How alike it looks, 0–1000 (part number or description characters).
        */
       score: number;
+    };
+    SkippedRow: {
+      /**
+       * @description `no_item`, `quantity`, `unit`, `needed_by`, `too_long`, `too_many_lines`,
+       *     `too_many_requests`.
+       */
+      reason: string;
+      /** @description 1-based row in the file. */
+      row: number;
     };
     Spec: {
       key: string;
@@ -6884,6 +7051,55 @@ export interface operations {
       };
       /** @description Invalid input */
       422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  fix_baselines_from_records: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Baselines fixed for every item with a purchase record before the start */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["FixedBaselines"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown organisation */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description No agreement yet */
+      409: {
         headers: {
           [name: string]: unknown;
         };
@@ -9252,6 +9468,122 @@ export interface operations {
       };
     };
   };
+  orders_csv: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+        /** @description `YYYY-MM`: orders placed in that month (default: all). */
+        month: string | null;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Order lines as CSV (text/csv, UTF-8 with BOM) */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown organisation */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Invalid month */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  savings_csv: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+        /** @description `YYYY-MM`: orders placed in that month (default: all). */
+        month: string | null;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Savings ledger lines as CSV (text/csv, UTF-8 with BOM) */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown organisation */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Invalid month */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
   item_aliases_list: {
     parameters: {
       query?: never;
@@ -10842,6 +11174,119 @@ export interface operations {
       };
     };
   };
+  get_order_email: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+        order_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The order email: prepared text, or what was written to the outbox */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["OrderEmailView"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown order or not visible */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  send_order_email: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+        order_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["SendOrderEmailBody"];
+      };
+    };
+    responses: {
+      /** @description Checked and written to the outbox (recorded in test mode) */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SendOrderEmailResponse"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Only our assigned staff send it */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown order */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Already sent, not checked, request closed, or the supplier cannot be reached */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
   get_org_product: {
     parameters: {
       query?: never;
@@ -11833,6 +12278,77 @@ export interface operations {
         };
       };
       /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  import_requests: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ImportRequestsBody"];
+      };
+    };
+    responses: {
+      /** @description Draft requests created from the file; rows that could not be read are listed */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ImportRequestsResponse"];
+        };
+      };
+      /** @description Malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown or unrelated organisation */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unsupported or empty file, no header, or no readable row */
       422: {
         headers: {
           [name: string]: unknown;

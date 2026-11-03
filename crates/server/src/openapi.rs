@@ -6,8 +6,9 @@ use utoipa::openapi::security::{HttpAuthScheme, HttpBuilder, SecurityScheme};
 use utoipa::{Modify, OpenApi};
 
 use crate::api::{
-    admin, ai, approvals, attachments, auth, billing, demo, history, listing_ai, listings, mail,
-    ops, orders, orgs, products, records, requests, rfqs, savings, shop, shortlist, suppliers,
+    admin, ai, approvals, attachments, auth, billing, demo, exports, history, listing_ai, listings,
+    mail, ops, order_email, orders, orgs, products, records, requests, rfqs, savings, shop,
+    shortlist, suppliers,
 };
 use crate::error::{ErrorBody, ErrorInner};
 
@@ -49,6 +50,7 @@ impl Modify for BearerAuth {
         orgs::create_organisation,
         orgs::list_organisations,
         requests::create_request,
+        requests::import_requests,
         requests::list_requests,
         requests::get_request,
         requests::update_request,
@@ -103,6 +105,10 @@ impl Modify for BearerAuth {
         ops::queue,
         orders::record_order,
         orders::confirm_delivery_date,
+        order_email::get_order_email,
+        order_email::send_order_email,
+        exports::orders_csv,
+        exports::savings_csv,
         admin::login,
         admin::verify_mfa,
         admin::enroll,
@@ -143,6 +149,7 @@ impl Modify for BearerAuth {
         savings::add_agreed_baseline,
         savings::delete_baseline,
         savings::create_savings_invoice,
+        savings::fix_baselines_from_records,
         listings::list_own,
         listings::create,
         listings::get_own,

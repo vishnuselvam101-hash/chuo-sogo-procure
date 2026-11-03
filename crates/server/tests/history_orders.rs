@@ -1994,3 +1994,359 @@ async fn suppliers_can_take_requests_by_fax(pool: PgPool) {
         StatusCode::FORBIDDEN
     );
 }
+
+// ---------------------------------------------------------------------------------------
+// CEO specification 2026-11-03.
+
+impl Flow {
+    async fn tasks_of(&self, request: Uuid, kind: &str) -> Vec<Value> {
+        let r = self
+            .w
+            .app
+            .get(
+                &self.url(&format!("requests/{request}/tasks")),
+                &self.operator,
+            )
+            .await;
+        assert_eq!(r.status, StatusCode::OK, "{:?}", r.body);
+        r.body
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|t| t["kind"] == kind)
+            .cloned()
+            .collect()
+    }
+
+    async fn csv(&self, path: &str, token: &str) -> String {
+        let (status, ct, bytes) = self.w.app.get_raw(&self.url(path), token).await;
+        assert_eq!(
+            status,
+            StatusCode::OK,
+            "{}",
+            String::from_utf8_lossy(&bytes)
+        );
+        assert!(ct.starts_with("text/csv"), "{ct}");
+        let text = String::from_utf8(bytes).unwrap();
+        text.strip_prefix('\u{feff}').unwrap().to_string()
+    }
+}
+
+#[sqlx::test(migrator = "procure_server::MIGRATOR")]
+async fn after_approval_our_staff_check_and_send_the_order_email(pool: PgPool) {
+    let f = Flow::new(pool).await;
+    let app = &f.w.app;
+    let o = f.ordered("PO-F-77", false, "2026-10-01T03:00:00Z").await;
+    // A task for our staff to check and send it.
+    let t = f.tasks_of(o.request, "send_order").await;
+    assert_eq!(t.len(), 1, "{t:?}");
+    assert_eq!(t[0]["status"], "open");
+    let path = f.url(&format!("orders/{}/order-email", o.order));
+    let r = app.get(&path, &f.manager).await;
+    assert_eq!(r.status, StatusCode::OK, "{:?}", r.body);
+    assert_eq!(r.body["status"], "draft");
+    let body = r.body["body"].as_str().unwrap();
+    for want in [
+        "PO-F-77",
+        "Tokyo Bearings KK",
+        &o.mpns[1],
+        "JPY 45,000",
+        "pays you directly",
+    ] {
+        assert!(body.contains(want), "{want} missing: {body}");
+    }
+    // The factory never sends it; our staff send it only after checking it.
+    let send = format!("{path}/send");
+    assert_eq!(
+        app.post(&send, &f.manager, json!({ "checked": true }))
+            .await
+            .status,
+        StatusCode::FORBIDDEN
+    );
+    let r = f
+        .op(
+            &format!("orders/{}/order-email/send", o.order),
+            json!({ "checked": false }),
+        )
+        .await;
+    assert_eq!(r.status, StatusCode::CONFLICT, "{:?}", r.body);
+    let r = f
+        .op(
+            &format!("orders/{}/order-email/send", o.order),
+            json!({ "checked": true }),
+        )
+        .await;
+    assert_eq!(r.status, StatusCode::OK, "{:?}", r.body);
+    // No mail account configured: recorded in the test outbox, never sent.
+    assert_eq!(r.body["channel"], "test");
+    let again = f
+        .op(
+            &format!("orders/{}/order-email/send", o.order),
+            json!({ "checked": true }),
+        )
+        .await;
+    assert_eq!(again.status, StatusCode::CONFLICT);
+    let r = app.get(&path, &f.manager).await;
+    assert_eq!(r.body["status"], "recorded", "{:?}", r.body);
+    assert!(r.body["subject"].as_str().unwrap().contains("PO-F-77"));
+    assert!(r.body["checked_by_name"].is_string());
+    assert_eq!(
+        f.tasks_of(o.request, "send_order").await[0]["status"],
+        "done"
+    );
+    // The order email shows in the RFQ's outbox with its kind; the delivery check stays open.
+    let out = app
+        .get(&f.url(&format!("rfqs/{}/outbox", o.rfq)), &f.operator)
+        .await;
+    assert!(
+        out.body
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|m| m["kind"] == "order")
+    );
+    assert_eq!(f.tasks_of(o.request, "check_delivery").await.len(), 1);
+    let (events, valid) = f.audit_actions().await;
+    assert!(valid);
+    assert!(events.iter().any(|e| e["action"] == "order.email_sent"));
+    // Orders CSV for the factory's own systems.
+    let csv = f.csv("exports/orders.csv?month=2026-10", &f.manager).await;
+    let mut lines = csv.lines();
+    assert!(
+        lines
+            .next()
+            .unwrap()
+            .starts_with("po_number,request_number,ordered_on")
+    );
+    let rows: Vec<&str> = lines.collect();
+    assert_eq!(rows.len(), 2, "{csv}");
+    assert!(rows[0].starts_with("PO-F-77,"), "{csv}");
+    assert!(rows[0].contains(",1200,120000,JPY,2000,"), "{csv}");
+    assert!(rows[0].ends_with(",ordered,recorded"), "{csv}");
+    let other = f.csv("exports/orders.csv?month=2026-09", &f.manager).await;
+    assert_eq!(other.lines().count(), 1);
+    let (bad, _, _) = app
+        .get_raw(&f.url("exports/orders.csv?month=2026-13"), &f.manager)
+        .await;
+    assert_eq!(bad, StatusCode::UNPROCESSABLE_ENTITY);
+}
+
+#[sqlx::test(migrator = "procure_server::MIGRATOR")]
+async fn the_usual_supplier_lowering_its_price_counts_and_is_billed_monthly(pool: PgPool) {
+    let f = Flow::new(pool).await;
+    let app = &f.w.app;
+    let admin = admin_session(app).await;
+    let r = app
+        .put(
+            &f.admin_url("savings/agreement"),
+            &admin,
+            json!({ "starts_on": "2026-10-01" }),
+        )
+        .await;
+    assert_eq!(r.status, StatusCode::NO_CONTENT, "{:?}", r.body);
+    let o = f.ordered("PO-U-1", false, "2026-10-05T03:00:00Z").await;
+    // The factory's last invoices before the start: the bearing from the same supplier we
+    // ordered from (it lowered its price because we came in) and the guide from another.
+    let csv = format!(
+        "date,supplier,mpn,description,quantity,unit,unit_price\n\
+         2026-08-01,Tokyo Bearings KK,{b},Bearing,100,pcs,1400\n\
+         2026-09-20,Tokyo Bearings KK,{b},Bearing,100,pcs,1500\n\
+         2026-09-10,Osaka Linear,{g},Guide,4,set,47000\n",
+        b = o.mpns[0],
+        g = o.mpns[1]
+    );
+    let r = app
+        .post(
+            &f.url("purchase-history/imports"),
+            &f.w.admin_a,
+            json!({
+                "file_name": "invoices.csv",
+                "data_base64": base64::engine::general_purpose::STANDARD.encode(csv),
+                "header_row": 0,
+                "mapping": ["date", "supplier", "mpn", "description", "quantity", "unit", "unit_price"],
+            }),
+        )
+        .await;
+    assert_eq!(r.status, StatusCode::CREATED, "{:?}", r.body);
+    // Fixed for each item at the start, before any order reconciles.
+    let r = app
+        .post(
+            &f.admin_url("savings/baselines/from-records"),
+            &admin,
+            json!({}),
+        )
+        .await;
+    assert_eq!(r.status, StatusCode::OK, "{:?}", r.body);
+    assert_eq!(r.body, json!({ "fixed": 2, "waiting_for_factory": 0 }));
+    let r = app
+        .post(
+            &f.admin_url("savings/baselines/from-records"),
+            &admin,
+            json!({}),
+        )
+        .await;
+    assert_eq!(r.body["fixed"], 0);
+    // A later record dated before the start does not change a fixed baseline.
+    f.past_purchase("2026-09-30", &o.mpns[0], 2000).await;
+    f.reconcile(&o).await;
+    let v = app.get(&f.url("savings"), &f.finance).await.body;
+    // Bearing (1,500 − 1,200) × 100 = 30,000; guide (47,000 − 45,000) × 4 = 8,000.
+    assert_eq!(
+        v["totals"],
+        json!([{ "currency": "JPY", "saving_minor": 38_000, "fee_minor": 19_000,
+                 "unbilled_fee_minor": 19_000 }]),
+        "{v:?}"
+    );
+    let csv = f.csv("exports/savings.csv?month=2026-10", &f.finance).await;
+    let rows: Vec<&str> = csv.lines().skip(1).collect();
+    assert_eq!(rows.len(), 2, "{csv}");
+    let bearing = rows.iter().find(|r| r.contains(",1200,")).unwrap();
+    assert!(
+        bearing
+            .contains(",1500,history,2026-09-20,Tokyo Bearings KK,yes,JPY,50,30000,15000,counted,"),
+        "{bearing}"
+    );
+    let guide = rows.iter().find(|r| r.contains(",45000,")).unwrap();
+    assert!(guide.contains(",Osaka Linear,no,"), "{guide}");
+    assert_eq!(
+        app.get_raw(&f.url("exports/savings.csv"), &f.requester)
+            .await
+            .0,
+        StatusCode::FORBIDDEN
+    );
+    // The monthly invoice: half of October's savings.
+    let r = app
+        .post(
+            &f.admin_url("savings/invoice"),
+            &admin,
+            json!({ "month": "2026-09" }),
+        )
+        .await;
+    assert_eq!(r.status, StatusCode::CONFLICT, "{:?}", r.body);
+    let r = app
+        .post(&f.admin_url("savings/invoice"), &admin, json!({}))
+        .await;
+    assert_eq!(r.status, StatusCode::UNPROCESSABLE_ENTITY);
+    let r = app
+        .post(
+            &f.admin_url("savings/invoice"),
+            &admin,
+            json!({ "month": "2026-10" }),
+        )
+        .await;
+    assert_eq!(r.status, StatusCode::CREATED, "{:?}", r.body);
+    let inv = uuid(&r.body["id"]);
+    let d = app
+        .get(&f.admin_url(&format!("billing/invoices/{inv}")), &admin)
+        .await;
+    assert_eq!(d.body["subtotal_minor"], 19_000, "{:?}", d.body);
+    assert!(d.body["notes"].as_str().unwrap().contains("2026-10"));
+}
+
+#[sqlx::test(migrator = "procure_server::MIGRATOR")]
+async fn purchase_requests_come_in_as_a_csv_file(pool: PgPool) {
+    let f = Flow::new(pool).await;
+    let app = &f.w.app;
+    let csv = "件名,品名,型番,数量,単位,希望納期\n\
+               消耗品 11月,ボールベアリング,6204ZZ,100,個,2026/12/10\n\
+               消耗品 11月,,HSR15,4,セット,2026/12/01\n\
+               電気材料,端子台,TB-15,2.5,個,\n\
+               電気材料,VVFケーブル,,3,巻,\n";
+    let body = |name: &str| {
+        json!({ "file_name": name,
+                "data_base64": base64::engine::general_purpose::STANDARD.encode(csv) })
+    };
+    let r = app
+        .post(&f.url("requests/import"), &f.requester, body("factory.csv"))
+        .await;
+    assert_eq!(r.status, StatusCode::CREATED, "{:?}", r.body);
+    assert_eq!(r.body["created"].as_array().unwrap().len(), 2);
+    assert_eq!(r.body["lines"], 3);
+    assert_eq!(
+        r.body["skipped"],
+        json!([{ "row": 4, "reason": "quantity" }])
+    );
+    let first = uuid(&r.body["created"][0]["id"]);
+    let d = app
+        .get(&f.url(&format!("requests/{first}")), &f.requester)
+        .await;
+    assert_eq!(d.body["request"]["status"], "draft");
+    assert_eq!(d.body["request"]["title"], "消耗品 11月");
+    assert_eq!(d.body["request"]["needed_by"], "2026-12-01");
+    assert_eq!(d.body["items"][1]["unit"], "set");
+    // Scans go through the AI intake, not the exchange file; an operator cannot raise them.
+    let r = app
+        .post(&f.url("requests/import"), &f.requester, body("factory.pdf"))
+        .await;
+    assert_eq!(r.status, StatusCode::UNPROCESSABLE_ENTITY);
+    let r = app
+        .post(&f.url("requests/import"), &f.operator, body("factory.csv"))
+        .await;
+    assert_eq!(r.status, StatusCode::FORBIDDEN, "{:?}", r.body);
+    // Submitting it: model numbers nobody knows become a task for our staff.
+    f.ok(app
+        .post(
+            &f.url(&format!("requests/{first}/submit")),
+            &f.requester,
+            json!({}),
+        )
+        .await);
+    let t = f.tasks_of(first, "unknown_item").await;
+    assert_eq!(t.len(), 1, "{t:?}");
+    assert!(
+        t[0]["title"].as_str().unwrap().contains("line 1, 2"),
+        "{t:?}"
+    );
+}
+
+#[sqlx::test(migrator = "procure_server::MIGRATOR")]
+async fn suppliers_that_do_not_reply_become_a_task_for_our_staff(pool: PgPool) {
+    let f = Flow::new(pool).await;
+    let (request, rfq, _, _) = f.sent_rfq().await;
+    // Before the response date: nothing.
+    assert_eq!(
+        procure_server::api::ops::flag_no_replies(&f.w.app.state)
+            .await
+            .unwrap(),
+        0
+    );
+    f.as_owner(
+        "UPDATE rfqs SET response_due = $2::date WHERE id = $1",
+        rfq,
+        "2026-10-01",
+    )
+    .await;
+    let state = &f.w.app.state;
+    assert_eq!(
+        procure_server::api::ops::flag_no_replies(state)
+            .await
+            .unwrap(),
+        1
+    );
+    let t = f.tasks_of(request, "no_reply").await;
+    assert_eq!(t.len(), 1, "{t:?}");
+    assert_eq!(t[0]["priority"], "high");
+    assert!(
+        t[0]["title"]
+            .as_str()
+            .unwrap()
+            .starts_with("No reply from 1 of 1")
+    );
+    // Once handled, it is not raised again.
+    let id = uuid(&t[0]["id"]);
+    let r =
+        f.w.app
+            .patch(
+                &f.url(&format!("tasks/{id}")),
+                &f.operator,
+                json!({ "status": "done" }),
+            )
+            .await;
+    assert!(r.status.is_success(), "{:?}", r.body);
+    assert_eq!(
+        procure_server::api::ops::flag_no_replies(state)
+            .await
+            .unwrap(),
+        0
+    );
+}

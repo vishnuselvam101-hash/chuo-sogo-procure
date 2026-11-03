@@ -1880,9 +1880,12 @@ async fn ops_queue_auto_tasks_and_follow_ups(pool: PgPool) {
     // Submitting opened an "identify" task with a 24 h service level.
     let q = app.get("/api/v1/ops/queue", &f.operator).await;
     assert_eq!(q.status, StatusCode::OK, "{:?}", q.body);
-    let tasks = q.body["tasks"].as_array().unwrap();
+    // ...and, as its model numbers are in no record yet, an "unknown_item" exception.
+    let all = q.body["tasks"].as_array().unwrap();
+    assert_eq!(all.len(), 2, "{all:?}");
+    assert!(all.iter().any(|t| t["kind"] == "unknown_item"));
+    let tasks: Vec<&Value> = all.iter().filter(|t| t["kind"] == "identify").collect();
     assert_eq!(tasks.len(), 1);
-    assert_eq!(tasks[0]["kind"], "identify");
     assert_eq!(tasks[0]["org_name"], "株式会社エー製作所");
     assert_eq!(tasks[0]["overdue"], false);
     // Customers have no work queue; unassigned staff see nothing of org A.
@@ -2254,7 +2257,9 @@ async fn ops_review_regressions(pool: PgPool) {
     )
     .await;
     let q = app.get("/api/v1/ops/queue", &f.operator).await;
-    assert_eq!(open_kinds(&q.body), vec!["identify"]);
+    let mut kinds = open_kinds(&q.body);
+    kinds.sort();
+    assert_eq!(kinds, vec!["identify", "unknown_item"]);
     assert_eq!(q.body["tasks"][0]["overdue"], false);
 
     // One chase task per RFQ, due at the end of the response day in the customer's timezone
