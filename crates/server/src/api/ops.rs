@@ -104,6 +104,128 @@ pub async fn open_auto_task(
     restore_scope(tx, &prev).await
 }
 
+/// Request lines with a model number we do not know: neither in our verified product
+/// records nor in the factory's own purchase records. Our staff get one `unknown_item` task
+/// naming the lines (CEO, 2026-11-03: exceptions are handled by our people). Lines without a
+/// model number are identified under the request's `identify` task. Returns the lines.
+pub async fn flag_unknown_items(
+    tx: &mut db::Tx,
+    org_id: Uuid,
+    request_id: Uuid,
+    number: &str,
+    due_at: DateTime<Utc>,
+) -> ApiResult<Vec<i32>> {
+    let lines: Vec<(i32, String)> = sqlx::query_as(
+        "SELECT line_no, mpn FROM request_items WHERE request_id = $1 ORDER BY line_no",
+    )
+    .bind(request_id)
+    .fetch_all(&mut **tx)
+    .await?;
+    let keyed: Vec<(i32, String)> = lines
+        .iter()
+        .filter_map(|(n, mpn)| {
+            procure_domain::history::item_key(mpn, "")
+                .and_then(|k| k.strip_prefix("m:").map(str::to_string))
+                .map(|k| (*n, k))
+        })
+        .collect();
+    if keyed.is_empty() {
+        return Ok(Vec::new());
+    }
+    let keys: Vec<String> = keyed.iter().map(|(_, k)| k.clone()).collect();
+    let prev = with_staff_scope(tx).await?;
+    // Product records are platform-level (staff scope); purchase records are the factory's.
+    let known: Vec<String> = sqlx::query_scalar(
+        "SELECT k FROM unnest($1::text[]) AS k
+         WHERE EXISTS (SELECT 1 FROM product_identities p
+                       WHERE p.status = 'verified'
+                         AND regexp_replace(upper(p.mpn), '[^[:alnum:]]', '', 'g') = k)
+            OR EXISTS (SELECT 1 FROM purchase_history h JOIN history_imports i ON i.id = h.import_id
+                       WHERE h.item_key = 'm:' || k AND i.withdrawn_at IS NULL)",
+    )
+    .bind(&keys)
+    .fetch_all(&mut **tx)
+    .await?;
+    restore_scope(tx, &prev).await?;
+    let unknown: Vec<i32> = keyed
+        .iter()
+        .filter(|(_, k)| !known.contains(k))
+        .map(|(n, _)| *n)
+        .collect();
+    if unknown.is_empty() {
+        return Ok(unknown);
+    }
+    let list = unknown
+        .iter()
+        .map(i32::to_string)
+        .collect::<Vec<_>>()
+        .join(", ");
+    let title: String = format!("Unknown model number on line {list} of {number}: check it")
+        .chars()
+        .take(200)
+        .collect();
+    open_auto_task(tx, org_id, request_id, None, "unknown_item", &title, due_at).await?;
+    Ok(unknown)
+}
+
+/// Suppliers that did not reply by the RFQ's response date (end of that day in the
+/// factory's timezone; without a date, `chase_default_hours` after sending). Opens one
+/// `no_reply` task per RFQ for our staff, once. Returns the tasks opened.
+pub async fn flag_no_replies(state: &AppState) -> Result<usize, sqlx::Error> {
+    let mut opened = 0;
+    for org in crate::supplier_mail::customer_orgs(state).await? {
+        let mut tx = state.pool.begin().await?;
+        db::set_org(&mut tx, org).await?;
+        db::enable_staff_scope(&mut tx).await?;
+        let n = sqlx::query(
+            "INSERT INTO tasks (id, org_id, request_id, rfq_id, kind, title, priority, due_at)
+             SELECT gen_random_uuid(), f.org_id, f.request_id, f.id, 'no_reply',
+                    left(format('No reply from %s of %s supplier(s) to %s: call or replace them',
+                                w.waiting, w.asked, f.number), 200),
+                    'high', now()
+             FROM rfqs f
+             JOIN procurement_requests r ON r.id = f.request_id
+             JOIN organisations g ON g.id = f.org_id
+             LEFT JOIN org_settings cs ON cs.org_id = f.org_id
+             CROSS JOIN LATERAL (
+                 SELECT count(*) FILTER (WHERE x.status IN ('pending', 'exported')) AS waiting,
+                        count(*) AS asked
+                 FROM rfq_recipients x WHERE x.rfq_id = f.id) w
+             WHERE f.status = 'sent' AND w.waiting > 0
+               AND r.status IN ('rfq_sent', 'quotes_received')
+               AND now() > CASE
+                   WHEN f.response_due IS NOT NULL
+                       THEN (f.response_due + 1)::timestamp AT TIME ZONE g.timezone
+                   ELSE f.sent_at + make_interval(hours => coalesce(cs.chase_default_hours, 72))
+               END
+               AND NOT EXISTS (SELECT 1 FROM tasks t
+                               WHERE t.rfq_id = f.id AND t.kind = 'no_reply'
+                                 AND t.created_by IS NULL)",
+        )
+        .execute(&mut *tx)
+        .await?
+        .rows_affected();
+        tx.commit().await?;
+        opened += usize::try_from(n).unwrap_or(usize::MAX);
+    }
+    Ok(opened)
+}
+
+/// Runs the no-reply check every 10 minutes.
+pub fn spawn_exception_checks(state: AppState) {
+    tokio::spawn(async move {
+        let mut tick = tokio::time::interval(std::time::Duration::from_secs(600));
+        loop {
+            tick.tick().await;
+            match flag_no_replies(&state).await {
+                Ok(0) => {}
+                Ok(n) => tracing::info!(tasks = n, "suppliers without a reply flagged"),
+                Err(e) => tracing::warn!(error = %e, "no-reply check"),
+            }
+        }
+    });
+}
+
 /// Completes open automatic tasks of `kind` for the request (or only for one RFQ).
 /// Manual tasks are never closed automatically.
 pub async fn close_auto_tasks(
