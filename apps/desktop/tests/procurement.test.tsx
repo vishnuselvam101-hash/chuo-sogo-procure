@@ -509,6 +509,7 @@ describe("RFQ", () => {
         recipients: [{ supplier_id: "s1", supplier_name: "Tokyo Bearings", status: "pending" }],
         quotations: [],
         latest_comparison_id: null,
+        documents: [],
       },
     });
     render(

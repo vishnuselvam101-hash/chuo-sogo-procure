@@ -7,6 +7,10 @@
 //! Configuration (environment): DATABASE_URL (owner role: migrate/bootstrap),
 //! PROCURE_RUNTIME_DATABASE_URL (restricted role: serve), PROCURE_BIND (default 127.0.0.1:8088),
 //! PROCURE_OUTBOX_DIR (test-mode mail, default ./var/outbox), RUST_LOG, PROCURE_LOG_FORMAT=json.
+//! Live supplier mail (off by default): PROCURE_SUPPLIER_MAIL=live, PROCURE_SMTP_HOST/PORT/
+//! USER/PASSWORD, PROCURE_MAIL_FROM, PROCURE_MAIL_REPLY_TO, PROCURE_IMAP_HOST/PORT/USER/
+//! PASSWORD/MAILBOX/POLL_SECONDS/SINCE, PROCURE_FAX_GATEWAY ({number}@gateway),
+//! PROCURE_FAX_SENDERS, PROCURE_SUPPLIER_MAIL_ALLOW (pilot: email only to these domains).
 
 use std::net::SocketAddr;
 use std::process::ExitCode;
@@ -95,6 +99,22 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
             tracing::warn!(dir = %outbox, "mail is in TEST MODE: messages are written to files, nothing is sent");
             let mut state = AppState::new(pool, Arc::new(FileMailer { dir: outbox.into() }));
             state.ai = Arc::from(procure_ai::provider::from_env()?);
+            // Supplier quote requests: recorded only (test mode) unless configured live.
+            match procure_server::supplier_mail::SupplierMail::from_env()? {
+                Some(m) => {
+                    tracing::warn!(
+                        from = %m.from,
+                        fax = m.fax_gateway.is_some(),
+                        inbox = m.inbox.is_some(),
+                        allow = ?m.allow_domains,
+                        "supplier mail is LIVE: quote requests are sent to suppliers"
+                    );
+                    state.supplier_mail = Some(Arc::new(m));
+                }
+                None => tracing::warn!(
+                    "supplier mail is in TEST MODE: quote requests are only recorded"
+                ),
+            }
             if std::env::var("PROCURE_TRUST_LOCAL_PROXY").as_deref() == Ok("1") {
                 procure_server::principal::TRUST_LOCAL_PROXY
                     .store(true, std::sync::atomic::Ordering::Relaxed);
@@ -132,6 +152,9 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
                 "AI provider"
             );
             let bind = std::env::var("PROCURE_BIND").unwrap_or_else(|_| "127.0.0.1:8088".into());
+            if let Some(m) = state.supplier_mail.clone() {
+                procure_server::supplier_mail::spawn(state.clone(), m);
+            }
             let listener = tokio::net::TcpListener::bind(&bind).await?;
             tracing::info!(%bind, "listening");
             axum::serve(

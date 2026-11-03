@@ -18,6 +18,7 @@ import type {
   OutboxMessage,
   PriceCheck,
   RfqDetail,
+  MailStatus,
 } from "../lib/types";
 import { readAsBase64 } from "../lib/files";
 import { useAction } from "../lib/useAction";
@@ -47,6 +48,10 @@ export function RfqPanel({ active, rfqId, requestId, requestStatus, currency, it
   const [outbox, setOutbox] = useState<OutboxMessage[] | null>(null);
   const [quoting, setQuoting] = useState(false);
   const [checkNote, setCheckNote] = useState("");
+  const [start, setStart] = useState<{ text: string; documentId: string; supplierId: string | null } | null>(
+    null,
+  );
+  const [reminded, setReminded] = useState<number | null>(null);
   const has = (p: string) => active.permissions.includes(p);
   const operator = active.access === "assigned";
 
@@ -67,6 +72,25 @@ export function RfqPanel({ active, rfqId, requestId, requestStatus, currency, it
     const res = await action.run<OutboxMessage[]>("GET", `${org}/rfqs/${rfqId}/outbox`);
     if (res) setOutbox(res.body);
   }
+  async function remind() {
+    const res = await action.run<{ messages: number }>("POST", `${org}/rfqs/${rfqId}/remind`);
+    if (res) {
+      setReminded(res.body.messages);
+      setOutbox(null);
+    }
+  }
+  async function readDocument(id: string, supplierId: string | null) {
+    const res = await action.run<{ text: string; document_id: string }>(
+      "POST",
+      `${org}/rfqs/${rfqId}/supplier-documents/${id}/text`,
+    );
+    if (res) {
+      setStart({ text: res.body.text, documentId: id, supplierId });
+      setQuoting(true);
+    }
+  }
+  const waiting = data.recipients.filter((r) => r.status === "pending" || r.status === "exported").length;
+
   async function compare() {
     if (await action.run("POST", `${org}/rfqs/${rfqId}/comparisons`)) refresh();
   }
@@ -135,6 +159,11 @@ export function RfqPanel({ active, rfqId, requestId, requestStatus, currency, it
               {t("procurement:rfq.outbox")}
             </button>
           )}
+          {rfq.status === "sent" && has(P.manageRfqs) && waiting > 0 && (
+            <button type="button" disabled={action.busy} onClick={() => void remind()}>
+              {t("procurement:mail.remind", { count: waiting })}
+            </button>
+          )}
           {rfq.status === "sent" && has(P.recordQuotations) && QUOTING.includes(requestStatus) && (
             <button type="button" onClick={() => setQuoting(!quoting)}>
               {t("procurement:quote.record")}
@@ -147,18 +176,20 @@ export function RfqPanel({ active, rfqId, requestId, requestStatus, currency, it
           )}
         </div>
       )}
-      {rfq.status === "draft" && operator && (
-        <p className="muted small">{t("procurement:rfq.testModeNote")}</p>
-      )}
+      {rfq.status === "draft" && operator && <MailNote />}
+      {reminded !== null && <p className="notice">{t("procurement:mail.reminded", { count: reminded })}</p>}
       <ErrorText code={action.error} />
 
       {outbox && (
         <div className="stack">
-          <p className="muted small">{t("procurement:rfq.testModeNote")}</p>
+          <MailNote />
           {outbox.map((m) => (
             <details key={m.id}>
               <summary>
-                {m.supplier_name} {m.to_address ? `<${m.to_address}>` : ""}
+                {m.supplier_name} {m.to_address ? `<${m.to_address}>` : ""} ·{" "}
+                {t(`procurement:mail.status.${m.status}`)}
+                {m.kind === "reminder" ? ` · ${t("procurement:mail.reminder")}` : ""}
+                {m.last_error ? <span className="error"> {m.last_error}</span> : null}
               </summary>
               <pre className="pre">{`${m.subject}\n\n${m.body}`}</pre>
             </details>
@@ -166,14 +197,48 @@ export function RfqPanel({ active, rfqId, requestId, requestStatus, currency, it
         </div>
       )}
 
+      {operator && data.documents.length > 0 && (
+        <div className="stack" data-testid="supplier-documents">
+          <strong>{t("procurement:mail.documents")}</strong>
+          <ul className="plain">
+            {data.documents.map((d) => (
+              <li key={d.id} className="row">
+                <span>
+                  {d.supplier_name ?? t("procurement:mail.unknownSupplier")} ·{" "}
+                  {t(`procurement:mail.channel.${d.channel}`)} ·{" "}
+                  {formatDateTime(d.received_at, i18n.language, active.timezone)}
+                </span>
+                {d.used ? (
+                  <span className="muted small">{t("procurement:mail.recorded")}</span>
+                ) : (
+                  has(P.recordQuotations) &&
+                  QUOTING.includes(requestStatus) && (
+                    <button
+                      type="button"
+                      disabled={action.busy}
+                      onClick={() => void readDocument(d.id, d.supplier_id ?? null)}
+                    >
+                      {t("procurement:mail.read")}
+                    </button>
+                  )
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {quoting && (
         <QuotationForm
+          key={start?.documentId ?? "new"}
+          start={start ?? undefined}
           base={`${org}/rfqs/${rfqId}`}
           recipients={data.recipients.map((r) => ({ id: r.supplier_id, name: r.supplier_name ?? "" }))}
           currency={currency}
           items={items}
           onSaved={() => {
             setQuoting(false);
+            setStart(null);
             refresh();
           }}
         />
@@ -541,11 +606,13 @@ function QuotationForm(props: {
   currency: string;
   items: ItemView[];
   onSaved: () => void;
+  /** A kept supplier file already read to text (from the mailbox or an upload). */
+  start?: { text: string; documentId: string; supplierId: string | null } | undefined;
 }) {
   const { t } = useTranslation();
   const action = useAction();
   const [head, setHead] = useState({
-    supplier_id: props.recipients[0]?.id ?? "",
+    supplier_id: props.start?.supplierId ?? props.recipients[0]?.id ?? "",
     currency: props.currency,
     shipping: minorToInput(0, props.currency),
     valid_until: "",
@@ -562,9 +629,13 @@ function QuotationForm(props: {
   );
   const setLine = (i: number, patch: Partial<LineDraft>) =>
     setLines(lines.map((l, j) => (j === i ? { ...l, ...patch } : l)));
-  const [aiText, setAiText] = useState("");
+  const [aiText, setAiText] = useState(props.start?.text ?? "");
   // The supplier's file read into the text box, kept by the server as a transaction record.
-  const [doc, setDoc] = useState<{ id: string; supplier: string } | null>(null);
+  const [doc, setDoc] = useState<{ id: string; supplier: string } | null>(
+    props.start
+      ? { id: props.start.documentId, supplier: props.start.supplierId ?? props.recipients[0]?.id ?? "" }
+      : null,
+  );
   const [ai, setAi] = useState<{
     id: string;
     supplier: string;
@@ -872,5 +943,19 @@ function QuotationForm(props: {
       </div>
       <ErrorText code={action.error} />
     </div>
+  );
+}
+
+/** Whether quote requests are really sent from this server, or only recorded (test mode). */
+function MailNote() {
+  const { t } = useTranslation();
+  const { data } = useApi<MailStatus>("/api/v1/mail/status");
+  if (!data) return null;
+  return (
+    <p className="muted small">
+      {data.live
+        ? t("procurement:mail.liveNote", { from: data.from ?? "" })
+        : t("procurement:rfq.testModeNote")}
+    </p>
   );
 }

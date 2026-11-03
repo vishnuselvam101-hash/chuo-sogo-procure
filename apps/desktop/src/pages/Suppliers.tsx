@@ -12,6 +12,9 @@ const SUPPLIER_STATUSES = ["discovered", "contacted", "under_review", "verified"
  * Platform org: Chuo-Sogo's supplier directory (staff only).
  * Customer org: suppliers proposed to this customer and its decisions; assigned staff propose.
  */
+/** How quote requests can go to a supplier (`suppliers.rfq_channel`). */
+const RFQ_CHANNELS = ["email", "fax"] as const;
+
 export function Suppliers({ active }: { active: MembershipView }) {
   return active.org_kind === "platform" ? <Directory active={active} /> : <OrgSuppliers active={active} />;
 }
@@ -31,6 +34,8 @@ function Directory({ active }: { active: MembershipView }) {
     website: "",
     categories: "",
     notes: "",
+    fax: "",
+    rfq_channel: RFQ_CHANNELS[0] as string,
   });
 
   async function add(e: FormEvent) {
@@ -39,13 +44,23 @@ function Directory({ active }: { active: MembershipView }) {
       ...form,
       email: form.email || null,
       website: form.website || null,
+      fax: form.fax || null,
       categories: form.categories
         .split(",")
         .map((c) => c.trim())
         .filter(Boolean),
     });
     if (res) {
-      setForm({ name: "", country: "JP", email: "", website: "", categories: "", notes: "" });
+      setForm({
+        name: "",
+        country: "JP",
+        email: "",
+        website: "",
+        categories: "",
+        notes: "",
+        fax: "",
+        rfq_channel: RFQ_CHANNELS[0],
+      });
       reload();
     }
   }
@@ -102,6 +117,27 @@ function Directory({ active }: { active: MembershipView }) {
             />
           </label>
           <label>
+            {t("procurement:supplier.fax")}
+            <input
+              inputMode="tel"
+              value={form.fax}
+              onChange={(e) => setForm({ ...form, fax: e.target.value })}
+            />
+          </label>
+          <label>
+            {t("procurement:supplier.rfqChannel")}
+            <select
+              value={form.rfq_channel}
+              onChange={(e) => setForm({ ...form, rfq_channel: e.target.value })}
+            >
+              {RFQ_CHANNELS.map((c) => (
+                <option key={c} value={c}>
+                  {t(`procurement:mail.channel.${c}`)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
             {t("procurement:supplier.website")}
             <input
               type="url"
@@ -149,6 +185,12 @@ function Directory({ active }: { active: MembershipView }) {
                 <td>
                   {s.name}
                   {s.email && <div className="muted small">{s.email}</div>}
+                  {s.fax && (
+                    <div className="muted small">
+                      {t("procurement:supplier.faxShort", { fax: s.fax })}
+                      {s.rfq_channel === RFQ_CHANNELS[1] ? ` · ${t("procurement:supplier.byFax")}` : ""}
+                    </div>
+                  )}
                 </td>
                 <td>{s.country}</td>
                 <td>{s.categories.join(", ")}</td>

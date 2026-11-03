@@ -14,6 +14,7 @@ pub mod principal;
 pub mod ratelimit;
 pub mod security;
 pub mod storage;
+pub mod supplier_mail;
 pub mod verify;
 
 use std::sync::Arc;
@@ -71,6 +72,9 @@ pub struct AppState {
     /// Trial server only (`PROCURE_DEMO_LOGIN`, comma-separated emails): these accounts can be
     /// entered without a password. Empty, i.e. off, everywhere else.
     pub demo_accounts: Vec<String>,
+    /// Live supplier mail and FAX (`PROCURE_SUPPLIER_MAIL=live`); `None` = test mode, every
+    /// supplier message is only recorded.
+    pub supplier_mail: Option<Arc<supplier_mail::SupplierMail>>,
 }
 
 impl AppState {
@@ -105,6 +109,7 @@ impl AppState {
                 .map(|e| e.trim().to_lowercase())
                 .filter(|e| !e.is_empty())
                 .collect(),
+            supplier_mail: None,
         }
     }
 }
@@ -184,6 +189,26 @@ pub fn router(state: AppState) -> Router {
         .route("/orgs/{org_id}/audit", get(api::orgs::list_audit))
         .route("/orgs/{org_id}/purchase-history", get(api::history::search))
         .route("/orgs/{org_id}/records", get(api::records::search_records))
+        .route("/mail/status", get(api::mail::mail_status))
+        .route(
+            "/suppliers/{supplier_id}/contact",
+            put(api::suppliers::set_contact),
+        )
+        .route("/mail-inbox", get(api::mail::list_inbox))
+        .route("/mail-inbox/{message_id}/text", get(api::mail::inbox_text))
+        .route("/mail-inbox/{message_id}/assign", post(api::mail::assign))
+        .route(
+            "/mail-inbox/{message_id}/set-aside",
+            post(api::mail::set_aside),
+        )
+        .route(
+            "/orgs/{org_id}/rfqs/{rfq_id}/remind",
+            post(api::rfqs::remind_rfq),
+        )
+        .route(
+            "/orgs/{org_id}/rfqs/{rfq_id}/supplier-documents/{document_id}/text",
+            post(api::ai::document_text),
+        )
         .route(
             "/orgs/{org_id}/supplier-documents/{document_id}/content",
             get(api::records::download_document),

@@ -3630,6 +3630,340 @@
         ]
       }
     },
+    "/api/v1/mail-inbox": {
+      "get": {
+        "tags": [
+          "mail"
+        ],
+        "operationId": "list_inbox",
+        "responses": {
+          "200": {
+            "description": "Messages not yet matched to an RFQ, oldest first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/InboxMessage"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not internal staff",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/mail-inbox/{message_id}/assign": {
+      "post": {
+        "tags": [
+          "mail"
+        ],
+        "operationId": "assign",
+        "parameters": [
+          {
+            "name": "message_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Kept as the supplier's document on the RFQ; a task opened",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Assigned"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not staff assigned to that organisation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown message or RFQ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Already assigned or set aside",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Supplier not asked in that RFQ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/mail-inbox/{message_id}/set-aside": {
+      "post": {
+        "tags": [
+          "mail"
+        ],
+        "operationId": "set_aside",
+        "parameters": [
+          {
+            "name": "message_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Not a supplier reply; kept, no longer listed"
+          },
+          "401": {
+            "description": "No valid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not internal staff",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Already assigned or set aside",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/mail-inbox/{message_id}/text": {
+      "get": {
+        "tags": [
+          "mail"
+        ],
+        "operationId": "inbox_text",
+        "parameters": [
+          {
+            "name": "message_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The message as text (attachments and FAX pages read too)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InboxText"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not internal staff",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unreadable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/mail/status": {
+      "get": {
+        "tags": [
+          "mail"
+        ],
+        "operationId": "mail_status",
+        "responses": {
+          "200": {
+            "description": "How supplier mail is set up on this server",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MailStatus"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not internal staff",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/me": {
       "get": {
         "tags": [
@@ -12799,6 +13133,91 @@
         ]
       }
     },
+    "/api/v1/orgs/{org_id}/rfqs/{rfq_id}/remind": {
+      "post": {
+        "tags": [
+          "rfqs"
+        ],
+        "operationId": "remind_rfq",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "rfq_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Reminders recorded (test mode) or queued",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RemindResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown RFQ or not assigned",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Not sent, nobody left to remind, or reminded in the last 20 hours",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/orgs/{org_id}/rfqs/{rfq_id}/reply-text": {
       "post": {
         "tags": [
@@ -12888,6 +13307,100 @@
           },
           "422": {
             "description": "Unsupported, empty or too large file; OCR not installed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/orgs/{org_id}/rfqs/{rfq_id}/supplier-documents/{document_id}/text": {
+      "post": {
+        "tags": [
+          "ai"
+        ],
+        "operationId": "document_text",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "rfq_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Text read from a supplier file already kept on this RFQ (mailbox or upload)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReplyText"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown RFQ or document",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unreadable file; OCR not installed",
             "content": {
               "application/json": {
                 "schema": {
@@ -15012,6 +15525,95 @@
         ]
       }
     },
+    "/api/v1/suppliers/{supplier_id}/contact": {
+      "put": {
+        "tags": [
+          "suppliers"
+        ],
+        "operationId": "set_contact",
+        "parameters": [
+          {
+            "name": "supplier_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContactBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Where quote requests go is updated"
+          },
+          "400": {
+            "description": "Malformed request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not internal procurement staff",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown supplier",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid email, FAX or channel",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/suppliers/{supplier_id}/status": {
       "post": {
         "tags": [
@@ -15455,6 +16057,52 @@
           },
           "note": {
             "type": "string"
+          }
+        }
+      },
+      "AssignBody": {
+        "type": "object",
+        "required": [
+          "org_id"
+        ],
+        "properties": {
+          "org_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "rfq_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "The RFQ, by id or by its number (`RFQ-2026-000001`)."
+          },
+          "rfq_number": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "supplier_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "The supplier who sent it (must be asked in the RFQ). When left out, the recipient\nwhose email domain matches the sender is taken, if exactly one does."
+          }
+        }
+      },
+      "Assigned": {
+        "type": "object",
+        "required": [
+          "document_id"
+        ],
+        "properties": {
+          "document_id": {
+            "type": "string",
+            "format": "uuid"
           }
         }
       },
@@ -16001,6 +16649,30 @@
           "rfq_id": {
             "type": "string",
             "format": "uuid"
+          }
+        }
+      },
+      "ContactBody": {
+        "type": "object",
+        "required": [
+          "rfq_channel"
+        ],
+        "properties": {
+          "email": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "fax": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "rfq_channel": {
+            "type": "string",
+            "description": "`email` or `fax`."
           }
         }
       },
@@ -16652,11 +17324,55 @@
         "properties": {
           "channel": {
             "type": "string",
-            "description": "Always `test`: messages are recorded for manual export, nothing is sent."
+            "description": "`test`: messages are only recorded for manual export; `live`: queued and sent by email\nor FAX (server configured with `PROCURE_SUPPLIER_MAIL=live`)."
           },
           "messages": {
             "type": "integer",
             "minimum": 0
+          }
+        }
+      },
+      "DocumentView": {
+        "type": "object",
+        "required": [
+          "id",
+          "channel",
+          "file_name",
+          "received_at",
+          "used"
+        ],
+        "properties": {
+          "channel": {
+            "type": "string",
+            "description": "upload, email or fax."
+          },
+          "file_name": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "received_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "supplier_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "supplier_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "used": {
+            "type": "boolean",
+            "description": "A quotation was recorded from it."
           }
         }
       },
@@ -17167,6 +17883,52 @@
               "null"
             ],
             "format": "date-time"
+          }
+        }
+      },
+      "InboxMessage": {
+        "type": "object",
+        "required": [
+          "id",
+          "channel",
+          "from_address",
+          "subject",
+          "received_at",
+          "size_bytes"
+        ],
+        "properties": {
+          "channel": {
+            "type": "string",
+            "description": "email or fax."
+          },
+          "from_address": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "received_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "size_bytes": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "subject": {
+            "type": "string"
+          }
+        }
+      },
+      "InboxText": {
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "properties": {
+          "text": {
+            "type": "string"
           }
         }
       },
@@ -18136,6 +18898,41 @@
           }
         ]
       },
+      "MailStatus": {
+        "type": "object",
+        "required": [
+          "live",
+          "fax",
+          "inbox",
+          "allow_domains"
+        ],
+        "properties": {
+          "allow_domains": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Email only to these domains (pilot), when not empty."
+          },
+          "fax": {
+            "type": "boolean"
+          },
+          "from": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "inbox": {
+            "type": "boolean",
+            "description": "Replies are read from a mailbox."
+          },
+          "live": {
+            "type": "boolean",
+            "description": "Quote requests are really sent (else only recorded, test mode)."
+          }
+        }
+      },
       "MeResponse": {
         "type": "object",
         "required": [
@@ -18923,7 +19720,9 @@
           "channel",
           "subject",
           "body",
-          "created_at"
+          "created_at",
+          "kind",
+          "status"
         ],
         "properties": {
           "body": {
@@ -18939,6 +19738,27 @@
           "id": {
             "type": "string",
             "format": "uuid"
+          },
+          "kind": {
+            "type": "string",
+            "description": "rfq or reminder."
+          },
+          "last_error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sent_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string",
+            "description": "recorded (test mode), queued, sent or failed."
           },
           "subject": {
             "type": "string"
@@ -20054,6 +20874,23 @@
           }
         }
       },
+      "RemindResponse": {
+        "type": "object",
+        "required": [
+          "channel",
+          "messages"
+        ],
+        "properties": {
+          "channel": {
+            "type": "string"
+          },
+          "messages": {
+            "type": "integer",
+            "description": "Suppliers reminded (those that have not replied or declined).",
+            "minimum": 0
+          }
+        }
+      },
       "ReplyFileBody": {
         "type": "object",
         "required": [
@@ -20329,9 +21166,17 @@
         "required": [
           "rfq",
           "recipients",
-          "quotations"
+          "quotations",
+          "documents"
         ],
         "properties": {
+          "documents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DocumentView"
+            },
+            "description": "Supplier files received for this RFQ (uploaded, or read from the mailbox), kept as\nreceived. Shown to our staff only."
+          },
           "latest_comparison_id": {
             "type": [
               "string",
@@ -21227,11 +22072,25 @@
               "null"
             ]
           },
+          "fax": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "FAX number (digits, optional leading +), for suppliers that take requests by FAX."
+          },
           "name": {
             "type": "string"
           },
           "notes": {
             "type": "string"
+          },
+          "rfq_channel": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "How quote requests go out: `email` (default) or `fax`."
           },
           "website": {
             "type": [
@@ -21262,6 +22121,7 @@
           "name",
           "country",
           "categories",
+          "rfq_channel",
           "status",
           "notes",
           "created_at",
@@ -21287,6 +22147,12 @@
               "null"
             ]
           },
+          "fax": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "id": {
             "type": "string",
             "format": "uuid"
@@ -21297,6 +22163,9 @@
           "notes": {
             "type": "string",
             "description": "Internal notes (staff only)."
+          },
+          "rfq_channel": {
+            "type": "string"
           },
           "status": {
             "type": "string"

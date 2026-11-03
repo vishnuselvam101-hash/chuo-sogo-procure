@@ -10,6 +10,7 @@ pub mod history;
 pub mod history_orders;
 pub mod listing_ai;
 pub mod listings;
+pub mod mail;
 pub mod ops;
 pub mod orders;
 pub mod orgs;

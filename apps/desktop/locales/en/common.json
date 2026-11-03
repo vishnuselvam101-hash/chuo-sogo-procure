@@ -24,7 +24,8 @@
     "catalogue": "Catalogue",
     "history": "Purchase history",
     "savings": "Savings",
-    "records": "Records"
+    "records": "Records",
+    "mailInbox": "Mail inbox"
   },
   "workspace": {
     "customer": "Customer workspace",

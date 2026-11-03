@@ -40,6 +40,10 @@ pub struct SupplierInput {
     pub categories: Vec<String>,
     #[serde(default)]
     pub notes: String,
+    /// FAX number (digits, optional leading +), for suppliers that take requests by FAX.
+    pub fax: Option<String>,
+    /// How quote requests go out: `email` (default) or `fax`.
+    pub rfq_channel: Option<String>,
 }
 
 struct CleanSupplier {
@@ -49,6 +53,37 @@ struct CleanSupplier {
     website: Option<String>,
     categories: Vec<String>,
     notes: String,
+    fax: Option<String>,
+    rfq_channel: String,
+}
+
+/// FAX number as stored (`+81312345678` / `0312345678`): spaces, dashes and brackets dropped.
+fn clean_fax(raw: Option<&str>) -> ApiResult<Option<String>> {
+    let Some(f) = raw.map(str::trim).filter(|f| !f.is_empty()) else {
+        return Ok(None);
+    };
+    let plus = f.starts_with('+');
+    let digits: String = f.chars().filter(char::is_ascii_digit).collect();
+    let rest_ok = f
+        .chars()
+        .skip(usize::from(plus))
+        .all(|c| c.is_ascii_digit() || matches!(c, ' ' | '-' | '(' | ')'));
+    if !rest_ok || !(6..=20).contains(&digits.len()) {
+        return Err(ApiError::Validation("fax"));
+    }
+    Ok(Some(if plus { format!("+{digits}") } else { digits }))
+}
+
+fn clean_channel(raw: Option<&str>, fax: Option<&String>) -> ApiResult<String> {
+    let c = raw
+        .map(str::trim)
+        .filter(|c| !c.is_empty())
+        .unwrap_or("email");
+    match c {
+        "email" => Ok(c.into()),
+        "fax" if fax.is_some() => Ok(c.into()),
+        _ => Err(ApiError::Validation("rfq_channel")),
+    }
 }
 
 fn clean_supplier(s: &SupplierInput) -> ApiResult<CleanSupplier> {
@@ -94,7 +129,11 @@ fn clean_supplier(s: &SupplierInput) -> ApiResult<CleanSupplier> {
         .iter()
         .map(|c| common::required(c, 60, false, "categories"))
         .collect::<ApiResult<Vec<_>>>()?;
+    let fax = clean_fax(s.fax.as_deref())?;
+    let rfq_channel = clean_channel(s.rfq_channel.as_deref(), fax.as_ref())?;
     Ok(CleanSupplier {
+        fax,
+        rfq_channel,
         name: common::required(&s.name, 200, false, "name")?,
         country,
         email,
@@ -112,6 +151,8 @@ pub struct SupplierView {
     pub email: Option<String>,
     pub website: Option<String>,
     pub categories: Vec<String>,
+    pub fax: Option<String>,
+    pub rfq_channel: String,
     pub status: String,
     /// Internal notes (staff only).
     pub notes: String,
@@ -149,8 +190,9 @@ pub async fn create_supplier(
     db::enable_staff_scope(&mut tx).await?;
     let id = Uuid::now_v7();
     sqlx::query(
-        "INSERT INTO suppliers (id, name, country, email, website, categories, created_by)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)",
+        "INSERT INTO suppliers (id, name, country, email, website, categories, created_by, fax,
+                                rfq_channel)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
     )
     .bind(id)
     .bind(&s.name)
@@ -159,6 +201,8 @@ pub async fn create_supplier(
     .bind(&s.website)
     .bind(&s.categories)
     .bind(p.user_id)
+    .bind(&s.fax)
+    .bind(&s.rfq_channel)
     .execute(&mut *tx)
     .await?;
     sqlx::query("INSERT INTO supplier_notes (supplier_id, notes) VALUES ($1, $2)")
@@ -236,7 +280,8 @@ pub async fn list_suppliers(
     let mut tx = db::tenant_tx(&state.pool, p.user_id, platform_org).await?;
     db::enable_staff_scope(&mut tx).await?;
     let rows = sqlx::query_as::<_, SupplierView>(
-        "SELECT s.id, s.name, s.country, s.email::text AS email, s.website, s.categories, s.status,
+        "SELECT s.id, s.name, s.country, s.email::text AS email, s.website, s.categories, s.fax,
+                s.rfq_channel, s.status,
                 coalesce(n.notes, '') AS notes, s.created_at, s.updated_at
          FROM suppliers s LEFT JOIN supplier_notes n ON n.supplier_id = s.id
          WHERE ($1::text IS NULL OR s.status = $1) AND ($2::text IS NULL OR s.name ILIKE $2)
@@ -503,6 +548,80 @@ pub async fn decide_supplier(
             json!({ "from": previous, "to": body.decision, "reason": reason }),
         )
         .await?;
+    tx.commit().await?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+#[derive(Deserialize, utoipa::ToSchema)]
+pub struct ContactBody {
+    pub email: Option<String>,
+    pub fax: Option<String>,
+    /// `email` or `fax`.
+    pub rfq_channel: String,
+}
+
+#[utoipa::path(
+    put,
+    path = "/api/v1/suppliers/{supplier_id}/contact",
+    tag = "suppliers",
+    params(("supplier_id" = Uuid, Path)),
+    request_body = ContactBody,
+    security(("bearer" = [])),
+    responses(
+        (status = 204, description = "Where quote requests go is updated"),
+        (status = 403, description = "Not internal procurement staff", body = ErrorBody),
+        (status = 404, description = "Unknown supplier", body = ErrorBody),
+        (status = 422, description = "Invalid email, FAX or channel", body = ErrorBody),
+        (status = 400, description = "Malformed request", body = ErrorBody),
+        (status = 401, description = "No valid session", body = ErrorBody),
+    )
+)]
+pub async fn set_contact(
+    State(state): State<AppState>,
+    p: Principal,
+    ApiPath(supplier_id): ApiPath<Uuid>,
+    ApiJson(body): ApiJson<ContactBody>,
+) -> ApiResult<StatusCode> {
+    let platform_org = require_directory(&p)?;
+    // Reuse the create rules for the email address.
+    let probe = clean_supplier(&SupplierInput {
+        name: "x".into(),
+        country: "JP".into(),
+        email: body.email.clone(),
+        website: None,
+        categories: vec![],
+        notes: String::new(),
+        fax: body.fax.clone(),
+        rfq_channel: Some(body.rfq_channel.clone()),
+    })?;
+    let mut tx = db::tenant_tx(&state.pool, p.user_id, platform_org).await?;
+    db::enable_staff_scope(&mut tx).await?;
+    let n = sqlx::query(
+        "UPDATE suppliers SET email = $2, fax = $3, rfq_channel = $4, updated_at = now()
+         WHERE id = $1",
+    )
+    .bind(supplier_id)
+    .bind(&probe.email)
+    .bind(&probe.fax)
+    .bind(&probe.rfq_channel)
+    .execute(&mut *tx)
+    .await?
+    .rows_affected();
+    if n == 0 {
+        return Err(ApiError::NotFound);
+    }
+    Audit {
+        org_id: platform_org,
+        p: &p,
+    }
+    .record(
+        &mut tx,
+        "supplier.contact_updated",
+        "supplier",
+        supplier_id,
+        json!({ "email": probe.email, "fax": probe.fax, "rfq_channel": probe.rfq_channel }),
+    )
+    .await?;
     tx.commit().await?;
     Ok(StatusCode::NO_CONTENT)
 }

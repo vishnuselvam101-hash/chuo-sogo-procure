@@ -159,7 +159,11 @@
     "reason": "理由（却下時は必須）",
     "reasonRequired": "先に理由を入力してください",
     "propose": "確認済みサプライヤーを提案",
-    "proposeButton": "提案する"
+    "proposeButton": "提案する",
+    "fax": "FAX番号",
+    "rfqChannel": "見積依頼の送付方法",
+    "faxShort": "FAX {{fax}}",
+    "byFax": "FAXで依頼"
   },
   "attachment": {
     "heading": "添付ファイル",
@@ -399,5 +403,33 @@
       "no_replies": "{{of}}件の依頼に回答なし",
       "already_invited": "この依頼で依頼済み"
     }
+  },
+  "mail": {
+    "remind": "未回答の{{count}}社に再送",
+    "reminded": "{{count}}社に再送しました。",
+    "reminder": "再送",
+    "liveNote": "本番送信：見積依頼は {{from}} からメールまたはFAXで送信されます。返信は自動で照合されます。",
+    "documents": "仕入先から受け取ったファイル",
+    "unknownSupplier": "仕入先未確定",
+    "read": "読み取って記録",
+    "recorded": "見積記録済み",
+    "status": {
+      "recorded": "記録のみ（テストモード）",
+      "queued": "送信待ち",
+      "sent": "送信済み",
+      "failed": "送信失敗"
+    },
+    "channel": {
+      "upload": "アップロード",
+      "email": "メール",
+      "fax": "FAX"
+    },
+    "inboxLead": "見積依頼と自動で照合できなかった仕入先からのメッセージ（FAX、新しいメール）です。開いて{{org}}のRFQに割り当てるか、対象外にしてください。",
+    "inboxEmpty": "割り当てるものはありません。",
+    "noSubject": "（件名なし）",
+    "open": "開く",
+    "rfqNumber": "RFQ番号",
+    "assign": "割り当て",
+    "setAside": "返信ではない：対象外"
   }
 }

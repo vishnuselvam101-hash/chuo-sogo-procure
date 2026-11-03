@@ -40,6 +40,8 @@ pub struct App {
     pub router: Router,
     pub pool: PgPool,
     pub mailer: Arc<MemoryMailer>,
+    /// The application state the router runs with (for driving background jobs).
+    pub state: AppState,
 }
 
 pub struct Resp {
@@ -93,11 +95,12 @@ impl App {
         state.storage = Arc::new(procure_server::storage::Storage::new(
             std::env::temp_dir().join("procure-test-storage"),
         ));
-        let router = router(state);
+        let router = router(state.clone());
         App {
             router,
             pool,
             mailer,
+            state,
         }
     }
 

@@ -159,7 +159,11 @@
     "reason": "Reason (required to reject)",
     "reasonRequired": "Enter a reason first",
     "propose": "Propose a verified supplier",
-    "proposeButton": "Propose"
+    "proposeButton": "Propose",
+    "fax": "FAX number",
+    "rfqChannel": "Send quote requests by",
+    "faxShort": "FAX {{fax}}",
+    "byFax": "requests by FAX"
   },
   "attachment": {
     "heading": "Attachments",
@@ -399,5 +403,33 @@
       "no_replies": "No reply to {{of}} requests",
       "already_invited": "Already asked for this request"
     }
+  },
+  "mail": {
+    "remind": "Remind {{count}} suppliers",
+    "reminded": "Reminder sent to {{count}} supplier(s).",
+    "reminder": "reminder",
+    "liveNote": "Live: quote requests are sent by email or FAX from {{from}}. Replies are matched automatically.",
+    "documents": "Files received from suppliers",
+    "unknownSupplier": "Supplier not known yet",
+    "read": "Read and record",
+    "recorded": "Quotation recorded",
+    "status": {
+      "recorded": "recorded (test mode)",
+      "queued": "waiting to send",
+      "sent": "sent",
+      "failed": "not sent"
+    },
+    "channel": {
+      "upload": "uploaded",
+      "email": "email",
+      "fax": "FAX"
+    },
+    "inboxLead": "Supplier messages that could not be matched to a quote request (FAXes, new email threads). Open one, then assign it to an RFQ of {{org}} or set it aside.",
+    "inboxEmpty": "Nothing to assign.",
+    "noSubject": "(no subject)",
+    "open": "Open",
+    "rfqNumber": "RFQ number",
+    "assign": "Assign",
+    "setAside": "Not a reply: set aside"
   }
 }

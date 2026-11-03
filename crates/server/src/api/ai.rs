@@ -778,3 +778,57 @@ pub async fn accept_quotation_suggestion(
         )
         .await
 }
+
+#[utoipa::path(
+    post,
+    path = "/api/v1/orgs/{org_id}/rfqs/{rfq_id}/supplier-documents/{document_id}/text",
+    tag = "ai",
+    params(("org_id" = Uuid, Path), ("rfq_id" = Uuid, Path), ("document_id" = Uuid, Path)),
+    security(("bearer" = [])),
+    responses(
+        (status = 200, description = "Text read from a supplier file already kept on this RFQ (mailbox or upload)", body = ReplyText),
+        (status = 403, description = "Not permitted", body = ErrorBody),
+        (status = 404, description = "Unknown RFQ or document", body = ErrorBody),
+        (status = 422, description = "Unreadable file; OCR not installed", body = ErrorBody),
+        (status = 401, description = "No valid session", body = ErrorBody),
+    )
+)]
+pub async fn document_text(
+    State(state): State<AppState>,
+    p: Principal,
+    ApiPath((org_id, rfq_id, document_id)): ApiPath<(Uuid, Uuid, Uuid)>,
+) -> ApiResult<Json<ReplyText>> {
+    let access = p
+        .require(&state, org_id, Permission::RecordQuotations)
+        .await?;
+    if side(access)? != Side::Operator {
+        return Err(ApiError::Forbidden);
+    }
+    let mut tx = db::tenant_tx(&state.pool, p.user_id, org_id).await?;
+    let row: Option<(String, Vec<u8>)> = sqlx::query_as(
+        "SELECT file_name, sha256 FROM supplier_documents WHERE id = $1 AND rfq_id = $2",
+    )
+    .bind(document_id)
+    .bind(rfq_id)
+    .fetch_optional(&mut *tx)
+    .await?;
+    tx.commit().await?;
+    let (file_name, sha) = row.ok_or(ApiError::NotFound)?;
+    let hash: [u8; 32] = sha
+        .as_slice()
+        .try_into()
+        .map_err(|_| ApiError::internal(std::io::Error::other("bad stored hash")))?;
+    let bytes = state.storage.get(&hash).await.map_err(ApiError::internal)?;
+    let _permit = state
+        .upload_permits
+        .acquire()
+        .await
+        .map_err(ApiError::internal)?;
+    let text = crate::intake::quote_reply_text(&file_name, &bytes)
+        .await
+        .map_err(|e| match e {
+            crate::intake::IntakeError::Failed => ApiError::Conflict("intake_failed"),
+            other => ApiError::Validation(other.code()),
+        })?;
+    Ok(Json(ReplyText { text, document_id }))
+}

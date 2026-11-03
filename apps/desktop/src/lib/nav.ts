@@ -18,6 +18,7 @@ export type PageId =
   | "catalogue"
   | "reports"
   | "opsQueue"
+  | "mailInbox"
   | "organisations"
   | "members"
   | "audit"
@@ -59,6 +60,8 @@ export function navFor(m: MembershipView): NavItem[] {
     if (has("manage_purchase_history") || has("view_all_requests")) items.push(item("history", true));
     // Staff working inside a customer keep their work queue one click away.
     if (m.access === "assigned" && has("operate_requests")) items.push(item("opsQueue", true));
+    // Supplier replies (FAXes, new threads) the server could not match to an RFQ.
+    if (m.access === "assigned" && has("record_quotations")) items.push(item("mailInbox", true));
     // We buy for the factory; we are not a marketplace. The supplier catalogue stays off
     // unless a build turns it on (VITE_MARKETPLACE=on).
     if (MARKETPLACE && m.access !== "assigned" && has("view_catalogue")) items.push(item("catalogue", true));

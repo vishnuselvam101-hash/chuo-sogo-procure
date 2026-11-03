@@ -743,6 +743,86 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/mail-inbox": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["list_inbox"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/mail-inbox/{message_id}/assign": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["assign"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/mail-inbox/{message_id}/set-aside": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["set_aside"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/mail-inbox/{message_id}/text": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["inbox_text"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/mail/status": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["mail_status"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/me": {
     parameters: {
       query?: never;
@@ -2071,6 +2151,22 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/orgs/{org_id}/rfqs/{rfq_id}/remind": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["remind_rfq"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/orgs/{org_id}/rfqs/{rfq_id}/reply-text": {
     parameters: {
       query?: never;
@@ -2081,6 +2177,22 @@ export interface paths {
     get?: never;
     put?: never;
     post: operations["reply_text"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/orgs/{org_id}/rfqs/{rfq_id}/supplier-documents/{document_id}/text": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["document_text"];
     delete?: never;
     options?: never;
     head?: never;
@@ -2471,6 +2583,22 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/suppliers/{supplier_id}/contact": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put: operations["set_contact"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/suppliers/{supplier_id}/status": {
     parameters: {
       query?: never;
@@ -2611,6 +2739,26 @@ export interface components {
       /** Format: uuid */
       id: string;
       note: string;
+    };
+    AssignBody: {
+      /** Format: uuid */
+      org_id: string;
+      /**
+       * Format: uuid
+       * @description The RFQ, by id or by its number (`RFQ-2026-000001`).
+       */
+      rfq_id?: string | null;
+      rfq_number?: string | null;
+      /**
+       * Format: uuid
+       * @description The supplier who sent it (must be asked in the RFQ). When left out, the recipient
+       *     whose email domain matches the sender is taken, if exactly one does.
+       */
+      supplier_id?: string | null;
+    };
+    Assigned: {
+      /** Format: uuid */
+      document_id: string;
     };
     AssignmentRequest: {
       /** Format: uuid */
@@ -2793,6 +2941,12 @@ export interface components {
       results: components["schemas"]["ComparisonResult"][];
       /** Format: uuid */
       rfq_id: string;
+    };
+    ContactBody: {
+      email?: string | null;
+      fax?: string | null;
+      /** @description `email` or `fax`. */
+      rfq_channel: string;
     };
     CreateOrgRequest: {
       admin_email: string;
@@ -3001,9 +3155,26 @@ export interface components {
       status: string;
     };
     DispatchResponse: {
-      /** @description Always `test`: messages are recorded for manual export, nothing is sent. */
+      /**
+       * @description `test`: messages are only recorded for manual export; `live`: queued and sent by email
+       *     or FAX (server configured with `PROCURE_SUPPLIER_MAIL=live`).
+       */
       channel: string;
       messages: number;
+    };
+    DocumentView: {
+      /** @description upload, email or fax. */
+      channel: string;
+      file_name: string;
+      /** Format: uuid */
+      id: string;
+      /** Format: date-time */
+      received_at: string;
+      /** Format: uuid */
+      supplier_id?: string | null;
+      supplier_name?: string | null;
+      /** @description A quotation was recorded from it. */
+      used: boolean;
     };
     EnrollRequest: {
       token: string;
@@ -3176,6 +3347,21 @@ export interface components {
       source: string;
       /** Format: date-time */
       withdrawn_at?: string | null;
+    };
+    InboxMessage: {
+      /** @description email or fax. */
+      channel: string;
+      from_address: string;
+      /** Format: uuid */
+      id: string;
+      /** Format: date-time */
+      received_at: string;
+      /** Format: int64 */
+      size_bytes: number;
+      subject: string;
+    };
+    InboxText: {
+      text: string;
     };
     InvitationView: {
       /** Format: uuid */
@@ -3506,6 +3692,16 @@ export interface components {
       expires_at: string;
       token: string;
     };
+    MailStatus: {
+      /** @description Email only to these domains (pilot), when not empty. */
+      allow_domains: string[];
+      fax: boolean;
+      from?: string | null;
+      /** @description Replies are read from a mailbox. */
+      inbox: boolean;
+      /** @description Quote requests are really sent (else only recorded, test mode). */
+      live: boolean;
+    };
     MeResponse: {
       invitations: components["schemas"]["InvitationView"][];
       memberships: components["schemas"]["MembershipView"][];
@@ -3771,6 +3967,13 @@ export interface components {
       created_at: string;
       /** Format: uuid */
       id: string;
+      /** @description rfq or reminder. */
+      kind: string;
+      last_error?: string | null;
+      /** Format: date-time */
+      sent_at?: string | null;
+      /** @description recorded (test mode), queued, sent or failed. */
+      status: string;
       subject: string;
       /** Format: uuid */
       supplier_id: string;
@@ -4141,6 +4344,11 @@ export interface components {
       reference: string;
       request_number?: string | null;
     };
+    RemindResponse: {
+      channel: string;
+      /** @description Suppliers reminded (those that have not replied or declined). */
+      messages: number;
+    };
     ReplyFileBody: {
       /** @description File content, standard base64. */
       data_base64: string;
@@ -4229,6 +4437,11 @@ export interface components {
       note?: string;
     };
     RfqDetail: {
+      /**
+       * @description Supplier files received for this RFQ (uploaded, or read from the mailbox), kept as
+       *     received. Shown to our staff only.
+       */
+      documents: components["schemas"]["DocumentView"][];
       /**
        * Format: uuid
        * @description Most recent comparison run of this RFQ, if any.
@@ -4518,8 +4731,12 @@ export interface components {
       /** @description ISO 3166-1 alpha-2, e.g. `JP`. */
       country: string;
       email?: string | null;
+      /** @description FAX number (digits, optional leading +), for suppliers that take requests by FAX. */
+      fax?: string | null;
       name: string;
       notes?: string;
+      /** @description How quote requests go out: `email` (default) or `fax`. */
+      rfq_channel?: string | null;
       website?: string | null;
     };
     SupplierStatusBody: {
@@ -4532,11 +4749,13 @@ export interface components {
       /** Format: date-time */
       created_at: string;
       email?: string | null;
+      fax?: string | null;
       /** Format: uuid */
       id: string;
       name: string;
       /** @description Internal notes (staff only). */
       notes: string;
+      rfq_channel: string;
       status: string;
       /** Format: date-time */
       updated_at: string;
@@ -7418,6 +7637,267 @@ export interface operations {
       };
       /** @description No pending invitation */
       404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  list_inbox: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Messages not yet matched to an RFQ, oldest first */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InboxMessage"][];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not internal staff */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  assign: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        message_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["AssignBody"];
+      };
+    };
+    responses: {
+      /** @description Kept as the supplier's document on the RFQ; a task opened */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Assigned"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not staff assigned to that organisation */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown message or RFQ */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Already assigned or set aside */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Supplier not asked in that RFQ */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  set_aside: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        message_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Not a supplier reply; kept, no longer listed */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not internal staff */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown message */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Already assigned or set aside */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  inbox_text: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        message_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The message as text (attachments and FAX pages read too) */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InboxText"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not internal staff */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown message */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unreadable */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  mail_status: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description How supplier mail is set up on this server */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["MailStatus"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not internal staff */
+      403: {
         headers: {
           [name: string]: unknown;
         };
@@ -13892,6 +14372,65 @@ export interface operations {
       };
     };
   };
+  remind_rfq: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+        rfq_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Reminders recorded (test mode) or queued */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["RemindResponse"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown RFQ or not assigned */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not sent, nobody left to remind, or reminded in the last 20 hours */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
   reply_text: {
     parameters: {
       query?: never;
@@ -13954,6 +14493,66 @@ export interface operations {
         };
       };
       /** @description Unsupported, empty or too large file; OCR not installed */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  document_text: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+        rfq_id: string;
+        document_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Text read from a supplier file already kept on this RFQ (mailbox or upload) */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ReplyText"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown RFQ or document */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unreadable file; OCR not installed */
       422: {
         headers: {
           [name: string]: unknown;
@@ -15485,6 +16084,75 @@ export interface operations {
         };
       };
       /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  set_contact: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        supplier_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ContactBody"];
+      };
+    };
+    responses: {
+      /** @description Where quote requests go is updated */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not internal procurement staff */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown supplier */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Invalid email, FAX or channel */
       422: {
         headers: {
           [name: string]: unknown;

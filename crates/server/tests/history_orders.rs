@@ -38,7 +38,10 @@ struct Ordered {
 impl Flow {
     async fn new(pool: PgPool) -> Self {
         let owner = pool.clone();
-        let w = world(pool).await;
+        Self::with_world(owner, world(pool).await).await
+    }
+
+    async fn with_world(owner: PgPool, w: World) -> Self {
         let operator = w
             .member(
                 w.platform_org,
@@ -132,7 +135,9 @@ impl Flow {
     /// Request for a bearing (100 pcs) and a linear guide (4 sets), both verified, quoted by the
     /// supplier at 1,200 and 45,000 yen (line 2 optionally under the supplier's own part number), approved and
     /// ordered as `po`, then backdated to `ordered_at`.
-    async fn ordered(&self, po: &str, offered_mpn: bool, ordered_at: &str) -> Ordered {
+    /// The request of `ordered` up to its RFQ being checked and dispatched:
+    /// (request, rfq, request items, verified part numbers).
+    async fn sent_rfq(&self) -> (Uuid, Uuid, Vec<Uuid>, Vec<String>) {
         let app = &self.w.app;
         let r = app
             .post(
@@ -213,6 +218,12 @@ impl Flow {
         let rfq = uuid(&r.body["id"]);
         self.ok(self.op(&format!("rfqs/{rfq}/check"), json!({})).await);
         self.ok(self.op(&format!("rfqs/{rfq}/dispatch"), json!({})).await);
+        (request, rfq, req_items, mpns)
+    }
+
+    async fn ordered(&self, po: &str, offered_mpn: bool, ordered_at: &str) -> Ordered {
+        let app = &self.w.app;
+        let (request, rfq, req_items, mpns) = self.sent_rfq().await;
         let mut second = json!({ "request_item_id": req_items[1], "unit_price_minor": 45_000,
                                  "quantity": 4, "lead_time_days": 21 });
         if offered_mpn {
@@ -1619,6 +1630,323 @@ async fn opportunities_show_what_was_paid_above_the_factorys_own_lowest_price(po
     assert_eq!(app.get(&path, &f.operator).await.status, StatusCode::OK);
     assert_eq!(
         app.get(&path, &f.requester).await.status,
+        StatusCode::FORBIDDEN
+    );
+}
+
+/// Records what would go to the SMTP server; can be made to fail.
+#[derive(Default)]
+struct FakeSmtp {
+    sent: std::sync::Mutex<Vec<(String, Vec<u8>)>>,
+    fail: std::sync::atomic::AtomicBool,
+}
+
+impl procure_server::supplier_mail::Transport for FakeSmtp {
+    fn send<'a>(
+        &'a self,
+        _from: &'a str,
+        to: &'a str,
+        raw: &'a [u8],
+    ) -> futures_util::future::BoxFuture<'a, Result<(), String>> {
+        Box::pin(async move {
+            if self.fail.load(std::sync::atomic::Ordering::SeqCst) {
+                return Err("421 try again later".into());
+            }
+            self.sent
+                .lock()
+                .unwrap()
+                .push((to.to_string(), raw.to_vec()));
+            Ok(())
+        })
+    }
+}
+
+#[derive(Default)]
+struct FakeMailbox {
+    messages: std::sync::Mutex<Vec<(u32, Vec<u8>)>>,
+}
+
+impl procure_server::supplier_mail::Inbox for FakeMailbox {
+    fn fetch<'a>(
+        &'a self,
+        from_uid: u32,
+        _since: chrono::NaiveDate,
+    ) -> futures_util::future::BoxFuture<'a, Result<(u32, Vec<(u32, Vec<u8>)>), String>> {
+        Box::pin(async move {
+            let all = self.messages.lock().unwrap().clone();
+            Ok((7, all.into_iter().filter(|(u, _)| *u >= from_uid).collect()))
+        })
+    }
+}
+
+#[sqlx::test(migrator = "procure_server::MIGRATOR")]
+async fn live_mail_sends_retries_reminds_and_reads_replies_and_faxes(pool: PgPool) {
+    use procure_server::supplier_mail::{SupplierMail, poll_inbox, send_queued};
+    let smtp = std::sync::Arc::new(FakeSmtp::default());
+    let mailbox = std::sync::Arc::new(FakeMailbox::default());
+    let mail = std::sync::Arc::new(SupplierMail {
+        from: "Chuo-Sogo 購買 <rfq@chuo-sogo.test>".into(),
+        reply_to: None,
+        fax_gateway: Some("{number}@fax-gw.test".into()),
+        fax_senders: vec!["@fax-in.test".into()],
+        allow_domains: vec![],
+        transport: smtp.clone(),
+        inbox: Some(mailbox.clone()),
+        imap: Some(procure_server::supplier_mail::ImapConfig {
+            host: "imap.test".into(),
+            port: 993,
+            user: "u".into(),
+            password: "p".into(),
+            mailbox: "INBOX".into(),
+            poll: std::time::Duration::from_secs(60),
+            since: chrono::NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(),
+        }),
+    });
+    let owner = pool.clone();
+    let m = mail.clone();
+    let app = App::configured(pool, move |s| s.supplier_mail = Some(m)).await;
+    let f = Flow::with_world(owner, world_with(app).await).await;
+    let state = f.w.app.state.clone();
+    let (request, rfq, items, _) = f.sent_rfq().await;
+
+    // The SMTP server refuses at first: the message stays queued with the error, then goes.
+    smtp.fail.store(true, std::sync::atomic::Ordering::SeqCst);
+    assert_eq!(send_queued(&state, &mail).await.unwrap(), 0);
+    let fr = &f;
+    let outbox = || {
+        let url = fr.url(&format!("rfqs/{rfq}/outbox"));
+        async move { fr.w.app.get(&url, &fr.operator).await.body }
+    };
+    let o = outbox().await;
+    assert_eq!(o[0]["status"], "queued", "{o:?}");
+    assert_eq!(o[0]["channel"], "email");
+    assert!(o[0]["last_error"].as_str().unwrap().contains("421"));
+    f.as_owner(
+        "UPDATE outbox SET next_attempt_at = now() - $2::interval
+         WHERE rfq_recipient_id IN (SELECT id FROM rfq_recipients WHERE rfq_id = $1)",
+        rfq,
+        "1 second",
+    )
+    .await;
+    smtp.fail.store(false, std::sync::atomic::Ordering::SeqCst);
+    assert_eq!(send_queued(&state, &mail).await.unwrap(), 1);
+    let o = outbox().await;
+    assert_eq!(o[0]["status"], "sent");
+    let subject = o[0]["subject"].as_str().unwrap().to_string();
+    let (to, raw) = smtp.sent.lock().unwrap()[0].clone();
+    assert_eq!(to, "rfq@tokyo-bearings.test");
+    let raw = String::from_utf8_lossy(&raw).to_string();
+    assert!(raw.contains("Message-ID: <"), "{raw}");
+    let token = procure_server::supplier_mail::token_in(&subject).unwrap();
+
+    // One reminder to those who have not replied; not again within 20 hours.
+    let remind = f.url(&format!("rfqs/{rfq}/remind"));
+    let r = f.w.app.post(&remind, &f.operator, json!({})).await;
+    assert_eq!(r.status, StatusCode::OK, "{:?}", r.body);
+    assert_eq!(
+        (r.body["channel"].clone(), r.body["messages"].clone()),
+        (json!("live"), json!(1))
+    );
+    let r = f.w.app.post(&remind, &f.operator, json!({})).await;
+    assert_eq!(r.body["error"]["detail"], "reminded_recently");
+    assert_eq!(send_queued(&state, &mail).await.unwrap(), 1);
+    assert_eq!(smtp.sent.lock().unwrap().len(), 2);
+
+    // Replies: one answering our subject, one FAX that cannot say which RFQ it is for.
+    let reply = format!(
+        "From: Sales <sales@tokyo-bearings.test>\r\nSubject: Re: {subject}\r\n\
+         Date: Tue, 3 Nov 2026 10:00:00 +0900\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n\
+         6204ZZ 100個 単価 1,150円\r\n"
+    );
+    let fax = "From: fax@fax-in.test\r\nSubject: FAX from 0312345678\r\n\
+               Content-Type: text/plain; charset=UTF-8\r\n\r\nHSR15 4 set 44,000\r\n";
+    mailbox.messages.lock().unwrap().extend([
+        (5, reply.clone().into_bytes()),
+        (6, fax.as_bytes().to_vec()),
+    ]);
+    assert_eq!(poll_inbox(&state, &mail).await.unwrap(), 1);
+    // Read again: nothing new.
+    assert_eq!(poll_inbox(&state, &mail).await.unwrap(), 0);
+    let detail =
+        f.w.app
+            .get(&f.url(&format!("rfqs/{rfq}")), &f.operator)
+            .await;
+    let docs = detail.body["documents"].as_array().unwrap().clone();
+    assert_eq!(docs.len(), 1, "{docs:?}");
+    assert_eq!(docs[0]["channel"], "email");
+    assert_eq!(uuid(&docs[0]["supplier_id"]), f.supplier);
+    // Customers never see what suppliers sent before our staff checked it.
+    let customer =
+        f.w.app
+            .get(&f.url(&format!("rfqs/{rfq}")), &f.manager)
+            .await;
+    assert_eq!(customer.body["documents"], json!([]));
+    let tasks =
+        f.w.app
+            .get(&f.url(&format!("requests/{request}/tasks")), &f.operator)
+            .await;
+    assert!(
+        tasks
+            .body
+            .to_string()
+            .contains("Reply received from Tokyo Bearings KK"),
+        "{:?}",
+        tasks.body
+    );
+    let email_doc = uuid(&docs[0]["id"]);
+    let r = f
+        .op(
+            &format!("rfqs/{rfq}/supplier-documents/{email_doc}/text"),
+            json!({}),
+        )
+        .await;
+    assert!(
+        r.body["text"].as_str().unwrap().contains("単価 1,150円"),
+        "{:?}",
+        r.body
+    );
+    let _ = token;
+
+    // The FAX waits in our staff inbox; it is read, then assigned by a person.
+    let inbox = f.w.app.get("/api/v1/mail-inbox", &f.operator).await;
+    let list = inbox.body.as_array().unwrap().clone();
+    assert_eq!(list.len(), 1, "{list:?}");
+    assert_eq!(list[0]["channel"], "fax");
+    let msg = uuid(&list[0]["id"]);
+    let t =
+        f.w.app
+            .get(&format!("/api/v1/mail-inbox/{msg}/text"), &f.operator)
+            .await;
+    assert!(
+        t.body["text"].as_str().unwrap().contains("44,000"),
+        "{:?}",
+        t.body
+    );
+    assert_eq!(
+        f.w.app.get("/api/v1/mail-inbox", &f.manager).await.status,
+        StatusCode::FORBIDDEN
+    );
+    let assign = format!("/api/v1/mail-inbox/{msg}/assign");
+    let r =
+        f.w.app
+            .post(
+                &assign,
+                &f.operator,
+                json!({ "org_id": f.w.org_a, "rfq_id": rfq, "supplier_id": f.supplier }),
+            )
+            .await;
+    assert_eq!(r.status, StatusCode::OK, "{:?}", r.body);
+    let r =
+        f.w.app
+            .post(
+                &assign,
+                &f.operator,
+                json!({ "org_id": f.w.org_a, "rfq_id": rfq }),
+            )
+            .await;
+    assert_eq!(r.status, StatusCode::CONFLICT);
+    let detail =
+        f.w.app
+            .get(&f.url(&format!("rfqs/{rfq}")), &f.operator)
+            .await;
+    let docs = detail.body["documents"].as_array().unwrap().clone();
+    assert_eq!(docs.len(), 2);
+    assert!(docs.iter().any(|d| d["channel"] == "fax"));
+    assert_eq!(
+        f.w.app.get("/api/v1/mail-inbox", &f.operator).await.body,
+        json!([])
+    );
+
+    // The quotation is recorded from the email; then nobody is left to remind.
+    let r = f
+        .op(
+            &format!("rfqs/{rfq}/quotations"),
+            json!({
+                "supplier_id": f.supplier, "currency": "JPY", "valid_until": "2099-01-01",
+                "source_document_id": email_doc,
+                "lines": [
+                    { "request_item_id": items[0], "unit_price_minor": 1150, "quantity": 100 },
+                    { "request_item_id": items[1], "unit_price_minor": 44_000, "quantity": 4 }
+                ]
+            }),
+        )
+        .await;
+    assert_eq!(r.status, StatusCode::CREATED, "{:?}", r.body);
+    let detail =
+        f.w.app
+            .get(&f.url(&format!("rfqs/{rfq}")), &f.operator)
+            .await;
+    let used = detail.body["documents"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|d| uuid(&d["id"]) == email_doc)
+        .unwrap()["used"]
+        .clone();
+    assert_eq!(used, true);
+    f.as_owner(
+        "UPDATE outbox SET created_at = now() - $2::interval
+         WHERE kind = 'reminder'
+           AND rfq_recipient_id IN (SELECT id FROM rfq_recipients WHERE rfq_id = $1)",
+        rfq,
+        "1 day",
+    )
+    .await;
+    let r = f.w.app.post(&remind, &f.operator, json!({})).await;
+    assert_eq!(
+        r.body["error"]["detail"], "nobody_to_remind",
+        "{:?}",
+        r.body
+    );
+
+    let status = f.w.app.get("/api/v1/mail/status", &f.operator).await;
+    assert_eq!(status.body["live"], true);
+    assert_eq!(status.body["fax"], true);
+}
+
+#[sqlx::test(migrator = "procure_server::MIGRATOR")]
+async fn suppliers_can_take_requests_by_fax(pool: PgPool) {
+    let f = Flow::new(pool).await;
+    let url = format!("/api/v1/suppliers/{}/contact", f.supplier);
+    let put = |body: Value| {
+        let app = &f.w.app;
+        let op = f.operator.clone();
+        let url = url.clone();
+        async move { app.put(&url, &op, body).await }
+    };
+    // FAX chosen without a number, or a number that is not one: refused.
+    let r = put(json!({ "email": "rfq@tokyo-bearings.test", "rfq_channel": "fax" })).await;
+    assert_eq!(r.status, StatusCode::UNPROCESSABLE_ENTITY);
+    let r = put(json!({ "fax": "03-12ab", "rfq_channel": "fax" })).await;
+    assert_eq!(r.status, StatusCode::UNPROCESSABLE_ENTITY);
+    let r = put(
+        json!({ "email": "rfq@tokyo-bearings.test", "fax": "03-1234-5678",
+                        "rfq_channel": "fax" }),
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::NO_CONTENT, "{:?}", r.body);
+    let list =
+        f.w.app
+            .get("/api/v1/suppliers?status=verified", &f.operator)
+            .await;
+    let s = list.body.as_array().unwrap()[0].clone();
+    assert_eq!(
+        (s["fax"].clone(), s["rfq_channel"].clone()),
+        (json!("0312345678"), json!("fax"))
+    );
+    // Without live mail configured, a FAX supplier's request is only recorded, as before.
+    let (_, rfq, _, _) = f.sent_rfq().await;
+    let o =
+        f.w.app
+            .get(&f.url(&format!("rfqs/{rfq}/outbox")), &f.operator)
+            .await;
+    assert_eq!(o.body[0]["channel"], "test");
+    assert_eq!(o.body[0]["status"], "recorded");
+    assert_eq!(
+        f.w.app
+            .put(&url, &f.manager, json!({ "rfq_channel": "email" }))
+            .await
+            .status,
         StatusCode::FORBIDDEN
     );
 }

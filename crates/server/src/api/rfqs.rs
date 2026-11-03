@@ -257,7 +257,8 @@ fn render_rfq(number: &str, due: Option<NaiveDate>, message: &str, items: &[RfqI
 
 #[derive(Serialize, utoipa::ToSchema)]
 pub struct DispatchResponse {
-    /// Always `test`: messages are recorded for manual export, nothing is sent.
+    /// `test`: messages are only recorded for manual export; `live`: queued and sent by email
+    /// or FAX (server configured with `PROCURE_SUPPLIER_MAIL=live`).
     pub channel: &'static str,
     pub messages: usize,
 }
@@ -366,27 +367,24 @@ pub async fn dispatch_rfq(
     .fetch_all(&mut *tx)
     .await?;
     let body = render_rfq(&rfq.number, due, &message, &items);
-    let recipients: Vec<(Uuid, Option<String>)> = sqlx::query_as(
-        "SELECT x.id, s.email::text FROM rfq_recipients x JOIN suppliers s ON s.id = x.supplier_id
+    let recipients: Vec<Recipient> = sqlx::query_as(
+        "SELECT x.id, s.name, s.email::text AS email, s.fax, s.rfq_channel
+         FROM rfq_recipients x JOIN suppliers s ON s.id = x.supplier_id
          WHERE x.rfq_id = $1 ORDER BY x.id",
     )
     .bind(rfq.id)
     .fetch_all(&mut *tx)
     .await?;
-    for (recipient, email) in &recipients {
-        sqlx::query(
-            "INSERT INTO outbox (id, org_id, rfq_recipient_id, channel, to_address, subject, body)
-             VALUES ($1, $2, $3, 'test', $4, $5, $6)",
-        )
-        .bind(Uuid::now_v7())
-        .bind(org_id)
-        .bind(recipient)
-        .bind(email)
-        .bind(format!("RFQ {}", rfq.number))
-        .bind(&body)
-        .execute(&mut *tx)
-        .await?;
-    }
+    let channel = queue_messages(
+        &state,
+        &mut tx,
+        org_id,
+        &rfq.number,
+        "rfq",
+        &body,
+        &recipients,
+    )
+    .await?;
     sqlx::query("UPDATE rfq_recipients SET status = 'exported' WHERE rfq_id = $1")
         .bind(rfq.id)
         .execute(&mut *tx)
@@ -402,7 +400,7 @@ pub async fn dispatch_rfq(
             "rfq.dispatched",
             "rfq",
             rfq.id,
-            json!({ "number": rfq.number, "channel": "test", "messages": recipients.len() }),
+            json!({ "number": rfq.number, "channel": channel, "messages": recipients.len() }),
         )
         .await?;
     advance_if(
@@ -439,7 +437,170 @@ pub async fn dispatch_rfq(
     .await?;
     tx.commit().await?;
     Ok(Json(DispatchResponse {
-        channel: "test",
+        channel,
+        messages: recipients.len(),
+    }))
+}
+
+#[derive(sqlx::FromRow)]
+pub(crate) struct Recipient {
+    id: Uuid,
+    name: String,
+    email: Option<String>,
+    fax: Option<String>,
+    rfq_channel: String,
+}
+
+/// Records (test mode) or queues (live) one message per recipient, each with its reply
+/// token. Live refuses the whole batch if any recipient cannot be reached, so nobody is
+/// left out silently. Returns "test" or "live".
+async fn queue_messages(
+    state: &AppState,
+    tx: &mut db::Tx,
+    org_id: Uuid,
+    number: &str,
+    kind: &str,
+    body: &str,
+    recipients: &[Recipient],
+) -> ApiResult<&'static str> {
+    let mut rows = Vec::with_capacity(recipients.len());
+    for r in recipients {
+        let (channel, to) = match &state.supplier_mail {
+            None => ("test", r.email.clone()),
+            Some(m) => {
+                let (c, to) = m
+                    .address(&r.rfq_channel, r.email.as_deref(), r.fax.as_deref())
+                    .map_err(|code| {
+                        tracing::info!(supplier = %r.name, code, "recipient cannot be reached");
+                        ApiError::Conflict(code)
+                    })?;
+                (c, Some(to))
+            }
+        };
+        rows.push((r.id, channel, to));
+    }
+    for (recipient, channel, to) in rows {
+        let token = crate::supplier_mail::reply_token();
+        sqlx::query(
+            "INSERT INTO outbox (id, org_id, rfq_recipient_id, channel, to_address, subject, body,
+                                 kind, reply_token, status, next_attempt_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9,
+                     CASE WHEN $4 = 'test' THEN 'recorded' ELSE 'queued' END,
+                     CASE WHEN $4 = 'test' THEN NULL ELSE now() END)",
+        )
+        .bind(Uuid::now_v7())
+        .bind(org_id)
+        .bind(recipient)
+        .bind(channel)
+        .bind(to)
+        .bind(crate::supplier_mail::subject(kind, number, &token))
+        .bind(body)
+        .bind(kind)
+        .bind(&token)
+        .execute(&mut **tx)
+        .await?;
+    }
+    Ok(if state.supplier_mail.is_some() {
+        "live"
+    } else {
+        "test"
+    })
+}
+
+#[derive(Serialize, utoipa::ToSchema)]
+pub struct RemindResponse {
+    pub channel: &'static str,
+    /// Suppliers reminded (those that have not replied or declined).
+    pub messages: usize,
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/v1/orgs/{org_id}/rfqs/{rfq_id}/remind",
+    tag = "rfqs",
+    params(("org_id" = Uuid, Path), ("rfq_id" = Uuid, Path)),
+    security(("bearer" = [])),
+    responses(
+        (status = 200, description = "Reminders recorded (test mode) or queued", body = RemindResponse),
+        (status = 403, description = "Not permitted", body = ErrorBody),
+        (status = 404, description = "Unknown RFQ or not assigned", body = ErrorBody),
+        (status = 409, description = "Not sent, nobody left to remind, or reminded in the last 20 hours", body = ErrorBody),
+        (status = 401, description = "No valid session", body = ErrorBody),
+    )
+)]
+pub async fn remind_rfq(
+    State(state): State<AppState>,
+    p: Principal,
+    ApiPath((org_id, rfq_id)): ApiPath<(Uuid, Uuid)>,
+) -> ApiResult<Json<RemindResponse>> {
+    require_operator(&p, &state, org_id, Permission::ManageRfqs).await?;
+    let mut tx = db::tenant_tx(&state.pool, p.user_id, org_id).await?;
+    db::enable_staff_scope(&mut tx).await?;
+    let rfq = lock_rfq(&mut tx, rfq_id).await?;
+    if rfq.status != "sent" {
+        return Err(ApiError::Conflict("rfq_not_sent"));
+    }
+    let recent: bool = sqlx::query_scalar(
+        "SELECT EXISTS (SELECT 1 FROM outbox o JOIN rfq_recipients r ON r.id = o.rfq_recipient_id
+                        WHERE r.rfq_id = $1 AND o.kind = 'reminder'
+                          AND o.created_at > now() - interval '20 hours')",
+    )
+    .bind(rfq.id)
+    .fetch_one(&mut *tx)
+    .await?;
+    if recent {
+        return Err(ApiError::Conflict("reminded_recently"));
+    }
+    let recipients: Vec<Recipient> = sqlx::query_as(
+        "SELECT x.id, s.name, s.email::text AS email, s.fax, s.rfq_channel
+         FROM rfq_recipients x JOIN suppliers s ON s.id = x.supplier_id
+         WHERE x.rfq_id = $1 AND x.status IN ('pending', 'exported') ORDER BY x.id",
+    )
+    .bind(rfq.id)
+    .fetch_all(&mut *tx)
+    .await?;
+    if recipients.is_empty() {
+        return Err(ApiError::Conflict("nobody_to_remind"));
+    }
+    let (due, message): (Option<NaiveDate>, String) =
+        sqlx::query_as("SELECT response_due, message FROM rfqs WHERE id = $1")
+            .bind(rfq.id)
+            .fetch_one(&mut *tx)
+            .await?;
+    let items = sqlx::query_as::<_, RfqItem>(
+        "SELECT line_no, description, verified_manufacturer, verified_mpn, quantity, unit
+         FROM request_items WHERE request_id = $1 ORDER BY line_no",
+    )
+    .bind(rfq.request_id)
+    .fetch_all(&mut *tx)
+    .await?;
+    let body = format!(
+        "先日お送りした見積依頼へのご回答をお待ちしております。件名を変えずにご返信ください。\n\
+         We are still waiting for your quotation for the request below. Please reply without changing the subject.\n\n{}",
+        render_rfq(&rfq.number, due, &message, &items)
+    );
+    let channel = queue_messages(
+        &state,
+        &mut tx,
+        org_id,
+        &rfq.number,
+        "reminder",
+        &body,
+        &recipients,
+    )
+    .await?;
+    Audit { org_id, p: &p }
+        .record(
+            &mut tx,
+            "rfq.reminded",
+            "rfq",
+            rfq.id,
+            json!({ "number": rfq.number, "channel": channel, "messages": recipients.len() }),
+        )
+        .await?;
+    tx.commit().await?;
+    Ok(Json(RemindResponse {
+        channel,
         messages: recipients.len(),
     }))
 }
@@ -454,6 +615,12 @@ pub struct OutboxMessage {
     pub subject: String,
     pub body: String,
     pub created_at: DateTime<Utc>,
+    /// rfq or reminder.
+    pub kind: String,
+    /// recorded (test mode), queued, sent or failed.
+    pub status: String,
+    pub sent_at: Option<DateTime<Utc>>,
+    pub last_error: Option<String>,
 }
 
 #[utoipa::path(
@@ -480,10 +647,10 @@ pub async fn rfq_outbox(
     db::enable_staff_scope(&mut tx).await?;
     let rows = sqlx::query_as::<_, OutboxMessage>(
         "SELECT o.id, x.supplier_id, s.name AS supplier_name, o.channel, o.to_address, o.subject,
-                o.body, o.created_at
+                o.body, o.created_at, o.kind, o.status, o.sent_at, o.last_error
          FROM outbox o JOIN rfq_recipients x ON x.id = o.rfq_recipient_id
          JOIN suppliers s ON s.id = x.supplier_id
-         WHERE x.rfq_id = $1 ORDER BY s.name, o.id",
+         WHERE x.rfq_id = $1 ORDER BY s.name, o.created_at, o.id",
     )
     .bind(rfq_id)
     .fetch_all(&mut *tx)
@@ -768,6 +935,22 @@ pub struct RfqDetail {
     pub quotations: Vec<QuotationView>,
     /// Most recent comparison run of this RFQ, if any.
     pub latest_comparison_id: Option<Uuid>,
+    /// Supplier files received for this RFQ (uploaded, or read from the mailbox), kept as
+    /// received. Shown to our staff only.
+    pub documents: Vec<DocumentView>,
+}
+
+#[derive(Serialize, sqlx::FromRow, utoipa::ToSchema)]
+pub struct DocumentView {
+    pub id: Uuid,
+    pub supplier_id: Option<Uuid>,
+    pub supplier_name: Option<String>,
+    /// upload, email or fax.
+    pub channel: String,
+    pub file_name: String,
+    pub received_at: DateTime<Utc>,
+    /// A quotation was recorded from it.
+    pub used: bool,
 }
 
 #[utoipa::path(
@@ -789,7 +972,7 @@ pub async fn get_rfq(
     p: Principal,
     ApiPath((org_id, rfq_id)): ApiPath<(Uuid, Uuid)>,
 ) -> ApiResult<Json<RfqDetail>> {
-    require_quote_reader(&p, &state, org_id).await?;
+    let access = require_quote_reader(&p, &state, org_id).await?;
     let mut tx = db::tenant_tx(&state.pool, p.user_id, org_id).await?;
     let rfq = sqlx::query_as::<_, RfqHeader>(
         "SELECT f.id, f.request_id, f.number, f.status, f.response_due, f.message, f.created_at,
@@ -835,12 +1018,27 @@ pub async fn get_rfq(
     .bind(rfq_id)
     .fetch_optional(&mut *tx)
     .await?;
+    let documents = if side(access)? == Side::Operator {
+        sqlx::query_as::<_, DocumentView>(
+            "SELECT d.id, d.supplier_id, s.name AS supplier_name, d.channel, d.file_name,
+                    d.received_at,
+                    EXISTS (SELECT 1 FROM quotations q WHERE q.source_document_id = d.id) AS used
+             FROM supplier_documents d LEFT JOIN suppliers s ON s.id = d.supplier_id
+             WHERE d.rfq_id = $1 ORDER BY d.received_at DESC, d.id",
+        )
+        .bind(rfq_id)
+        .fetch_all(&mut *tx)
+        .await?
+    } else {
+        Vec::new()
+    };
     tx.commit().await?;
     Ok(Json(RfqDetail {
         rfq,
         recipients,
         quotations,
         latest_comparison_id,
+        documents,
     }))
 }
 
