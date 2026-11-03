@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chuo-Sogo Procure ダウンロード</title>
+<meta name="robots" content="noindex">
+<style>
+  :root {
+    --blue: #224bd2; --navy: #0d1a3a; --ink: #1a2238; --muted: #5b6478;
+    --line: #dfe4ee; --bg: #f3f5f9; --card: #ffffff; --ok: #1f7a4d;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --ink: #e8ecf5; --muted: #a8b1c4; --line: #2a3550; --bg: #0b1226; --card: #121b36; }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; color: var(--ink); background:
+      radial-gradient(120% 60% at 50% -10%, rgb(34 75 210 / 18%), transparent 60%), var(--bg);
+    font: 17px/1.75 "BIZ UDPGothic", "Hiragino Sans", "Yu Gothic UI", "Noto Sans JP", system-ui, sans-serif;
+  }
+  main { max-width: 860px; margin: 0 auto; padding: 48px 16px 64px; }
+  .brand { display: flex; align-items: center; gap: 12px; font-weight: 700; font-size: 20px; }
+  .brand b { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px;
+    color: #fff; background: linear-gradient(145deg, #3a63e6, #1a3cae); box-shadow: 0 8px 20px rgb(34 75 210 / 35%); }
+  h1 { font-size: 30px; line-height: 1.4; margin: 28px 0 8px; }
+  h2 { font-size: 21px; margin: 0 0 12px; }
+  p.lead { color: var(--muted); margin: 0 0 28px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 24px;
+    box-shadow: 0 12px 32px rgb(13 26 58 / 8%); margin-bottom: 20px; }
+  .download { display: flex; flex-wrap: wrap; align-items: center; gap: 16px 24px; }
+  a.button { display: inline-flex; align-items: center; justify-content: center; min-height: 56px;
+    padding: 0 28px; border-radius: 14px; background: linear-gradient(180deg, #3a63e6, var(--blue));
+    color: #fff; font-weight: 700; font-size: 19px; text-decoration: none;
+    box-shadow: 0 10px 24px rgb(34 75 210 / 35%); }
+  a.button:focus-visible, a:focus-visible { outline: 3px solid #f2c94c; outline-offset: 3px; }
+  .meta { color: var(--muted); font-size: 15px; }
+  ol.steps { margin: 0; padding-left: 1.4em; }
+  ol.steps li { margin: 6px 0; }
+  table { width: 100%; border-collapse: collapse; font-size: 15px; }
+  td, th { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  code { font-size: 13px; word-break: break-all; }
+  .note { border-left: 4px solid #f2c94c; padding: 8px 14px; background: rgb(242 201 76 / 12%); border-radius: 8px; }
+  a { color: var(--blue); }
+  @media (prefers-color-scheme: dark) { a { color: #8fa8ff; } }
+  hr { border: 0; border-top: 1px solid var(--line); margin: 40px 0; }
+</style>
+</head>
+<body>
+<main>
+  <div class="brand"><b>中</b> Chuo-Sogo Procure</div>
+
+  <h1>工場の購買業務を、AI とともにまるごと代行します。</h1>
+  <p class="lead">試用版（Windows 10 / 11）のダウンロードページです。</p>
+
+  <section class="card">
+    <h2>1. インストーラーをダウンロード</h2>
+    <div class="download">
+      <a class="button" href="ChuoSogo-Setup.exe" download>Windows 版をダウンロード</a>
+      <span class="meta">ChuoSogo-Setup.exe ・ 約 {{MB}} MB ・ バージョン {{VERSION}}</span>
+    </div>
+    <p class="meta">インストール後、アプリの中から AI などの追加データ（合計 約10.8 GB）を入れます。</p>
+  </section>
+
+  <section class="card">
+    <h2>2. インストールと最初の設定</h2>
+    <ol class="steps">
+      <li>ダウンロードした <b>ChuoSogo-Setup.exe</b> を開きます。<br>
+        <span class="meta">「Windows によって PC が保護されました」と表示されたら、「詳細情報」→「実行」を押してください（試用版のため署名がありません）。</span></li>
+      <li>画面の案内に沿ってインストールし、<b>Chuo-Sogo Procure</b> を起動します。</li>
+      <li>使い方を選びます。
+        <ul>
+          <li><b>サーバーに接続する</b>：試用サーバーにつながります。サインイン画面の役割ボタンで、工場の担当者・承認者・当社スタッフとして試せます。</li>
+          <li><b>この PC だけで使う</b>：サーバーもインターネットも不要で、PC 1台で全機能が動きます。</li>
+        </ul>
+      </li>
+      <li>「この PC だけで使う」を選んだ場合、<b>追加データ</b>の画面で「インストール」を押します。PC のメモリに合わせて、高精度 AI（約9 GB、メモリ16 GB以上）か軽量 AI（約5 GB、8 GB以上）をおすすめします。</li>
+    </ol>
+  </section>
+
+  <section class="card">
+    <h2>動作環境</h2>
+    <table>
+      <tr><th>OS</th><td>Windows 10 / 11（64ビット）</td></tr>
+      <tr><th>メモリ</th><td>8 GB 以上（高精度 AI は 16 GB 以上）</td></tr>
+      <tr><th>空き容量</th><td>約 12 GB（高精度 AI の場合）・約 8 GB（軽量 AI）</td></tr>
+      <tr><th>ガイド</th><td><a href="guide-ja.html">使い方ガイド（日本語）</a> ・ <a href="ChuoSogo-Guide-ja.pdf">PDF</a></td></tr>
+      <tr><th>SHA-256</th><td><code>{{SHA256}}</code></td></tr>
+    </table>
+  </section>
+
+  <p class="note">試用版です。ご意見をお聞かせください。お問い合わせ：<a href="mailto:vishnu.s@chuo-sogo.net">vishnu.s@chuo-sogo.net</a></p>
+
+  <hr>
+
+  <section lang="en">
+    <h2>English</h2>
+    <p><a class="button" href="ChuoSogo-Setup.exe" download>Download for Windows</a></p>
+    <p class="meta">ChuoSogo-Setup.exe · about {{MB}} MB · version {{VERSION}} · Windows 10/11 (64-bit)</p>
+    <ol class="steps">
+      <li>Open <b>ChuoSogo-Setup.exe</b>. If Windows says "Windows protected your PC", choose "More info" → "Run anyway" (the trial is not signed).</li>
+      <li>Install and start <b>Chuo-Sogo Procure</b>.</li>
+      <li>Choose <b>Connect to a server</b> (the trial server; use the role buttons on the sign-in screen) or <b>Use on this PC only</b> (everything runs on this PC, no server or internet needed).</li>
+      <li>In "this PC only" mode, install the <b>additional data</b> from inside the app (about 10.8 GB): the high-accuracy AI for PCs with 16 GB of memory, or the light AI for 8 GB.</li>
+    </ol>
+    <p class="meta"><a href="guide-en.html">User guide (English)</a> · <a href="ChuoSogo-Guide-en.pdf">PDF</a> · SHA-256 <code>{{SHA256}}</code></p>
+  </section>
+</main>
+</body>
+</html>
