@@ -14,6 +14,7 @@ import { useAction } from "../lib/useAction";
 import { useApi } from "../lib/useApi";
 import { ErrorText, Loading, PageHeader } from "../components/ui";
 import { BuyingCriteriaCard } from "./BuyingCriteria";
+import { Opportunities } from "./Opportunities";
 
 /** Field codes understood by the importer (procure_domain::history::Field). */
 export const FIELDS = [
@@ -122,6 +123,8 @@ export function PurchaseHistory({ active }: { active: MembershipView }) {
     <section>
       <PageHeader title={t("nav.history")} />
       <p className="lead">{t("history:lead")}</p>
+
+      <Opportunities orgId={active.org_id} />
 
       {canManage && (
         <div className="card stack">

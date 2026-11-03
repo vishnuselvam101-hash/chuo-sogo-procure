@@ -1364,3 +1364,161 @@ pub async fn put_criteria(
     tx.commit().await?;
     Ok(Json(view))
 }
+
+#[derive(Deserialize, utoipa::IntoParams)]
+pub struct OpportunityQuery {
+    /// Purchases of the last N months (1–60, default 12).
+    pub months: Option<i32>,
+}
+
+#[derive(Serialize, utoipa::ToSchema)]
+pub struct OpportunityItem {
+    pub item_key: String,
+    pub description: String,
+    pub currency: String,
+    pub purchases: u32,
+    pub suppliers: u32,
+    pub spend_minor: i64,
+    pub min_price_milli: i64,
+    pub max_price_milli: i64,
+    /// Paid above the factory's own lowest price for the item.
+    pub potential_minor: i64,
+    /// Our share of that potential at the agreed (or default) share.
+    pub fee_minor: i64,
+    pub single_supplier: bool,
+}
+
+#[derive(Serialize, utoipa::ToSchema)]
+pub struct OpportunityTotal {
+    pub currency: String,
+    pub items: u32,
+    pub spend_minor: i64,
+    pub potential_minor: i64,
+    pub fee_minor: i64,
+}
+
+#[derive(Serialize, utoipa::ToSchema)]
+pub struct OpportunityView {
+    pub months: i32,
+    pub share_bps: i32,
+    pub totals: Vec<OpportunityTotal>,
+    /// Best first, at most 200.
+    pub items: Vec<OpportunityItem>,
+}
+
+#[derive(sqlx::FromRow)]
+struct OpportunityRow {
+    item_key: String,
+    description: String,
+    supplier_name: String,
+    unit_price_milli: i64,
+    quantity_milli: i64,
+    currency: String,
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/v1/orgs/{org_id}/purchase-history/opportunities",
+    tag = "purchase_history",
+    params(("org_id" = Uuid, Path), OpportunityQuery),
+    security(("bearer" = [])),
+    responses(
+        (status = 200, description = "Items ranked by what was paid above the factory's own lowest price", body = OpportunityView),
+        (status = 403, description = "Not permitted", body = ErrorBody),
+        (status = 404, description = "Unknown organisation", body = ErrorBody),
+        (status = 422, description = "months out of range", body = ErrorBody),
+        (status = 400, description = "Malformed request", body = ErrorBody),
+        (status = 401, description = "No valid session", body = ErrorBody),
+    )
+)]
+pub async fn opportunities(
+    State(state): State<AppState>,
+    p: Principal,
+    ApiPath(org_id): ApiPath<Uuid>,
+    ApiQuery(q): ApiQuery<OpportunityQuery>,
+) -> ApiResult<Json<OpportunityView>> {
+    require_read(&state, &p, org_id).await?;
+    let months = q.months.unwrap_or(12);
+    if !(1..=60).contains(&months) {
+        return Err(ApiError::Validation("months"));
+    }
+    let mut tx = db::tenant_tx(&state.pool, p.user_id, org_id).await?;
+    let rows = sqlx::query_as::<_, OpportunityRow>(
+        "SELECT item_key, description, supplier_name, unit_price_milli, quantity_milli, currency
+         FROM purchase_history
+         WHERE purchased_on >= current_date - make_interval(months => $1)
+         ORDER BY purchased_on DESC, id DESC LIMIT 100000",
+    )
+    .bind(months)
+    .fetch_all(&mut *tx)
+    .await?;
+    // Keys confirmed as the same item count as one.
+    let canonical: BTreeMap<String, String> =
+        sqlx::query_as::<_, (String, String)>("SELECT alias_key, canonical_key FROM item_aliases")
+            .fetch_all(&mut *tx)
+            .await?
+            .into_iter()
+            .collect();
+    let share_bps: i32 =
+        sqlx::query_scalar("SELECT share_bps FROM savings_agreements WHERE org_id = $1")
+            .bind(org_id)
+            .fetch_optional(&mut *tx)
+            .await?
+            .unwrap_or(5_000); // procure_domain::savings::DEFAULT_SHARE_BPS
+    tx.commit().await?;
+    let purchases: Vec<procure_domain::opportunity::Purchase> = rows
+        .into_iter()
+        .map(|r| procure_domain::opportunity::Purchase {
+            item_key: canonical.get(&r.item_key).cloned().unwrap_or(r.item_key),
+            description: r.description,
+            supplier: r.supplier_name,
+            unit_price_milli: r.unit_price_milli,
+            quantity_milli: r.quantity_milli,
+            currency: r.currency,
+        })
+        .collect();
+    let fee = |potential: i64| -> i64 {
+        i64::try_from(i128::from(potential) * i128::from(share_bps) / 10_000).unwrap_or(i64::MAX)
+    };
+    let all = procure_domain::opportunity::assess(&purchases);
+    let mut totals: BTreeMap<String, OpportunityTotal> = BTreeMap::new();
+    for o in &all {
+        let t = totals
+            .entry(o.currency.clone())
+            .or_insert_with(|| OpportunityTotal {
+                currency: o.currency.clone(),
+                items: 0,
+                spend_minor: 0,
+                potential_minor: 0,
+                fee_minor: 0,
+            });
+        t.items = t.items.saturating_add(1);
+        t.spend_minor = t.spend_minor.saturating_add(o.spend_minor);
+        t.potential_minor = t.potential_minor.saturating_add(o.potential_minor);
+    }
+    for t in totals.values_mut() {
+        t.fee_minor = fee(t.potential_minor);
+    }
+    Ok(Json(OpportunityView {
+        months,
+        share_bps,
+        totals: totals.into_values().collect(),
+        items: all
+            .into_iter()
+            .take(200)
+            .map(|o| OpportunityItem {
+                fee_minor: fee(o.potential_minor),
+                item_key: o.item_key,
+                description: o.description,
+                currency: o.currency,
+                purchases: o.purchases,
+                suppliers: o.suppliers,
+                spend_minor: o.spend_minor,
+                min_price_milli: o.min_price_milli,
+                max_price_milli: o.max_price_milli,
+                potential_minor: o.potential_minor,
+                single_supplier: o.single_supplier,
+            })
+            .collect(),
+    }))
+}

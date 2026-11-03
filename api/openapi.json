@@ -8146,6 +8146,105 @@
         ]
       }
     },
+    "/api/v1/orgs/{org_id}/purchase-history/opportunities": {
+      "get": {
+        "tags": [
+          "purchase_history"
+        ],
+        "operationId": "opportunities",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "months",
+            "in": "path",
+            "description": "Purchases of the last N months (1–60, default 12).",
+            "required": true,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Items ranked by what was paid above the factory's own lowest price",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpportunityView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown organisation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "months out of range",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/orgs/{org_id}/purchase-history/preview": {
       "post": {
         "tags": [
@@ -18041,6 +18140,132 @@
           "retention": {
             "type": "string",
             "description": "What happens to this data when the account is closed."
+          }
+        }
+      },
+      "OpportunityItem": {
+        "type": "object",
+        "required": [
+          "item_key",
+          "description",
+          "currency",
+          "purchases",
+          "suppliers",
+          "spend_minor",
+          "min_price_milli",
+          "max_price_milli",
+          "potential_minor",
+          "fee_minor",
+          "single_supplier"
+        ],
+        "properties": {
+          "currency": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "fee_minor": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Our share of that potential at the agreed (or default) share."
+          },
+          "item_key": {
+            "type": "string"
+          },
+          "max_price_milli": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "min_price_milli": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "potential_minor": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Paid above the factory's own lowest price for the item."
+          },
+          "purchases": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "single_supplier": {
+            "type": "boolean"
+          },
+          "spend_minor": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "suppliers": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          }
+        }
+      },
+      "OpportunityTotal": {
+        "type": "object",
+        "required": [
+          "currency",
+          "items",
+          "spend_minor",
+          "potential_minor",
+          "fee_minor"
+        ],
+        "properties": {
+          "currency": {
+            "type": "string"
+          },
+          "fee_minor": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "items": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "potential_minor": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "spend_minor": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "OpportunityView": {
+        "type": "object",
+        "required": [
+          "months",
+          "share_bps",
+          "totals",
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OpportunityItem"
+            },
+            "description": "Best first, at most 200."
+          },
+          "months": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "share_bps": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totals": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OpportunityTotal"
+            }
           }
         }
       },

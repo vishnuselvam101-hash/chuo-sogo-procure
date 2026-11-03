@@ -37,6 +37,40 @@ const EMPTY_CRITERIA = {
   updated_at: null,
 };
 
+const OPPORTUNITIES = {
+  months: 12,
+  share_bps: 5000,
+  totals: [{ currency: "JPY", items: 2, spend_minor: 375000, potential_minor: 25000, fee_minor: 12500 }],
+  items: [
+    {
+      item_key: "m:VVF20",
+      description: "VVF cable 100m",
+      currency: "JPY",
+      purchases: 3,
+      suppliers: 2,
+      spend_minor: 375000,
+      min_price_milli: 10000000,
+      max_price_milli: 12000000,
+      potential_minor: 25000,
+      fee_minor: 12500,
+      single_supplier: false,
+    },
+    {
+      item_key: "m:EM6",
+      description: "End mill 6mm",
+      currency: "JPY",
+      purchases: 2,
+      suppliers: 1,
+      spend_minor: 24000,
+      min_price_milli: 3000000,
+      max_price_milli: 3000000,
+      potential_minor: 0,
+      fee_minor: 0,
+      single_supplier: true,
+    },
+  ],
+};
+
 function fakeBridge(get: Record<string, unknown>, post: Record<string, unknown> = {}) {
   const calls: { method: string; path: string; body: unknown }[] = [];
   const api = vi.fn(async (method: string, path: string, body?: unknown) => {
@@ -130,6 +164,8 @@ describe("purchase history", () => {
     const { bridge, calls } = fakeBridge(
       {
         [`${base}/purchase-history/imports`]: [],
+        [`${base}/purchase-history/opportunities`]: OPPORTUNITIES,
+        [`${base}/purchase-history/opportunities`]: OPPORTUNITIES,
         [`${base}/purchase-history`]: [],
         [`${base}/buying-criteria`]: EMPTY_CRITERIA,
       },
@@ -176,6 +212,7 @@ describe("purchase history", () => {
     const base = `/api/v1/orgs/${ORG}`;
     const { bridge } = fakeBridge({
       [`${base}/purchase-history/imports`]: [],
+      [`${base}/purchase-history/opportunities`]: OPPORTUNITIES,
       [`${base}/purchase-history`]: [],
       [`${base}/buying-criteria`]: EMPTY_CRITERIA,
     });
@@ -185,6 +222,11 @@ describe("purchase history", () => {
       </BridgeProvider>,
     );
     expect(await screen.findByText("Nothing imported yet.")).toBeTruthy();
+    // Where the factory can save, from its own records; one-supplier items flagged.
+    const opp = screen.getByTestId("opportunities");
+    expect(opp.textContent).toContain("VVF cable 100m");
+    expect(opp.textContent).toContain("Always the same supplier: never compared");
+    expect(opp.textContent).toContain("Our share at 50%");
     expect(screen.queryByLabelText("File")).toBeNull();
     expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
   });

@@ -117,5 +117,20 @@
     "alias": "依頼での表記",
     "canonical": "過去の記録での表記",
     "remove": "登録を解除"
+  },
+  "opportunities": {
+    "heading": "削減の余地",
+    "hint": "自社の購買記録から算出：同じ品目で既に得た最安単価を上回って支払った額です。常に同じ仕入先から購入している品目は比較されていないため金額は表示しません。他社見積を最初に取るべき品目です。",
+    "period": "期間",
+    "none": "この期間の購買記録はありません。",
+    "spend": "購入額",
+    "potential": "最安単価を上回った額",
+    "fee": "当社取り分（{{share}}%）",
+    "item": "品目",
+    "purchases": "購入",
+    "priceRange": "単価の幅",
+    "counts": "{{purchases}}回・{{suppliers}}社",
+    "singleSupplier": "常に同じ仕入先：比較なし",
+    "months": "直近{{count}}か月"
   }
 }

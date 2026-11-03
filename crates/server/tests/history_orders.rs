@@ -1456,3 +1456,72 @@ async fn the_shortlist_ranks_suppliers_from_the_factorys_own_record(pool: PgPool
         StatusCode::NOT_FOUND
     );
 }
+
+#[sqlx::test(migrator = "procure_server::MIGRATOR")]
+async fn opportunities_show_what_was_paid_above_the_factorys_own_lowest_price(pool: PgPool) {
+    let f = Flow::new(pool).await;
+    let app = &f.w.app;
+    let today = chrono::Utc::now().date_naive();
+    let d = |days: i64| (today - chrono::Duration::days(days)).to_string();
+    let csv = format!(
+        "date,supplier,mpn,description,quantity,unit,unit_price\n\
+         {},Denki Shoji,VVF-2.0,VVF cable 100m,10,pcs,12000\n\
+         {},Kanto Cable,VVF-2.0,VVF cable 100m,20,pcs,10000\n\
+         {},Denki Shoji,VVF-2.0,VVF cable 100m,5,pcs,11000\n\
+         {},Kogu Ya,EM-6,End mill 6mm,4,pcs,3000\n\
+         {},Kogu Ya,EM-6,End mill 6mm,4,pcs,3000\n\
+         {},Old Supplier,OLD-1,Bought two years ago,1,pcs,999999\n",
+        d(30),
+        d(60),
+        d(90),
+        d(10),
+        d(40),
+        d(800)
+    );
+    let r = app
+        .post(
+            &f.url("purchase-history/imports"),
+            &f.w.admin_a,
+            json!({
+                "file_name": "past.csv",
+                "data_base64": base64::engine::general_purpose::STANDARD.encode(csv),
+                "header_row": 0,
+                "mapping": ["date", "supplier", "mpn", "description", "quantity", "unit", "unit_price"],
+            }),
+        )
+        .await;
+    assert_eq!(r.status, StatusCode::CREATED, "{:?}", r.body);
+
+    let path = f.url("purchase-history/opportunities");
+    let r = app.get(&path, &f.w.admin_a).await;
+    assert_eq!(r.status, StatusCode::OK, "{:?}", r.body);
+    assert_eq!(r.body["share_bps"], 5000);
+    let items = r.body["items"].as_array().unwrap();
+    // The two-year-old purchase is outside the 12 months.
+    assert_eq!(items.len(), 2, "{items:?}");
+    let cable = &items[0];
+    assert_eq!(cable["item_key"], "m:VVF20");
+    assert_eq!(cable["spend_minor"], 120_000 + 200_000 + 55_000);
+    // (12000−10000)×10 + (11000−10000)×5
+    assert_eq!(cable["potential_minor"], 25_000);
+    assert_eq!(cable["fee_minor"], 12_500);
+    assert_eq!(cable["suppliers"], 2);
+    assert_eq!(items[1]["single_supplier"], true);
+    assert_eq!(items[1]["potential_minor"], 0);
+    assert_eq!(r.body["totals"][0]["potential_minor"], 25_000);
+    assert_eq!(r.body["totals"][0]["items"], 2);
+    let r = app.get(&format!("{path}?months=36"), &f.w.admin_a).await;
+    assert_eq!(r.body["items"].as_array().unwrap().len(), 3);
+    assert_eq!(
+        app.get(&format!("{path}?months=0"), &f.w.admin_a)
+            .await
+            .status,
+        StatusCode::UNPROCESSABLE_ENTITY
+    );
+    // Our assigned staff read it too; a requester does not.
+    assert_eq!(app.get(&path, &f.operator).await.status, StatusCode::OK);
+    assert_eq!(
+        app.get(&path, &f.requester).await.status,
+        StatusCode::FORBIDDEN
+    );
+}

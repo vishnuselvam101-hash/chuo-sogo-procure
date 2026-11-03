@@ -203,6 +203,7 @@ impl Modify for BearerAuth {
         history::list_imports,
         history::withdraw,
         history::search,
+        history::opportunities,
         history::price_reference,
         history::get_criteria,
         history::put_criteria,

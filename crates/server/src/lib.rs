@@ -184,6 +184,10 @@ pub fn router(state: AppState) -> Router {
         .route("/orgs/{org_id}/audit", get(api::orgs::list_audit))
         .route("/orgs/{org_id}/purchase-history", get(api::history::search))
         .route(
+            "/orgs/{org_id}/purchase-history/opportunities",
+            get(api::history::opportunities),
+        )
+        .route(
             "/orgs/{org_id}/purchase-history/imports/{id}/withdraw",
             post(api::history::withdraw),
         )

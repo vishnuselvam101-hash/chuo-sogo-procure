@@ -117,5 +117,20 @@
     "alias": "As written in the request",
     "canonical": "As written in the records",
     "remove": "Remove"
+  },
+  "opportunities": {
+    "heading": "Where you can save",
+    "hint": "From your own purchase records: what was paid above the lowest price you already got for the same item. Items always bought from one supplier were never compared, so no amount is shown for them; they are the first to ask other suppliers about.",
+    "period": "Period",
+    "none": "No purchase records in this period.",
+    "spend": "Spent",
+    "potential": "Paid above your lowest price",
+    "fee": "Our share at {{share}}%",
+    "item": "Item",
+    "purchases": "Purchases",
+    "priceRange": "Unit price range",
+    "counts": "{{purchases}} × · {{suppliers}} suppliers",
+    "singleSupplier": "Always the same supplier: never compared",
+    "months": "Last {{count}} months"
   }
 }

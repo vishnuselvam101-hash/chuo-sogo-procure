@@ -11,6 +11,7 @@ pub mod listing;
 pub mod matching;
 pub mod money;
 pub mod ocr_table;
+pub mod opportunity;
 pub mod rbac;
 pub mod savings;
 pub mod shop;

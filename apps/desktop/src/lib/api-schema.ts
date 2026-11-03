@@ -1463,6 +1463,22 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/orgs/{org_id}/purchase-history/opportunities": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["opportunities"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/orgs/{org_id}/purchase-history/preview": {
     parameters: {
       query?: never;
@@ -3528,6 +3544,52 @@ export interface components {
       orders: components["schemas"]["ShopOrderDetail"][];
       /** @description What happens to this data when the account is closed. */
       retention: string;
+    };
+    OpportunityItem: {
+      currency: string;
+      description: string;
+      /**
+       * Format: int64
+       * @description Our share of that potential at the agreed (or default) share.
+       */
+      fee_minor: number;
+      item_key: string;
+      /** Format: int64 */
+      max_price_milli: number;
+      /** Format: int64 */
+      min_price_milli: number;
+      /**
+       * Format: int64
+       * @description Paid above the factory's own lowest price for the item.
+       */
+      potential_minor: number;
+      /** Format: int32 */
+      purchases: number;
+      single_supplier: boolean;
+      /** Format: int64 */
+      spend_minor: number;
+      /** Format: int32 */
+      suppliers: number;
+    };
+    OpportunityTotal: {
+      currency: string;
+      /** Format: int64 */
+      fee_minor: number;
+      /** Format: int32 */
+      items: number;
+      /** Format: int64 */
+      potential_minor: number;
+      /** Format: int64 */
+      spend_minor: number;
+    };
+    OpportunityView: {
+      /** @description Best first, at most 200. */
+      items: components["schemas"]["OpportunityItem"][];
+      /** Format: int32 */
+      months: number;
+      /** Format: int32 */
+      share_bps: number;
+      totals: components["schemas"]["OpportunityTotal"][];
     };
     OrderDetail: {
       deliveries: components["schemas"]["DeliveryView"][];
@@ -10511,6 +10573,75 @@ export interface operations {
       };
       /** @description Already withdrawn */
       409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  opportunities: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+        /** @description Purchases of the last N months (1–60, default 12). */
+        months: number | null;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Items ranked by what was paid above the factory's own lowest price */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["OpportunityView"];
+        };
+      };
+      /** @description Malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown organisation */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description months out of range */
+      422: {
         headers: {
           [name: string]: unknown;
         };

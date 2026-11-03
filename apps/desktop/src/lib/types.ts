@@ -54,6 +54,7 @@ export interface Prefs {
 }
 export type InvoiceSummary = Schemas["InvoiceSummary"];
 export type SupplierShortlist = Schemas["ShortlistView"];
+export type OpportunityView = Schemas["OpportunityView"];
 export type SavingsView = Schemas["SavingsView"];
 export type IssuedInvoice = Schemas["InvoiceDetail"];
 export type InvoiceLineInput = Schemas["LineInput"];
