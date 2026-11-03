@@ -396,6 +396,7 @@ mod tests {
 }
 
 /// `YYYY-MM` (a month for CSV exports).
+#[cfg(not(feature = "admin"))]
 pub fn is_month(s: &str) -> bool {
     let b = s.as_bytes();
     b.len() == 7
@@ -409,7 +410,7 @@ pub fn is_month(s: &str) -> bool {
         )
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(feature = "admin")))]
 mod month_tests {
     #[test]
     fn months() {
