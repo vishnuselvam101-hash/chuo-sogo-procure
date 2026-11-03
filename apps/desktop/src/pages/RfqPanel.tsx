@@ -92,6 +92,8 @@ export function RfqPanel({ active, rfqId, requestId, requestStatus, currency, it
       setQuoting(true);
     }
   }
+  // Older servers do not send the received files yet; treat them as none.
+  const documents = data.documents ?? [];
   const waiting = data.recipients.filter((r) => r.status === "pending" || r.status === "exported").length;
 
   async function compare() {
@@ -200,11 +202,11 @@ export function RfqPanel({ active, rfqId, requestId, requestStatus, currency, it
         </div>
       )}
 
-      {operator && data.documents.length > 0 && (
+      {operator && documents.length > 0 && (
         <div className="stack" data-testid="supplier-documents">
           <strong>{t("procurement:mail.documents")}</strong>
           <ul className="plain">
-            {data.documents.map((d) => (
+            {documents.map((d) => (
               <li key={d.id} className="row">
                 <span>
                   {d.supplier_name ?? t("procurement:mail.unknownSupplier")} ·{" "}
