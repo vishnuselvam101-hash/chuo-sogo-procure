@@ -71,6 +71,10 @@
 
 ## Questions for the CEO (defaults in force until answered)
 
+Answered 2026-11-03 (`docs/CEO_SPEC_2026-11-03.md`): 1 (yes: the last invoice before we
+start, fixed per item, and a drop by the usual supplier counts) and 7 (yes: we send the order
+email after a person checks it).
+
 1. **Price paid before**: we fix it once per item, at the factory's last price before the
    contract starts, for the whole 36 months. (The alternative, "the previous order's price"
    each time, would make the fee ¥0 from the second order on.) Correct?
