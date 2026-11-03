@@ -1661,20 +1661,35 @@ impl procure_server::supplier_mail::Transport for FakeSmtp {
     }
 }
 
+/// (UID, size, content) — content `None` as if it was not downloaded.
+type FakeMessage = (u32, u64, Option<Vec<u8>>);
+
 #[derive(Default)]
 struct FakeMailbox {
-    messages: std::sync::Mutex<Vec<(u32, Vec<u8>)>>,
+    messages: std::sync::Mutex<Vec<FakeMessage>>,
 }
+
+type FetchResult = Result<(u32, Vec<procure_server::supplier_mail::Fetched>), String>;
 
 impl procure_server::supplier_mail::Inbox for FakeMailbox {
     fn fetch<'a>(
         &'a self,
         from_uid: u32,
         _since: chrono::NaiveDate,
-    ) -> futures_util::future::BoxFuture<'a, Result<(u32, Vec<(u32, Vec<u8>)>), String>> {
+    ) -> futures_util::future::BoxFuture<'a, FetchResult> {
         Box::pin(async move {
             let all = self.messages.lock().unwrap().clone();
-            Ok((7, all.into_iter().filter(|(u, _)| *u >= from_uid).collect()))
+            Ok((
+                7,
+                all.into_iter()
+                    .filter(|(u, _, _)| *u >= from_uid)
+                    .map(|(uid, size, raw)| procure_server::supplier_mail::Fetched {
+                        uid,
+                        size,
+                        raw,
+                    })
+                    .collect(),
+            ))
         })
     }
 }
@@ -1760,9 +1775,22 @@ async fn live_mail_sends_retries_reminds_and_reads_replies_and_faxes(pool: PgPoo
     );
     let fax = "From: fax@fax-in.test\r\nSubject: FAX from 0312345678\r\n\
                Content-Type: text/plain; charset=UTF-8\r\n\r\nHSR15 4 set 44,000\r\n";
+    // Someone else who saw the subject (a forward, a distributor) cannot file a quotation
+    // in the supplier's name: same token, other domain, so it waits for a person.
+    let forged = format!(
+        "From: someone@other-domain.test\r\nSubject: Re: {subject}\r\n\
+         Content-Type: text/plain; charset=UTF-8\r\n\r\n6204ZZ 1円\r\n"
+    );
+    let sized = |b: &[u8]| (b.len() as u64, Some(b.to_vec()));
+    let (rs, rr) = sized(reply.as_bytes());
+    let (fs, fr) = sized(fax.as_bytes());
+    let (gs, gr) = sized(forged.as_bytes());
     mailbox.messages.lock().unwrap().extend([
-        (5, reply.clone().into_bytes()),
-        (6, fax.as_bytes().to_vec()),
+        // Too large: recorded, never downloaded, never fetched again.
+        (4, 20 * 1024 * 1024, None),
+        (5, rs, rr),
+        (6, fs, fr),
+        (7, gs, gr),
     ]);
     assert_eq!(poll_inbox(&state, &mail).await.unwrap(), 1);
     // Read again: nothing new.
@@ -1810,9 +1838,13 @@ async fn live_mail_sends_retries_reminds_and_reads_replies_and_faxes(pool: PgPoo
     // The FAX waits in our staff inbox; it is read, then assigned by a person.
     let inbox = f.w.app.get("/api/v1/mail-inbox", &f.operator).await;
     let list = inbox.body.as_array().unwrap().clone();
-    assert_eq!(list.len(), 1, "{list:?}");
-    assert_eq!(list[0]["channel"], "fax");
-    let msg = uuid(&list[0]["id"]);
+    assert_eq!(list.len(), 2, "{list:?}");
+    assert!(
+        list.iter()
+            .any(|m| m["from_address"] == "someone@other-domain.test")
+    );
+    let fax_msg = list.iter().find(|m| m["channel"] == "fax").unwrap();
+    let msg = uuid(&fax_msg["id"]);
     let t =
         f.w.app
             .get(&format!("/api/v1/mail-inbox/{msg}/text"), &f.operator)
@@ -1852,6 +1884,18 @@ async fn live_mail_sends_retries_reminds_and_reads_replies_and_faxes(pool: PgPoo
     let docs = detail.body["documents"].as_array().unwrap().clone();
     assert_eq!(docs.len(), 2);
     assert!(docs.iter().any(|d| d["channel"] == "fax"));
+    let left = f.w.app.get("/api/v1/mail-inbox", &f.operator).await.body;
+    assert_eq!(left.as_array().unwrap().len(), 1, "{left:?}");
+    let forged_id = uuid(&left[0]["id"]);
+    let r =
+        f.w.app
+            .post(
+                &format!("/api/v1/mail-inbox/{forged_id}/set-aside"),
+                &f.operator,
+                json!({}),
+            )
+            .await;
+    assert_eq!(r.status, StatusCode::NO_CONTENT);
     assert_eq!(
         f.w.app.get("/api/v1/mail-inbox", &f.operator).await.body,
         json!([])

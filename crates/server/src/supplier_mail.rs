@@ -24,6 +24,8 @@ use crate::db;
 
 /// Messages one poll reads at most; the rest come next time.
 const POLL_BATCH: usize = 50;
+/// Bytes one poll downloads at most.
+pub const POLL_BYTES: u64 = 50 * 1024 * 1024;
 const SEND_BATCH: i64 = 20;
 const MAX_ATTEMPTS: i32 = 6;
 
@@ -55,18 +57,24 @@ pub trait Transport: Send + Sync {
     ) -> BoxFuture<'a, Result<(), String>>;
 }
 
-/// (UIDVALIDITY, [(UID, raw message)]).
-pub type Fetched = (u32, Vec<(u32, Vec<u8>)>);
+/// One message in the mailbox: its UID, size, and content unless it was not downloaded
+/// (empty, or larger than 10 MB).
+pub struct Fetched {
+    pub uid: u32,
+    pub size: u64,
+    pub raw: Option<Vec<u8>>,
+}
 
 /// Reads messages after a UID from the mailbox, without changing it.
 pub trait Inbox: Send + Sync {
-    /// (UIDVALIDITY, [(UID, raw message)]) for messages with UID ≥ `from_uid` received on or
-    /// after `since`.
+    /// (UIDVALIDITY, messages in UID order) with UID ≥ `from_uid`, received on or after
+    /// `since`. Sizes are checked before anything is downloaded; one call downloads at most
+    /// [`POLL_BYTES`], and stops before the message that would exceed it (it comes next time).
     fn fetch<'a>(
         &'a self,
         from_uid: u32,
         since: NaiveDate,
-    ) -> BoxFuture<'a, Result<Fetched, String>>;
+    ) -> BoxFuture<'a, Result<(u32, Vec<Fetched>), String>>;
 }
 
 pub struct SupplierMail {
@@ -326,7 +334,7 @@ impl Inbox for ImapInbox {
         &'a self,
         from_uid: u32,
         since: NaiveDate,
-    ) -> BoxFuture<'a, Result<Fetched, String>> {
+    ) -> BoxFuture<'a, Result<(u32, Vec<Fetched>), String>> {
         Box::pin(async move {
             use futures_util::TryStreamExt;
             use tokio_rustls::rustls;
@@ -385,21 +393,52 @@ impl Inbox for ImapInbox {
             uids.truncate(POLL_BATCH);
             let mut out = Vec::new();
             if !uids.is_empty() {
-                let set = uids
-                    .iter()
-                    .map(u32::to_string)
-                    .collect::<Vec<_>>()
-                    .join(",");
-                let fetched: Vec<_> = session
-                    .uid_fetch(&set, "(UID BODY.PEEK[])")
+                let join = |u: &[u32]| u.iter().map(u32::to_string).collect::<Vec<_>>().join(",");
+                // Sizes first: nothing large is downloaded.
+                let mut sizes: Vec<(u32, u64)> = session
+                    .uid_fetch(join(&uids), "(UID RFC822.SIZE)")
                     .await
                     .map_err(|e| e.to_string())?
-                    .try_collect()
+                    .try_collect::<Vec<_>>()
                     .await
-                    .map_err(|e| e.to_string())?;
-                for f in fetched {
-                    if let (Some(uid), Some(body)) = (f.uid, f.body()) {
-                        out.push((uid, body.to_vec()));
+                    .map_err(|e| e.to_string())?
+                    .into_iter()
+                    .filter_map(|f| Some((f.uid?, u64::from(f.size.unwrap_or(0)))))
+                    .collect();
+                sizes.sort_unstable();
+                let max = crate::storage::MAX_ATTACHMENT_BYTES as u64;
+                let mut budget = POLL_BYTES;
+                let mut wanted = Vec::new();
+                for (uid, size) in sizes {
+                    let fits = size > 0 && size <= max;
+                    if fits && size > budget {
+                        break; // the rest next time, in order
+                    }
+                    if fits {
+                        budget -= size;
+                        wanted.push(uid);
+                    }
+                    out.push(Fetched {
+                        uid,
+                        size,
+                        raw: None,
+                    });
+                }
+                if !wanted.is_empty() {
+                    let bodies: Vec<_> = session
+                        .uid_fetch(join(&wanted), "(UID BODY.PEEK[])")
+                        .await
+                        .map_err(|e| e.to_string())?
+                        .try_collect()
+                        .await
+                        .map_err(|e| e.to_string())?;
+                    for f in bodies {
+                        if let (Some(uid), Some(body)) = (f.uid, f.body())
+                            && let Some(m) = out.iter_mut().find(|m| m.uid == uid)
+                            && body.len() as u64 <= max
+                        {
+                            m.raw = Some(body.to_vec());
+                        }
                     }
                 }
             }
@@ -432,26 +471,37 @@ struct Queued {
     rfq_id: Uuid,
 }
 
-/// Sends what is queued, for every organisation. Returns how many were sent.
+/// How long a claimed message is left alone by other senders while it is being sent.
+const LEASE_SECONDS: f64 = 300.0;
+
+/// Sends what is queued, for every organisation. Returns how many were sent. Each message is
+/// claimed (leased) and committed before it is sent, and marked in its own transaction, so a
+/// failure after sending never puts a sent message back in the queue.
 pub async fn send_queued(state: &AppState, m: &SupplierMail) -> Result<usize, sqlx::Error> {
     let mut sent = 0;
     for org in customer_orgs(state).await? {
-        let mut tx = state.pool.begin().await?;
-        db::set_org(&mut tx, org).await?;
-        let rows = sqlx::query_as::<_, Queued>(
-            "SELECT o.id, o.to_address, o.channel, o.subject, o.body, o.attempts,
-                    f.request_id, f.id AS rfq_id
-             FROM outbox o
-             JOIN rfq_recipients r ON r.id = o.rfq_recipient_id
-             JOIN rfqs f ON f.id = r.rfq_id
-             WHERE o.status = 'queued' AND o.next_attempt_at <= now()
-             ORDER BY o.next_attempt_at LIMIT $1
-             FOR UPDATE OF o SKIP LOCKED",
-        )
-        .bind(SEND_BATCH)
-        .fetch_all(&mut *tx)
-        .await?;
-        for q in rows {
+        let claimed = {
+            let mut tx = state.pool.begin().await?;
+            db::set_org(&mut tx, org).await?;
+            let rows = sqlx::query_as::<_, Queued>(
+                "WITH c AS (
+                     SELECT o.id FROM outbox o
+                     WHERE o.status = 'queued' AND o.next_attempt_at <= now()
+                     ORDER BY o.next_attempt_at LIMIT $1 FOR UPDATE SKIP LOCKED)
+                 UPDATE outbox o SET next_attempt_at = now() + make_interval(secs => $2)
+                 FROM c, rfq_recipients r, rfqs f
+                 WHERE o.id = c.id AND r.id = o.rfq_recipient_id AND f.id = r.rfq_id
+                 RETURNING o.id, o.to_address, o.channel, o.subject, o.body, o.attempts,
+                           f.request_id, f.id AS rfq_id",
+            )
+            .bind(SEND_BATCH)
+            .bind(LEASE_SECONDS)
+            .fetch_all(&mut *tx)
+            .await?;
+            tx.commit().await?;
+            rows
+        };
+        for q in claimed {
             let to = q.to_address.clone().unwrap_or_default();
             let result = match format_message(m, &to, &q.subject, &q.body, q.channel == "fax") {
                 Ok((message_id, raw)) => m
@@ -461,6 +511,8 @@ pub async fn send_queued(state: &AppState, m: &SupplierMail) -> Result<usize, sq
                     .map(|()| message_id),
                 Err(e) => Err(e),
             };
+            let mut tx = state.pool.begin().await?;
+            db::set_org(&mut tx, org).await?;
             match result {
                 Ok(message_id) => {
                     sqlx::query(
@@ -523,22 +575,26 @@ pub async fn send_queued(state: &AppState, m: &SupplierMail) -> Result<usize, sq
                     }
                 }
             }
+            tx.commit().await?;
         }
-        tx.commit().await?;
     }
     Ok(sent)
 }
 
-#[derive(sqlx::FromRow)]
+#[derive(sqlx::FromRow, Clone)]
 struct Matched {
+    recipient_id: Uuid,
     supplier_id: Uuid,
     supplier_name: String,
+    supplier_email: Option<String>,
     rfq_id: Uuid,
     rfq_number: String,
     request_id: Uuid,
 }
 
-/// The RFQ recipient a reply belongs to: its token, or the Message-ID it answers.
+/// The RFQ recipient a reply belongs to. The token in the subject decides; the thread
+/// headers are used only without a token, and a token and headers pointing at different
+/// recipients (or organisations) match nothing, so a person looks at it.
 async fn find_recipient(
     state: &AppState,
     token: Option<&str>,
@@ -547,34 +603,56 @@ async fn find_recipient(
     if token.is_none() && in_reply_to.is_empty() {
         return Ok(None);
     }
+    let mut by_token = None;
+    let mut by_thread = None;
     for org in customer_orgs(state).await? {
         let mut tx = state.pool.begin().await?;
         db::set_org(&mut tx, org).await?;
         db::enable_staff_scope(&mut tx).await?;
-        let hit = sqlx::query_as::<_, Matched>(
-            "SELECT r.supplier_id, s.name AS supplier_name, f.id AS rfq_id,
-                    f.number AS rfq_number, f.request_id
-             FROM outbox o
-             JOIN rfq_recipients r ON r.id = o.rfq_recipient_id
-             JOIN rfqs f ON f.id = r.rfq_id
-             JOIN suppliers s ON s.id = r.supplier_id
-             WHERE o.reply_token = $1 OR o.message_id = ANY($2)
-             LIMIT 1",
-        )
-        .bind(token)
-        .bind(in_reply_to)
-        .fetch_optional(&mut *tx)
-        .await?;
-        tx.commit().await?;
-        if let Some(h) = hit {
-            return Ok(Some((org, h)));
+        let q = |cond: &str| {
+            format!(
+                "SELECT r.id AS recipient_id, r.supplier_id, s.name AS supplier_name,
+                        s.email::text AS supplier_email, f.id AS rfq_id, f.number AS rfq_number,
+                        f.request_id
+                 FROM outbox o
+                 JOIN rfq_recipients r ON r.id = o.rfq_recipient_id
+                 JOIN rfqs f ON f.id = r.rfq_id
+                 JOIN suppliers s ON s.id = r.supplier_id
+                 WHERE {cond} LIMIT 1"
+            )
+        };
+        if by_token.is_none()
+            && let Some(t) = token
+        {
+            by_token = sqlx::query_as::<_, Matched>(&q("o.reply_token = $1"))
+                .bind(t)
+                .fetch_optional(&mut *tx)
+                .await?
+                .map(|h| (org, h));
         }
+        if by_thread.is_none() && !in_reply_to.is_empty() {
+            by_thread = sqlx::query_as::<_, Matched>(&q("o.message_id = ANY($1)"))
+                .bind(in_reply_to)
+                .fetch_optional(&mut *tx)
+                .await?
+                .map(|h| (org, h));
+        }
+        tx.commit().await?;
     }
-    Ok(None)
+    Ok(match (by_token, by_thread) {
+        (Some(t), Some(h)) if (t.0, t.1.recipient_id) != (h.0, h.1.recipient_id) => None,
+        (Some(t), _) => Some(t),
+        (None, h) => h,
+    })
 }
 
-/// Keeps `bytes` (a whole message) as the supplier's document on the matched RFQ and opens
-/// a task to read it. Returns the document id.
+fn domain(address: &str) -> Option<String> {
+    address
+        .rsplit_once('@')
+        .map(|(_, d)| d.trim_end_matches('>').to_lowercase())
+        .filter(|d| !d.is_empty())
+}
+
 /// A message to keep on an RFQ.
 pub(crate) struct Incoming<'a> {
     pub org: Uuid,
@@ -586,16 +664,15 @@ pub(crate) struct Incoming<'a> {
     pub received_at: DateTime<Utc>,
 }
 
+/// Keeps `m.bytes` (a whole message) as the supplier's document on the RFQ and opens a task
+/// to read it, in the caller's transaction (which must be set to `m.org`). Returns the
+/// document id.
 pub(crate) async fn assign_message(
     state: &AppState,
+    tx: &mut db::Tx,
     m: &Incoming<'_>,
     p: Option<&crate::principal::Principal>,
 ) -> crate::error::ApiResult<Uuid> {
-    let mut tx = state.pool.begin().await?;
-    db::set_org(&mut tx, m.org).await?;
-    if let Some(p) = p {
-        db::set_user(&mut tx, p.user_id).await?;
-    }
     let file_name = format!(
         "{}-{}.eml",
         match m.channel {
@@ -606,7 +683,7 @@ pub(crate) async fn assign_message(
     );
     let id = keep_document(
         state,
-        &mut tx,
+        tx,
         m.org,
         p,
         &KeptFile {
@@ -623,7 +700,7 @@ pub(crate) async fn assign_message(
         .supplier
         .map_or_else(|| "a supplier".to_string(), |s| s.1.to_string());
     crate::api::ops::open_auto_task(
-        &mut tx,
+        tx,
         m.org,
         m.request_id,
         Some(m.rfq_id),
@@ -632,7 +709,6 @@ pub(crate) async fn assign_message(
         Utc::now() + chrono::Duration::hours(24),
     )
     .await?;
-    tx.commit().await?;
     Ok(id)
 }
 
@@ -663,15 +739,36 @@ pub async fn poll_inbox(state: &AppState, m: &SupplierMail) -> Result<usize, Str
         _ => (validity, messages),
     };
     let mut assigned = 0;
-    for (uid, raw) in messages {
-        if raw.is_empty() || raw.len() > crate::storage::MAX_ATTACHMENT_BYTES {
+    for msg in messages {
+        // The time we received it, not the sender's Date header (which anyone can write).
+        let received_at = Utc::now();
+        let Some(raw) = msg.raw else {
+            // Not downloaded: recorded so it is not fetched again; staff see it in the mail
+            // client.
             tracing::warn!(
-                uid,
-                size = raw.len(),
-                "mail skipped: empty or larger than 10 MB"
+                uid = msg.uid,
+                size = msg.size,
+                "mail not read: empty or larger than 10 MB"
             );
+            let mut tx = state.pool.begin().await.map_err(db_err)?;
+            db::enable_platform_scope(&mut tx).await.map_err(db_err)?;
+            sqlx::query(
+                "INSERT INTO mail_inbox (id, uid_validity, uid, channel, received_at, size_bytes,
+                                         status)
+                 VALUES ($1, $2, $3, 'email', $4, $5, 'skipped')
+                 ON CONFLICT (uid_validity, uid) DO NOTHING",
+            )
+            .bind(Uuid::now_v7())
+            .bind(i64::from(validity))
+            .bind(i64::from(msg.uid))
+            .bind(received_at)
+            .bind(i64::try_from(msg.size).unwrap_or(i64::MAX))
+            .execute(&mut *tx)
+            .await
+            .map_err(db_err)?;
+            tx.commit().await.map_err(db_err)?;
             continue;
-        }
+        };
         let parsed = mail_parser::MessageParser::default().parse(&raw);
         let subject: String = parsed
             .as_ref()
@@ -706,11 +803,6 @@ pub async fn poll_inbox(state: &AppState, m: &SupplierMail) -> Result<usize, Str
                 v
             })
             .unwrap_or_default();
-        let received_at = parsed
-            .as_ref()
-            .and_then(|p| p.date())
-            .and_then(|d| DateTime::from_timestamp(d.to_timestamp(), 0))
-            .unwrap_or_else(Utc::now);
         let channel = if m.is_fax_sender(&from) {
             Channel::Fax
         } else {
@@ -729,7 +821,7 @@ pub async fn poll_inbox(state: &AppState, m: &SupplierMail) -> Result<usize, Str
             )
             .bind(inbox_id)
             .bind(i64::from(validity))
-            .bind(i64::from(uid))
+            .bind(i64::from(msg.uid))
             .bind(match channel {
                 Channel::Fax => "fax",
                 _ => "email",
@@ -755,6 +847,15 @@ pub async fn poll_inbox(state: &AppState, m: &SupplierMail) -> Result<usize, Str
         else {
             continue;
         };
+        // Filed automatically only when it comes from the supplier's own mail domain;
+        // anything else (a forward, a distributor, a FAX) waits for a person.
+        let sender_ok = matches!(channel, Channel::Email)
+            && domain(&from).is_some()
+            && hit.supplier_email.as_deref().and_then(domain) == domain(&from);
+        if !sender_ok {
+            tracing::info!(rfq = %hit.rfq_number, "reply not from the supplier's domain; left for staff");
+            continue;
+        }
         let incoming = Incoming {
             org,
             rfq_id: hit.rfq_id,
@@ -764,25 +865,34 @@ pub async fn poll_inbox(state: &AppState, m: &SupplierMail) -> Result<usize, Str
             bytes: &raw,
             received_at,
         };
-        match assign_message(state, &incoming, None).await {
-            Ok(document) => {
-                let mut tx = state.pool.begin().await.map_err(db_err)?;
-                db::enable_platform_scope(&mut tx).await.map_err(db_err)?;
-                sqlx::query(
-                    "UPDATE mail_inbox SET status = 'assigned', org_id = $2, document_id = $3,
-                                           decided_at = now()
-                     WHERE id = $1",
-                )
-                .bind(inbox_id)
-                .bind(org)
-                .bind(document)
-                .execute(&mut *tx)
-                .await
-                .map_err(db_err)?;
-                tx.commit().await.map_err(db_err)?;
+        let result: Result<bool, crate::error::ApiError> = async {
+            let mut tx = state.pool.begin().await?;
+            db::set_org(&mut tx, org).await?;
+            db::enable_platform_scope(&mut tx).await?;
+            let document = assign_message(state, &mut tx, &incoming, None).await?;
+            let n = sqlx::query(
+                "UPDATE mail_inbox SET status = 'assigned', org_id = $2, document_id = $3,
+                                       decided_at = now()
+                 WHERE id = $1 AND status = 'unassigned'",
+            )
+            .bind(inbox_id)
+            .bind(org)
+            .bind(document)
+            .execute(&mut *tx)
+            .await?
+            .rows_affected();
+            if n == 1 {
+                tx.commit().await?;
+            }
+            Ok(n == 1)
+        }
+        .await;
+        match result {
+            Ok(true) => {
                 tracing::info!(rfq = %hit.rfq_number, "supplier reply kept");
                 assigned += 1;
             }
+            Ok(false) => {}
             Err(e) => tracing::warn!(error = ?e, "reply matched but not kept; left for staff"),
         }
     }

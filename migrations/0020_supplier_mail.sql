@@ -45,10 +45,12 @@ CREATE TABLE mail_inbox (
     from_address    text NOT NULL DEFAULT '' CHECK (length(from_address) <= 320),
     subject         text NOT NULL DEFAULT '' CHECK (length(subject) <= 500),
     received_at     timestamptz NOT NULL,
-    size_bytes      bigint NOT NULL CHECK (size_bytes BETWEEN 1 AND 10485760),
-    sha256          bytea NOT NULL CHECK (length(sha256) = 32),
+    size_bytes      bigint NOT NULL CHECK (size_bytes >= 0),
+    -- NULL for a message not downloaded (empty or over 10 MB): recorded so it is not
+    -- fetched again, and listed for staff to look at in the mail client.
+    sha256          bytea CHECK (length(sha256) = 32),
     status          text NOT NULL DEFAULT 'unassigned'
-                    CHECK (status IN ('unassigned', 'assigned', 'set_aside')),
+                    CHECK (status IN ('unassigned', 'assigned', 'set_aside', 'skipped')),
     org_id          uuid REFERENCES organisations (id),
     document_id     uuid,
     decided_by      uuid REFERENCES users (id),
@@ -56,7 +58,8 @@ CREATE TABLE mail_inbox (
     created_at      timestamptz NOT NULL DEFAULT now(),
     UNIQUE (uid_validity, uid),
     FOREIGN KEY (document_id, org_id) REFERENCES supplier_documents (id, org_id),
-    CHECK ((status = 'assigned') = (document_id IS NOT NULL))
+    CHECK ((status = 'assigned') = (document_id IS NOT NULL)),
+    CHECK ((status = 'skipped') = (sha256 IS NULL))
 );
 CREATE INDEX mail_inbox_open ON mail_inbox (received_at) WHERE status = 'unassigned';
 ALTER TABLE mail_inbox ENABLE ROW LEVEL SECURITY;

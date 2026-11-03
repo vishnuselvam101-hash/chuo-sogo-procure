@@ -17,12 +17,10 @@ use crate::db;
 use crate::error::{ApiError, ApiJson, ApiPath, ApiResult, ErrorBody};
 use crate::principal::Principal;
 
+/// Triage of supplier mail that is not yet matched to an organisation: our procurement
+/// staff (operators and admins) only.
 fn platform_org(p: &Principal) -> ApiResult<Uuid> {
-    p.memberships
-        .iter()
-        .find(|m| m.role.is_internal())
-        .map(|m| m.org_id)
-        .ok_or(ApiError::Forbidden)
+    p.require_platform(Permission::ManageSuppliers)
 }
 
 async fn platform_tx(state: &AppState, p: &Principal) -> ApiResult<db::Tx> {
@@ -111,12 +109,14 @@ struct InboxRow {
     status: String,
     channel: String,
     received_at: DateTime<Utc>,
-    sha256: Vec<u8>,
+    sha256: Option<Vec<u8>>,
+    org_id: Option<Uuid>,
 }
 
 async fn load(state: &AppState, tx: &mut db::Tx, id: Uuid) -> ApiResult<(InboxRow, Vec<u8>)> {
     let row = sqlx::query_as::<_, InboxRow>(
-        "SELECT status, channel, received_at, sha256 FROM mail_inbox WHERE id = $1 FOR UPDATE",
+        "SELECT status, channel, received_at, sha256, org_id FROM mail_inbox
+         WHERE id = $1 FOR UPDATE",
     )
     .bind(id)
     .fetch_optional(&mut **tx)
@@ -124,7 +124,8 @@ async fn load(state: &AppState, tx: &mut db::Tx, id: Uuid) -> ApiResult<(InboxRo
     .ok_or(ApiError::NotFound)?;
     let hash: [u8; 32] = row
         .sha256
-        .as_slice()
+        .as_deref()
+        .ok_or(ApiError::NotFound)?
         .try_into()
         .map_err(|_| ApiError::internal(std::io::Error::other("bad stored hash")))?;
     let bytes = state.storage.get(&hash).await.map_err(ApiError::internal)?;
@@ -155,8 +156,26 @@ pub async fn inbox_text(
     p: Principal,
     ApiPath(id): ApiPath<Uuid>,
 ) -> ApiResult<Json<InboxText>> {
+    let platform = platform_org(&p)?;
     let mut tx = platform_tx(&state, &p).await?;
-    let (_, bytes) = load(&state, &mut tx, id).await?;
+    let (row, bytes) = load(&state, &mut tx, id).await?;
+    // Once filed with an organisation, only staff assigned to it may read it.
+    if let Some(org) = row.org_id {
+        require_operator(&p, &state, org, Permission::RecordQuotations).await?;
+    }
+    crate::audit::record(
+        &mut tx,
+        crate::audit::Event {
+            org_id: platform,
+            actor: Some(p.user_id),
+            action: "mail_inbox.read",
+            entity_type: "mail_inbox",
+            entity_id: Some(id.to_string()),
+            data: json!({}),
+            request_id: p.request_id.as_deref(),
+        },
+    )
+    .await?;
     tx.commit().await?;
     let _permit = state
         .upload_permits
@@ -266,6 +285,8 @@ pub async fn assign(
         };
         (rfq_id, request_id, supplier)
     };
+    let platform = platform_org(&p)?;
+    // One transaction: the message is locked, kept on the RFQ and marked assigned together.
     let mut tx = platform_tx(&state, &p).await?;
     let (row, bytes) = load(&state, &mut tx, id).await?;
     if row.status != "unassigned" {
@@ -276,8 +297,10 @@ pub async fn assign(
     } else {
         Channel::Email
     };
+    db::set_org(&mut tx, body.org_id).await?;
     let document_id = crate::supplier_mail::assign_message(
         &state,
+        &mut tx,
         &crate::supplier_mail::Incoming {
             org: body.org_id,
             rfq_id,
@@ -300,6 +323,19 @@ pub async fn assign(
     .bind(document_id)
     .bind(p.user_id)
     .execute(&mut *tx)
+    .await?;
+    crate::audit::record(
+        &mut tx,
+        crate::audit::Event {
+            org_id: platform,
+            actor: Some(p.user_id),
+            action: "mail_inbox.assigned",
+            entity_type: "mail_inbox",
+            entity_id: Some(id.to_string()),
+            data: json!({ "org": body.org_id, "rfq": rfq_id, "document": document_id }),
+            request_id: p.request_id.as_deref(),
+        },
+    )
     .await?;
     tx.commit().await?;
     Ok(Json(Assigned { document_id }))

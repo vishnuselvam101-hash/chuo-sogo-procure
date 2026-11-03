@@ -596,6 +596,13 @@ pub async fn set_contact(
     })?;
     let mut tx = db::tenant_tx(&state.pool, p.user_id, platform_org).await?;
     db::enable_staff_scope(&mut tx).await?;
+    let before: (Option<String>, Option<String>, String) = sqlx::query_as(
+        "SELECT email::text, fax, rfq_channel FROM suppliers WHERE id = $1 FOR UPDATE",
+    )
+    .bind(supplier_id)
+    .fetch_optional(&mut *tx)
+    .await?
+    .ok_or(ApiError::NotFound)?;
     let n = sqlx::query(
         "UPDATE suppliers SET email = $2, fax = $3, rfq_channel = $4, updated_at = now()
          WHERE id = $1",
@@ -619,7 +626,9 @@ pub async fn set_contact(
         "supplier.contact_updated",
         "supplier",
         supplier_id,
-        json!({ "email": probe.email, "fax": probe.fax, "rfq_channel": probe.rfq_channel }),
+        // Where a supplier's quote requests go is sensitive: before and after.
+        json!({ "before": { "email": before.0, "fax": before.1, "rfq_channel": before.2 },
+                "after": { "email": probe.email, "fax": probe.fax, "rfq_channel": probe.rfq_channel } }),
     )
     .await?;
     tx.commit().await?;

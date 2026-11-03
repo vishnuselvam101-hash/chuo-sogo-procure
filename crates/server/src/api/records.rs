@@ -226,15 +226,17 @@ pub async fn search_records(
                     .replace('_', "\\_")
             )
         });
+    // Supplier names come through the factory's own RFQs (suppliers RLS), no staff scope.
     let mut tx = db::tenant_tx(&state.pool, p.user_id, org_id).await?;
-    // Supplier names are directory data; a factory sees those it dealt with.
-    db::enable_staff_scope(&mut tx).await?;
     let rows = sqlx::query_as::<_, RecordRow>(
         "WITH tz AS (SELECT timezone FROM organisations WHERE id = $1),
          r AS (
            SELECT 'quotation'::text AS kind, q.id, (q.received_at AT TIME ZONE (SELECT timezone FROM tz))::date AS date,
-                  q.shipping_minor + coalesce((SELECT sum(l.unit_price_minor * l.quantity)::bigint
-                                               FROM quotation_lines l WHERE l.quotation_id = q.id), 0) AS amount_minor,
+                  -- numeric, clamped: one absurd quotation must not break every search.
+                  LEAST(q.shipping_minor::numeric
+                        + coalesce((SELECT sum(l.unit_price_minor::numeric * l.quantity)
+                                    FROM quotation_lines l WHERE l.quotation_id = q.id), 0),
+                        9223372036854775807)::bigint AS amount_minor,
                   q.currency, s.name AS counterparty,
                   CASE WHEN q.supplier_reference = '' THEN f.number
                        ELSE q.supplier_reference || ' (' || f.number || ')' END AS reference,
