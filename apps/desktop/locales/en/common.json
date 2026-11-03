@@ -187,5 +187,9 @@
     "followUps": "No follow-ups are needed right now.",
     "members": "Use the form above to add a colleague.",
     "comments": "Use the comment box to ask a question or leave a note."
+  },
+  "files": {
+    "choose": "Choose a file",
+    "none": "No file chosen"
   }
 }

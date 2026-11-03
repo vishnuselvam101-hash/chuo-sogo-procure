@@ -273,7 +273,7 @@ describe("request detail", () => {
 
     const file = new File(["%PDF-1.7 test"], "spec.pdf", { type: "application/pdf" });
     await act(async () => {
-      fireEvent.change(screen.getByLabelText("Add a file"), { target: { files: [file] } });
+      fireEvent.change(screen.getByLabelText(/^Add a file/), { target: { files: [file] } });
     });
     await waitFor(() =>
       expect(calls.some((c) => c.method === "POST" && c.path === `${base}/attachments`)).toBe(true),

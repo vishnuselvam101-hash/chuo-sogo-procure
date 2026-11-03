@@ -7,7 +7,7 @@ import { formatDateTime } from "../lib/format";
 import type { AttachmentView, ItemView, MembershipView } from "../lib/types";
 import { useAction } from "../lib/useAction";
 import { useApi } from "../lib/useApi";
-import { ConfirmButton, EmptyState, ErrorText, Loading } from "../components/ui";
+import { ConfirmButton, EmptyState, ErrorText, Loading, FileInput } from "../components/ui";
 
 interface Props {
   active: MembershipView;
@@ -129,9 +129,8 @@ export function Attachments({ active, requestId, selfId, items, canUpload }: Pro
           )}
           <label className="grow">
             {t("procurement:attachment.add")}
-            <input
-              ref={fileInput}
-              type="file"
+            <FileInput
+              inputRef={fileInput}
               accept={ACCEPTED_FILES}
               disabled={action.busy}
               onChange={(e) => {

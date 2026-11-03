@@ -186,7 +186,7 @@ describe("purchase history", () => {
         <PurchaseHistory active={member(["manage_purchase_history"])} />
       </BridgeProvider>,
     );
-    const input = await screen.findByLabelText("File");
+    const input = await screen.findByLabelText(/^File/);
     fireEvent.change(input, {
       target: { files: [new File(["日付,品名,単価"], "h.csv", { type: "text/csv" })] },
     });
@@ -226,7 +226,7 @@ describe("purchase history", () => {
     expect(opp.textContent).toContain("VVF cable 100m");
     expect(opp.textContent).toContain("Always the same supplier: never compared");
     expect(opp.textContent).toContain("Our share at 50%");
-    expect(screen.queryByLabelText("File")).toBeNull();
+    expect(screen.queryByLabelText(/^File/)).toBeNull();
     expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
   });
 

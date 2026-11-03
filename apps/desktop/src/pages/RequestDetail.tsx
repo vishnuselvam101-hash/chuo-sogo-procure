@@ -63,6 +63,11 @@ export function RequestDetail({ active, selfId, requestId, onBack }: Props) {
     }
   }
 
+  // The action box only when this person can do something here now.
+  const ownerActions =
+    owner && (editable || ["draft", "submitted", "needs_clarification"].includes(r.status));
+  const operatorActions = operator && ["submitted", "identifying"].includes(r.status);
+
   return (
     <section>
       <PageHeader title={`${r.number} — ${r.title}`}>
@@ -155,7 +160,7 @@ export function RequestDetail({ active, selfId, requestId, onBack }: Props) {
         </div>
       )}
 
-      {(owner || operator || action.error) && (
+      {(ownerActions || operatorActions || action.error) && (
         <div className="card stack">
           {owner && r.status === "needs_clarification" && (
             <label>

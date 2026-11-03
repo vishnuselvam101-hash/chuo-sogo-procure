@@ -40,6 +40,7 @@ fn main() {
         "api_request",
         "api_download",
         "invoice_download",
+        "document_download",
         "api_image",
         "client_log",
         // Admin console only (feature `admin`, granted in capabilities/admin.json).

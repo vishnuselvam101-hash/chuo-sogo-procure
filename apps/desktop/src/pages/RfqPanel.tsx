@@ -23,7 +23,7 @@ import type {
 import { readAsBase64 } from "../lib/files";
 import { useAction } from "../lib/useAction";
 import { useApi } from "../lib/useApi";
-import { ErrorText, Loading, Money, StatusBadge } from "../components/ui";
+import { ErrorText, Loading, Money, StatusBadge, FileInput } from "../components/ui";
 import { CURRENCIES } from "./NewRequest";
 import { AiFlags } from "./AiItems";
 import { P } from "../lib/perm";
@@ -39,6 +39,9 @@ interface Props {
 }
 
 const QUOTING = ["rfq_sent", "quotes_received", "under_comparison"];
+
+/** File types the reader accepts. */
+const REPLY_FILE_TYPES = ".eml,.pdf,.xlsx,.csv,.txt,.png,.jpg,.jpeg,.tif,.tiff";
 
 export function RfqPanel({ active, rfqId, requestId, requestStatus, currency, items, onChanged }: Props) {
   const { t, i18n } = useTranslation();
@@ -769,9 +772,8 @@ function QuotationForm(props: {
         <div className="stack">
           <label>
             {t("procurement:ai.replyFile")}
-            <input
-              type="file"
-              accept=".eml,.pdf,.xlsx,.csv,.txt,.png,.jpg,.jpeg,.tif,.tiff"
+            <FileInput
+              accept={REPLY_FILE_TYPES}
               disabled={action.busy}
               onChange={(e) => {
                 const file = e.target.files?.[0];

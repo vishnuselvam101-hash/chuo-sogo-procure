@@ -103,3 +103,37 @@ export function ConfirmButton({
     </span>
   );
 }
+
+/**
+ * A file picker in the app's language (the browser's own button text is always English).
+ * The real input stays in the page, labelled by the surrounding <label>, for keyboard and
+ * screen readers.
+ */
+export function FileInput({
+  inputRef,
+  onChange,
+  ...rest
+}: React.InputHTMLAttributes<HTMLInputElement> & { inputRef?: React.Ref<HTMLInputElement> }) {
+  const { t } = useTranslation();
+  const [name, setName] = useState<string | null>(null);
+  return (
+    <span className="file-input">
+      <input
+        {...rest}
+        ref={inputRef}
+        type="file"
+        onChange={(e) => {
+          const files = Array.from(e.target.files ?? []);
+          setName(files.length ? files.map((f) => f.name).join(", ") : null);
+          onChange?.(e);
+        }}
+      />
+      <span className="file-input-button" aria-hidden="true">
+        {t("files.choose")}
+      </span>
+      <span className="file-input-name" aria-hidden="true">
+        {name ?? t("files.none")}
+      </span>
+    </span>
+  );
+}

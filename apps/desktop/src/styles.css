@@ -2404,3 +2404,42 @@ ul.plain {
     transform: rotateX(64deg) rotateZ(-18deg);
   }
 }
+
+/* File picker in the app's language (components/ui.tsx FileInput). */
+.file-input {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-height: 44px;
+}
+.file-input input[type="file"] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.file-input input[type="file"]:focus-visible + .file-input-button {
+  outline: 3px solid var(--focus, #224bd2);
+  outline-offset: 2px;
+}
+.file-input input[type="file"]:disabled + .file-input-button {
+  opacity: 0.5;
+}
+.file-input-button {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 var(--sp-4);
+  border: 1px solid var(--border, #c9d1e0);
+  border-radius: var(--radius-md, 10px);
+  background: var(--surface, #fff);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.file-input-name {
+  color: var(--text-muted, #5b6478);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

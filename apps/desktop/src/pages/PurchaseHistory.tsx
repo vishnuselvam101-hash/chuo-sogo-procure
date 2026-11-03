@@ -12,11 +12,14 @@ import { P } from "../lib/perm";
 import type { HistoryImport, HistoryPreview, HistoryRow, ItemAlias, MembershipView } from "../lib/types";
 import { useAction } from "../lib/useAction";
 import { useApi } from "../lib/useApi";
-import { ConfirmButton, ErrorText, Loading, PageHeader } from "../components/ui";
+import { ConfirmButton, ErrorText, Loading, PageHeader, FileInput } from "../components/ui";
 import { BuyingCriteriaCard } from "./BuyingCriteria";
 import { Opportunities } from "./Opportunities";
 
 /** Field codes understood by the importer (procure_domain::history::Field). */
+/** File types the reader accepts. */
+const HISTORY_FILE_TYPES = ".xlsx,.csv,.tsv,.txt,.pdf,.png,.jpg,.jpeg,.tif,.tiff";
+
 export const FIELDS = [
   "date",
   "supplier",
@@ -133,9 +136,8 @@ export function PurchaseHistory({ active }: { active: MembershipView }) {
           <div className="row">
             <label className="grow">
               {t("history:import.file")}
-              <input
-                type="file"
-                accept=".xlsx,.csv,.tsv,.txt,.pdf,.png,.jpg,.jpeg,.tif,.tiff"
+              <FileInput
+                accept={HISTORY_FILE_TYPES}
                 disabled={action.busy}
                 onChange={(e) => void choose(e.target.files)}
               />

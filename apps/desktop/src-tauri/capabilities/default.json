@@ -14,6 +14,7 @@
     "allow-api-request",
     "allow-api-download",
     "allow-invoice-download",
+    "allow-document-download",
     "allow-api-image",
     "allow-client-log"
   ]
