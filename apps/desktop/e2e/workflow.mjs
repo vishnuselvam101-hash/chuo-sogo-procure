@@ -118,7 +118,10 @@ try {
   await signIn("operator@chuo-sogo.e2e");
   // The work queue shows the automatic "identify" task and opens the request in its org.
   await nav("Operations queue");
-  const taskRow = await b.$(`//tr[.//button[normalize-space(.)='${number}']]`);
+  // (Its model numbers are in no record yet, so an "unknown model number" task is listed too.)
+  const taskRow = await b.$(
+    `//tr[.//button[normalize-space(.)='${number}'] and contains(., 'Identify products')]`,
+  );
   await taskRow.waitForExist({ timeout: 15000 });
   check(
     "submitting created an identify task in the operator's queue",
