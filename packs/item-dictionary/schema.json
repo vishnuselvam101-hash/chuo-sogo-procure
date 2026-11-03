@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://chuo-sogo.net/procure/packs/item-dictionary/schema.json",
+  "title": "Chuo-Sogo Procure MRO item dictionary",
+  "type": "object",
+  "required": ["schema_version", "version", "locale", "items"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {"const": 1},
+    "version": {"type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$"},
+    "locale": {"const": "ja-JP"},
+    "note": {"type": "string"},
+    "items": {
+      "type": "array",
+      "minItems": 400,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "category", "subcategory", "name_ja", "name_en", "kana", "synonyms", "units", "typical_packs", "attributes", "mpn_patterns", "uncertain"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^[a-z]{3}-[a-z_]+-[a-z0-9-]+$"},
+          "category": {"enum": ["consumables", "tools", "electrical"]},
+          "subcategory": {"type": "string", "pattern": "^[a-z_]+$"},
+          "name_ja": {"type": "string", "minLength": 1},
+          "name_en": {"type": "string", "minLength": 1},
+          "kana": {"type": "string", "minLength": 1, "description": "Reading in hiragana or katakana"},
+          "synonyms": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true, "description": "Alternative names, abbreviations and colloquial terms; '(商標)' marks a trademark used generically"},
+          "units": {"type": "array", "minItems": 1, "items": {"type": "string"}, "uniqueItems": true, "description": "Purchase units such as 個, 本, 巻, 箱, m"},
+          "typical_packs": {"type": "array", "items": {"type": "string"}},
+          "attributes": {"type": "array", "items": {"type": "string"}, "description": "Spec attributes a quote must state, with typical values in brackets"},
+          "mpn_patterns": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["scope", "pattern", "example", "confidence"],
+              "properties": {
+                "scope": {"enum": ["standard", "maker"]},
+                "maker": {"type": "string"},
+                "pattern": {"type": "string", "description": "Regular expression (Rust regex / ECMAScript compatible subset)"},
+                "example": {"type": "string"},
+                "confidence": {"enum": ["high", "medium"]}
+              },
+              "if": {"properties": {"scope": {"const": "maker"}}},
+              "then": {"required": ["maker"]}
+            }
+          },
+          "uncertain": {"type": "boolean"}
+        }
+      }
+    }
+  }
+}

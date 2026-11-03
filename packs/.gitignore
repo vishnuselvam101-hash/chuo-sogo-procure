@@ -1,0 +1,10 @@
+# Never commit downloaded pack binaries; they live in /srv/procure-packs (see docs/packs/PACKS.md).
+*.gguf
+*.bin
+*.zip
+*.tar.gz
+*.traineddata
+*.ttf
+*.otf
+*.part
+__pycache__/

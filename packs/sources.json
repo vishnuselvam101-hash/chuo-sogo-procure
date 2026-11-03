@@ -1,0 +1,249 @@
+{
+  "comment": "Hand-maintained upstream pins. scripts/packs/build-manifest.py turns this plus the repo-authored packs into packs/manifest.json. Every sha256 here was taken from the upstream's own published digest (Hugging Face LFS oid, GitHub release asset digest) or, for small files without one, computed once from the pinned immutable commit URL.",
+  "packs": [
+    {
+      "id": "ai-model",
+      "version": "qwen3-14b-8b-q4km",
+      "kind": "large",
+      "title_en": "AI model (Qwen3, Q4_K_M)",
+      "title_ja": "AIモデル（Qwen3, Q4_K_M）",
+      "licence": "Apache-2.0",
+      "licence_url": "https://huggingface.co/Qwen/Qwen3-14B-GGUF/blob/530227a7d994db8eca5ab5ced2fb692b614357fd/LICENSE",
+      "source": "https://huggingface.co/Qwen/Qwen3-14B-GGUF (revision 530227a7d994db8eca5ab5ced2fb692b614357fd); https://huggingface.co/Qwen/Qwen3-8B-GGUF (revision 7c41481f57cb95916b40956ab2f0b139b296d974). Both repos ship the same Apache-2.0 LICENSE text (identical sha256).",
+      "variants": [
+        {
+          "variant": "standard",
+          "default": true,
+          "min_ram_gb": 16,
+          "title_en": "Standard (Qwen3-14B)",
+          "title_ja": "標準（Qwen3-14B）",
+          "files": [
+            {
+              "path": "ai-model/Qwen3-14B-Q4_K_M.gguf",
+              "upstream_url": "https://huggingface.co/Qwen/Qwen3-14B-GGUF/resolve/530227a7d994db8eca5ab5ced2fb692b614357fd/Qwen3-14B-Q4_K_M.gguf",
+              "sha256": "500a8806e85ee9c83f3ae08420295592451379b4f8cf2d0f41c15dffeb6b81f0",
+              "size": 9001752960
+            },
+            {
+              "path": "ai-model/LICENSE",
+              "upstream_url": "https://huggingface.co/Qwen/Qwen3-8B-GGUF/resolve/7c41481f57cb95916b40956ab2f0b139b296d974/LICENSE",
+              "sha256": "5de36594c10839788a8c589443a8ef9d8b8d17c65a1b5807206ae037fc36c6bd",
+              "size": 11544
+            }
+          ]
+        },
+        {
+          "variant": "light",
+          "default": false,
+          "min_ram_gb": 8,
+          "title_en": "Light (Qwen3-8B, for PCs with less than 16 GB RAM)",
+          "title_ja": "軽量版（Qwen3-8B、メモリ16GB未満のPC向け）",
+          "files": [
+            {
+              "path": "ai-model/Qwen3-8B-Q4_K_M.gguf",
+              "upstream_url": "https://huggingface.co/Qwen/Qwen3-8B-GGUF/resolve/7c41481f57cb95916b40956ab2f0b139b296d974/Qwen3-8B-Q4_K_M.gguf",
+              "sha256": "d98cdcbd03e17ce47681435b5150e34c1417f50b5c0019dd560e4882c5745785",
+              "size": 5027783488
+            },
+            {
+              "path": "ai-model/LICENSE",
+              "upstream_url": "https://huggingface.co/Qwen/Qwen3-8B-GGUF/resolve/7c41481f57cb95916b40956ab2f0b139b296d974/LICENSE",
+              "sha256": "5de36594c10839788a8c589443a8ef9d8b8d17c65a1b5807206ae037fc36c6bd",
+              "size": 11544
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ai-runtime",
+      "version": "llama.cpp-b11960",
+      "kind": "core",
+      "title_en": "AI runtime (llama.cpp llama-server)",
+      "title_ja": "AI実行環境（llama.cpp llama-server）",
+      "licence": "MIT",
+      "licence_url": "https://github.com/ggml-org/llama.cpp/blob/8642541b255bfb5dc39cd351a178be09013a55d6/LICENSE",
+      "source": "https://github.com/ggml-org/llama.cpp/releases/tag/b11960 (build of release v0.8.0, commit 8642541b255bfb5dc39cd351a178be09013a55d6)",
+      "files": [
+        {
+          "path": "ai-runtime/llama-b11960-bin-win-cpu-x64.zip",
+          "platform": "windows-x64",
+          "upstream_url": "https://github.com/ggml-org/llama.cpp/releases/download/b11960/llama-b11960-bin-win-cpu-x64.zip",
+          "sha256": "73f962f82850d244db47eaacb9d913637027b82399124324298576d58c5f4287",
+          "size": 24407745
+        },
+        {
+          "path": "ai-runtime/llama-b11960-bin-ubuntu-x64.tar.gz",
+          "platform": "linux-x64",
+          "upstream_url": "https://github.com/ggml-org/llama.cpp/releases/download/b11960/llama-b11960-bin-ubuntu-x64.tar.gz",
+          "sha256": "31cc3a6bc638ac6c48dc4b1b74888f1eaadf3d14227c1e5f67daf9a49541d97a",
+          "size": 22686210
+        },
+        {
+          "path": "ai-runtime/llama-b11960-bin-macos-arm64.tar.gz",
+          "platform": "macos-arm64",
+          "upstream_url": "https://github.com/ggml-org/llama.cpp/releases/download/b11960/llama-b11960-bin-macos-arm64.tar.gz",
+          "sha256": "58e5a5e1d7c2bf66cedd9c29e0323f3e570660a70a1e2156d32eed08f4cc1e3c",
+          "size": 16465074
+        },
+        {
+          "path": "ai-runtime/LICENSE",
+          "upstream_url": "https://raw.githubusercontent.com/ggml-org/llama.cpp/8642541b255bfb5dc39cd351a178be09013a55d6/LICENSE",
+          "sha256": "94f29bbed6a22c35b992c5c6ebf0e7c92f13b836b90f36f461c9cf2f0f1d010d",
+          "size": 1078
+        }
+      ]
+    },
+    {
+      "id": "voice-model",
+      "version": "whisper-large-v3-turbo-5359861",
+      "kind": "large",
+      "title_en": "Voice model (Whisper large-v3-turbo)",
+      "title_ja": "音声認識モデル（Whisper large-v3-turbo）",
+      "licence": "MIT",
+      "licence_url": "https://huggingface.co/ggerganov/whisper.cpp (model card: license mit; OpenAI Whisper weights are MIT)",
+      "source": "https://huggingface.co/ggerganov/whisper.cpp (revision 5359861c739e955e79d9a303bcbc70fb988958b1)",
+      "files": [
+        {
+          "path": "voice-model/ggml-large-v3-turbo.bin",
+          "upstream_url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-large-v3-turbo.bin",
+          "sha256": "1fc70f774d38eb169993ac391eea357ef47c88757ef72ee5943879b7e8e2bc69",
+          "size": 1624555275
+        },
+        {
+          "path": "voice-model/LICENSE",
+          "upstream_url": "https://raw.githubusercontent.com/ggml-org/whisper.cpp/d1be6fde11ac6e0407606b4e42fe72d34add8037/LICENSE",
+          "sha256": "94f29bbed6a22c35b992c5c6ebf0e7c92f13b836b90f36f461c9cf2f0f1d010d",
+          "size": 1078
+        }
+      ]
+    },
+    {
+      "id": "voice-runtime",
+      "version": "whisper.cpp-v1.9.5",
+      "kind": "core",
+      "title_en": "Voice runtime (whisper.cpp)",
+      "title_ja": "音声認識実行環境（whisper.cpp）",
+      "licence": "MIT",
+      "licence_url": "https://github.com/ggml-org/whisper.cpp/blob/d1be6fde11ac6e0407606b4e42fe72d34add8037/LICENSE",
+      "source": "https://github.com/ggml-org/whisper.cpp/releases/tag/b5454 (= v1.9.5, commit d1be6fde11ac6e0407606b4e42fe72d34add8037). No official macOS command-line build is published (only an iOS/macOS xcframework); macOS must build from source.",
+      "files": [
+        {
+          "path": "voice-runtime/whisper-bin-x64.zip",
+          "platform": "windows-x64",
+          "upstream_url": "https://github.com/ggml-org/whisper.cpp/releases/download/b5454/whisper-bin-x64.zip",
+          "sha256": "6ba69e3482d7826214f90a6a9c84ca07782aec1e1d0c6a7c30c994fd5d816ccb",
+          "size": 8928640
+        },
+        {
+          "path": "voice-runtime/whisper-bin-ubuntu-x64.tar.gz",
+          "platform": "linux-x64",
+          "upstream_url": "https://github.com/ggml-org/whisper.cpp/releases/download/b5454/whisper-bin-ubuntu-x64.tar.gz",
+          "sha256": "a72becf15d7917f990f6313867a52638b82b7f9ef237fb0c980dac56a135781c",
+          "size": 10364195
+        },
+        {
+          "path": "voice-runtime/LICENSE",
+          "upstream_url": "https://raw.githubusercontent.com/ggml-org/whisper.cpp/d1be6fde11ac6e0407606b4e42fe72d34add8037/LICENSE",
+          "sha256": "94f29bbed6a22c35b992c5c6ebf0e7c92f13b836b90f36f461c9cf2f0f1d010d",
+          "size": 1078
+        }
+      ]
+    },
+    {
+      "id": "ocr-data",
+      "version": "tessdata_best-e12c65a",
+      "kind": "core",
+      "title_en": "OCR language data (Tesseract tessdata_best)",
+      "title_ja": "OCR言語データ（Tesseract tessdata_best）",
+      "licence": "Apache-2.0",
+      "licence_url": "https://github.com/tesseract-ocr/tessdata_best/blob/e12c65a915945e4c28e237a9b52bc4a8f39a0cec/LICENSE",
+      "source": "https://github.com/tesseract-ocr/tessdata_best (commit e12c65a915945e4c28e237a9b52bc4a8f39a0cec)",
+      "files": [
+        {
+          "path": "ocr-data/jpn.traineddata",
+          "upstream_url": "https://raw.githubusercontent.com/tesseract-ocr/tessdata_best/e12c65a915945e4c28e237a9b52bc4a8f39a0cec/jpn.traineddata",
+          "sha256": "36bdf9ac823f5911e624c30d0553e890b8abc7c31a65b3ef14da943658c40b79",
+          "size": 14330109
+        },
+        {
+          "path": "ocr-data/jpn_vert.traineddata",
+          "upstream_url": "https://raw.githubusercontent.com/tesseract-ocr/tessdata_best/e12c65a915945e4c28e237a9b52bc4a8f39a0cec/jpn_vert.traineddata",
+          "sha256": "1258be6eb2a9851f18043234ad18cca13ed32690bfff62b335c898bbea371548",
+          "size": 14330809
+        },
+        {
+          "path": "ocr-data/eng.traineddata",
+          "upstream_url": "https://raw.githubusercontent.com/tesseract-ocr/tessdata_best/e12c65a915945e4c28e237a9b52bc4a8f39a0cec/eng.traineddata",
+          "sha256": "8280aed0782fe27257a68ea10fe7ef324ca0f8d85bd2fd145d1c2b560bcb66ba",
+          "size": 15400601
+        },
+        {
+          "path": "ocr-data/hin.traineddata",
+          "upstream_url": "https://raw.githubusercontent.com/tesseract-ocr/tessdata_best/e12c65a915945e4c28e237a9b52bc4a8f39a0cec/hin.traineddata",
+          "sha256": "bd2e65a2184af08a167b0be2439e91fa5edbc4394399ca2f692b843ae26e78d6",
+          "size": 11895564
+        },
+        {
+          "path": "ocr-data/tam.traineddata",
+          "upstream_url": "https://raw.githubusercontent.com/tesseract-ocr/tessdata_best/e12c65a915945e4c28e237a9b52bc4a8f39a0cec/tam.traineddata",
+          "sha256": "4b9ce85987f629dd31eaf87443a1646452a43cdf91fcf05e017382ad595dcb9e",
+          "size": 6023201
+        },
+        {
+          "path": "ocr-data/LICENSE",
+          "upstream_url": "https://raw.githubusercontent.com/tesseract-ocr/tessdata_best/e12c65a915945e4c28e237a9b52bc4a8f39a0cec/LICENSE",
+          "sha256": "a6cba85bc92e0cff7a450b1d873c0eaa2e9fc96bf472df0247a26bec77bf3ff9",
+          "size": 10173
+        }
+      ]
+    },
+    {
+      "id": "fonts",
+      "version": "google-fonts-2fe1e8c",
+      "kind": "core",
+      "title_en": "Japanese fonts (Noto Sans JP, Noto Serif JP)",
+      "title_ja": "日本語フォント（Noto Sans JP・Noto Serif JP）",
+      "licence": "OFL-1.1",
+      "licence_url": "https://openfontlicense.org/open-font-license-official-text/",
+      "source": "https://github.com/google/fonts ofl/notosansjp and ofl/notoserifjp (commit 2fe1e8c6b137fb13041a7cfca6fdcd8a910ea4dc); upstream https://github.com/notofonts/noto-cjk",
+      "files": [
+        {
+          "path": "fonts/NotoSansJP[wght].ttf",
+          "upstream_url": "https://raw.githubusercontent.com/google/fonts/2fe1e8c6b137fb13041a7cfca6fdcd8a910ea4dc/ofl/notosansjp/NotoSansJP%5Bwght%5D.ttf",
+          "sha256": "c2f3b4d463500a2ddcd3849cded1fceeb9fd6d1c32e6cbecd568453ba50fc68f",
+          "size": 9589900
+        },
+        {
+          "path": "fonts/NotoSansJP-OFL.txt",
+          "upstream_url": "https://raw.githubusercontent.com/google/fonts/2fe1e8c6b137fb13041a7cfca6fdcd8a910ea4dc/ofl/notosansjp/OFL.txt",
+          "sha256": "1c05c68c34f9708415aada51f17e1b0092d2cea709bf4a94cd38114f9e73d7d9",
+          "size": 4388
+        },
+        {
+          "path": "fonts/NotoSerifJP[wght].ttf",
+          "upstream_url": "https://raw.githubusercontent.com/google/fonts/2fe1e8c6b137fb13041a7cfca6fdcd8a910ea4dc/ofl/notoserifjp/NotoSerifJP%5Bwght%5D.ttf",
+          "sha256": "2fd527ba12b6a44ec30d796d633360da0aeba6c5d4af1304ce12bb4dc15a7dfc",
+          "size": 13574352
+        },
+        {
+          "path": "fonts/NotoSerifJP-OFL.txt",
+          "upstream_url": "https://raw.githubusercontent.com/google/fonts/2fe1e8c6b137fb13041a7cfca6fdcd8a910ea4dc/ofl/notoserifjp/OFL.txt",
+          "sha256": "5e0da210fb04058a8c0087985d2d456b931c2579811a49655721d3cf0c36b6d6",
+          "size": 4350
+        }
+      ]
+    },
+    {
+      "id": "item-dictionary",
+      "version": "1.0.0",
+      "kind": "core",
+      "repo_dir": "item-dictionary",
+      "title_en": "MRO item dictionary (Japan)",
+      "title_ja": "間接資材品目辞書（日本）",
+      "licence": "Proprietary (Chuo-Sogo Inc., written for this product)",
+      "licence_url": null,
+      "source": "packs/item-dictionary in this repository"
+    }
+  ]
+}
