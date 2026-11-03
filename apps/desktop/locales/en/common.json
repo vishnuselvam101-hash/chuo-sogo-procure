@@ -23,7 +23,8 @@
     "listings": "Product listings",
     "catalogue": "Catalogue",
     "history": "Purchase history",
-    "savings": "Savings"
+    "savings": "Savings",
+    "records": "Records"
   },
   "workspace": {
     "customer": "Customer workspace",

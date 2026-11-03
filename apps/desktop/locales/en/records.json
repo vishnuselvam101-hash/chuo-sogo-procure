@@ -1,0 +1,25 @@
+{
+  "lead": "Every quotation, order and invoice, found by date, amount and counterparty (電子帳簿保存法). Supplier files are kept exactly as received; their SHA-256 shows they have not changed.",
+  "from": "From",
+  "to": "To",
+  "counterparty": "Counterparty",
+  "min": "Amount from (¥)",
+  "max": "Amount to (¥)",
+  "kind": "Kind",
+  "allKinds": "All",
+  "search": "Search",
+  "none": "No records match.",
+  "date": "Date",
+  "reference": "Reference",
+  "amount": "Amount",
+  "document": "File as received",
+  "sha": "SHA-256 {{hash}}…",
+  "saved": "Saved to {{path}}",
+  "truncated": "Only the newest 1,000 matches are shown. Narrow the search.",
+  "kinds": {
+    "quotation": "Quotation",
+    "order": "Order",
+    "supplier_invoice": "Supplier invoice",
+    "fee_invoice": "Chuo-Sogo invoice"
+  }
+}

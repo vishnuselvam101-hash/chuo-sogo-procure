@@ -29,6 +29,9 @@ export const bridge = {
   /** Saves an issued invoice / credit note PDF as `<number>.pdf` in Downloads. */
   invoicePdf: (orgId: string, invoiceId: string, number: string) =>
     invoke<ApiResponse<{ saved_to: string }>>("invoice_download", { orgId, invoiceId, number }),
+  /** Saves a kept supplier file (email, PDF, spreadsheet, FAX scan) into Downloads. */
+  documentDownload: (orgId: string, documentId: string, fileName: string) =>
+    invoke<ApiResponse<{ saved_to: string }>>("document_download", { orgId, documentId, fileName }),
   /** A listing photo as a `data:` URL (fetched and checked by the native layer). */
   image: (path: string) => invoke<ApiResponse<{ data_url: string }>>("api_image", { path }),
   log: (level: "info" | "warn" | "error", message: string, requestId?: string) =>

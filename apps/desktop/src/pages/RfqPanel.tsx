@@ -563,6 +563,8 @@ function QuotationForm(props: {
   const setLine = (i: number, patch: Partial<LineDraft>) =>
     setLines(lines.map((l, j) => (j === i ? { ...l, ...patch } : l)));
   const [aiText, setAiText] = useState("");
+  // The supplier's file read into the text box, kept by the server as a transaction record.
+  const [doc, setDoc] = useState<{ id: string; supplier: string } | null>(null);
   const [ai, setAi] = useState<{
     id: string;
     supplier: string;
@@ -573,11 +575,15 @@ function QuotationForm(props: {
   /** Reads a saved email (with attachments), PDF, Excel sheet or FAX scan into the text box for checking. */
   async function readReplyFile(file: File) {
     const data_base64 = await readAsBase64(file);
-    const res = await action.run<{ text: string }>("POST", `${props.base}/reply-text`, {
+    const res = await action.run<{ text: string; document_id: string }>("POST", `${props.base}/reply-text`, {
       file_name: file.name,
       data_base64,
+      supplier_id: head.supplier_id || null,
     });
-    if (res) setAiText(res.body.text);
+    if (res) {
+      setAiText(res.body.text);
+      setDoc({ id: res.body.document_id, supplier: head.supplier_id });
+    }
   }
 
   /** Pre-fills the form from the supplier's text. The operator checks and saves; nothing is recorded by the AI. */
@@ -679,6 +685,8 @@ function QuotationForm(props: {
       lines: parsed,
       // Provenance only if the form still belongs to the supplier the AI read.
       ai_suggestion_id: ai && ai.supplier === head.supplier_id ? ai.id : null,
+      // The file it was read from, if it was read for this supplier.
+      source_document_id: doc && doc.supplier === head.supplier_id ? doc.id : null,
     });
     if (res) props.onSaved();
   }

@@ -7,7 +7,7 @@ use utoipa::{Modify, OpenApi};
 
 use crate::api::{
     admin, ai, approvals, attachments, auth, billing, demo, history, listing_ai, listings, ops,
-    orders, orgs, products, requests, rfqs, savings, shop, shortlist, suppliers,
+    orders, orgs, products, records, requests, rfqs, savings, shop, shortlist, suppliers,
 };
 use crate::error::{ErrorBody, ErrorInner};
 
@@ -204,6 +204,8 @@ impl Modify for BearerAuth {
         history::withdraw,
         history::search,
         history::opportunities,
+        records::search_records,
+        records::download_document,
         history::price_reference,
         history::get_criteria,
         history::put_criteria,

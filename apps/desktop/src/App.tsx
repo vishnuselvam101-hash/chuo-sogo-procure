@@ -20,6 +20,7 @@ import { Products } from "./pages/Products";
 import { OpsQueue } from "./pages/OpsQueue";
 import { Billing } from "./pages/Billing";
 import { Savings } from "./pages/Savings";
+import { Records } from "./pages/Records";
 import { Listings } from "./pages/Listings";
 import { Catalogue } from "./pages/Catalogue";
 import { PurchaseHistory } from "./pages/PurchaseHistory";
@@ -171,6 +172,9 @@ export function App() {
       break;
     case "savings":
       body = <Savings key={active.org_id} active={active} />;
+      break;
+    case "records":
+      body = <Records key={active.org_id} active={active} />;
       break;
     case "history":
       body = <PurchaseHistory key={active.org_id} active={active} />;

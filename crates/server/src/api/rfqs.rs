@@ -523,6 +523,8 @@ pub struct QuotationInput {
     pub lines: Vec<QuotationLineInput>,
     /// The AI suggestion the operator started from (marked accepted; values are the operator's).
     pub ai_suggestion_id: Option<Uuid>,
+    /// The supplier's file this quotation was read from (`reply-text`), kept as received.
+    pub source_document_id: Option<Uuid>,
 }
 
 #[utoipa::path(
@@ -603,6 +605,22 @@ pub async fn record_quotation(
     if usize::try_from(known).ok() != Some(distinct.len()) {
         return Err(ApiError::Validation("unknown_item"));
     }
+    // The source file must belong to this RFQ and, when it names one, to this supplier.
+    if let Some(d) = body.source_document_id {
+        let ok: bool = sqlx::query_scalar(
+            "SELECT EXISTS (SELECT 1 FROM supplier_documents
+                            WHERE id = $1 AND rfq_id = $2
+                              AND (supplier_id IS NULL OR supplier_id = $3))",
+        )
+        .bind(d)
+        .bind(rfq.id)
+        .bind(body.supplier_id)
+        .fetch_one(&mut *tx)
+        .await?;
+        if !ok {
+            return Err(ApiError::Validation("source_document_id"));
+        }
+    }
     let superseded: Option<Uuid> = sqlx::query_scalar(
         "UPDATE quotations SET superseded_at = now()
          WHERE rfq_recipient_id = $1 AND superseded_at IS NULL RETURNING id",
@@ -614,8 +632,8 @@ pub async fn record_quotation(
     sqlx::query(
         "INSERT INTO quotations (id, org_id, rfq_id, rfq_recipient_id, supplier_reference, currency,
                                  shipping_minor, valid_until, received_at, notes, recorded_by,
-                                 ai_suggestion_id)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, coalesce($9, now()), $10, $11, $12)",
+                                 ai_suggestion_id, source_document_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, coalesce($9, now()), $10, $11, $12, $13)",
     )
     .bind(id)
     .bind(org_id)
@@ -629,6 +647,7 @@ pub async fn record_quotation(
     .bind(&notes)
     .bind(p.user_id)
     .bind(body.ai_suggestion_id)
+    .bind(body.source_document_id)
     .execute(&mut *tx)
     .await?;
     for l in &body.lines {

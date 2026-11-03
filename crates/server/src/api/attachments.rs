@@ -237,7 +237,7 @@ async fn visible_attachment(tx: &mut db::Tx, id: Uuid, view: View) -> ApiResult<
 }
 
 /// RFC 6266 `attachment` disposition with an ASCII fallback and the UTF-8 name.
-fn disposition(file_name: &str) -> String {
+pub(crate) fn disposition(file_name: &str) -> String {
     let ascii: String = file_name
         .chars()
         .map(|c| {

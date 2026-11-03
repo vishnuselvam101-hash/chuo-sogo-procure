@@ -400,6 +400,29 @@ async fn invoice_download(
     save_download(&app, &session, &base, url, &name).await
 }
 
+/// Saves a kept supplier file (email, PDF, spreadsheet, FAX scan) into Downloads.
+#[tauri::command]
+async fn document_download(
+    app: tauri::AppHandle,
+    prefs: State<'_, Mutex<Prefs>>,
+    session: State<'_, Session>,
+    org_id: String,
+    document_id: String,
+    file_name: String,
+) -> Result<ApiResponse, String> {
+    let org = uuid::Uuid::parse_str(&org_id).map_err(|_| "invalid_id".to_string())?;
+    let document = uuid::Uuid::parse_str(&document_id).map_err(|_| "invalid_id".to_string())?;
+    let name = validate::download_name(&file_name)
+        .filter(|n| validate::is_record_type(n))
+        .ok_or("invalid_file_name")?;
+    let base = lock(&prefs)?.server_url.clone();
+    let url = validate::api_url(
+        &base,
+        &format!("/api/v1/orgs/{org}/supplier-documents/{document}/content"),
+    )?;
+    save_download(&app, &session, &base, url, &name).await
+}
+
 /// GETs `url` with the session for `base` (size-capped) and writes it to the Downloads
 /// folder as `name`, never overwriting.
 async fn save_download(
@@ -540,6 +563,7 @@ fn handlers() -> impl Fn(tauri::ipc::Invoke) -> bool + Send + Sync + 'static {
         api_request,
         api_download,
         invoice_download,
+        document_download,
         api_image,
         client_log
     ]
@@ -559,6 +583,7 @@ fn handlers() -> impl Fn(tauri::ipc::Invoke) -> bool + Send + Sync + 'static {
         admin::auth_enroll,
         admin::auth_code,
         invoice_download,
+        document_download,
         api_image,
         client_log
     ]

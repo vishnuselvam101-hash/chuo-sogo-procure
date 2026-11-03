@@ -165,7 +165,6 @@ describe("purchase history", () => {
       {
         [`${base}/purchase-history/imports`]: [],
         [`${base}/purchase-history/opportunities`]: OPPORTUNITIES,
-        [`${base}/purchase-history/opportunities`]: OPPORTUNITIES,
         [`${base}/purchase-history`]: [],
         [`${base}/buying-criteria`]: EMPTY_CRITERIA,
       },

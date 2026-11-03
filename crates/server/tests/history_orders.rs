@@ -9,6 +9,7 @@ mod common;
 use axum::http::StatusCode;
 use common::*;
 use serde_json::{Value, json};
+use sha2::Digest;
 use sqlx::PgPool;
 use uuid::Uuid;
 
@@ -1171,6 +1172,102 @@ async fn supplier_reply_files_are_read_as_text(pool: PgPool) {
         "{text}"
     );
     assert!(text.contains("単価 1,180円"), "{text}");
+    // The file is kept as received (電子帳簿保存法) and can be fetched back unchanged.
+    let doc = uuid(&r.body["document_id"]);
+    let (status, _, bytes) =
+        f.w.app
+            .get_raw(
+                &f.url(&format!("supplier-documents/{doc}/content")),
+                &f.manager,
+            )
+            .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(bytes, eml.as_bytes());
+    let sha = hex::encode(sha2::Sha256::digest(eml.as_bytes()));
+    // The database refuses to change or delete it, even for the server itself.
+    let mut tx = f.owner.begin().await.unwrap();
+    sqlx::query("SET LOCAL ROLE procure_runtime")
+        .execute(&mut *tx)
+        .await
+        .unwrap();
+    sqlx::query("SELECT set_config('app.org_id', $1, true)")
+        .bind(f.w.org_a.to_string())
+        .execute(&mut *tx)
+        .await
+        .unwrap();
+    let e = sqlx::query("UPDATE supplier_documents SET file_name = 'x' WHERE id = $1")
+        .bind(doc)
+        .execute(&mut *tx)
+        .await;
+    assert!(e.is_err(), "update must be refused");
+    tx.rollback().await.unwrap();
+    let mut tx = f.owner.begin().await.unwrap();
+    sqlx::query("SET LOCAL ROLE procure_runtime")
+        .execute(&mut *tx)
+        .await
+        .unwrap();
+    let e = sqlx::query("DELETE FROM supplier_documents WHERE id = $1")
+        .bind(doc)
+        .execute(&mut *tx)
+        .await;
+    assert!(e.is_err(), "delete must be refused");
+    tx.rollback().await.unwrap();
+    // A supplier not asked in this RFQ cannot be named as the sender.
+    let mut other = body("reply.eml", eml.as_bytes());
+    other["supplier_id"] = json!(Uuid::now_v7());
+    assert_eq!(
+        f.w.app.post(&url, &f.operator, other).await.status,
+        StatusCode::UNPROCESSABLE_ENTITY
+    );
+
+    // The records register: the quotation (linked to its file) and the order, by date,
+    // amount and counterparty.
+    f.as_owner(
+        "UPDATE quotations SET source_document_id = $1 WHERE rfq_id = $2::uuid",
+        doc,
+        &o.rfq.to_string(),
+    )
+    .await;
+    let fr = &f;
+    let rec = |q: &str| {
+        let url = fr.url(&format!("records{q}"));
+        async move { fr.w.app.get(&url, &fr.manager).await }
+    };
+    let r = rec("").await;
+    assert_eq!(r.status, StatusCode::OK, "{:?}", r.body);
+    let rows = r.body["rows"].as_array().unwrap();
+    let kinds: Vec<&str> = rows.iter().map(|r| r["kind"].as_str().unwrap()).collect();
+    assert!(
+        kinds.contains(&"quotation") && kinds.contains(&"order"),
+        "{rows:?}"
+    );
+    let quote = rows.iter().find(|r| r["kind"] == "quotation").unwrap();
+    // 1,200 × 100 + 45,000 × 4 + 2,000 shipping.
+    assert_eq!(quote["amount_minor"], 120_000 + 180_000 + 2_000);
+    assert_eq!(quote["counterparty"], "Tokyo Bearings KK");
+    assert_eq!(quote["document_sha256"], sha.as_str());
+    let order = rows.iter().find(|r| r["kind"] == "order").unwrap();
+    assert_eq!(order["reference"], "PO-R-1");
+    assert_eq!(order["date"], "2026-10-02"); // 15:30 UTC is the next day in Tokyo
+    let n = |r: &Resp| r.body["rows"].as_array().unwrap().len();
+    assert_eq!(n(&rec("?counterparty=tokyo%20bear&kind=order").await), 1);
+    assert_eq!(n(&rec("?counterparty=osaka").await), 0);
+    assert_eq!(
+        n(&rec("?from=2026-10-02&to=2026-10-02&kind=order").await),
+        1
+    );
+    assert_eq!(n(&rec("?to=2026-10-01&kind=order").await), 0);
+    // The quotation and the order it became both total ¥302,000.
+    assert_eq!(n(&rec("?min_minor=302000&max_minor=302000").await), 2);
+    assert_eq!(n(&rec("?min_minor=302001").await), 0);
+    assert_eq!(
+        rec("?kind=receipt").await.status,
+        StatusCode::UNPROCESSABLE_ENTITY
+    );
+    assert_eq!(
+        f.w.app.get(&f.url("records"), &f.requester).await.status,
+        StatusCode::FORBIDDEN
+    );
     // Customers do not handle supplier replies; unknown formats are refused.
     assert_eq!(
         f.w.app

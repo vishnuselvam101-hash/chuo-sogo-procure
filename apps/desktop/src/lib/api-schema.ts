@@ -1575,6 +1575,22 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/orgs/{org_id}/records": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["search_records"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/orgs/{org_id}/requests": {
     parameters: {
       query?: never;
@@ -2223,6 +2239,22 @@ export interface paths {
       cookie?: never;
     };
     get: operations["shop_product_media"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/orgs/{org_id}/supplier-documents/{document_id}/content": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["download_document"];
     put?: never;
     post?: never;
     delete?: never;
@@ -3933,6 +3965,11 @@ export interface components {
       received_at?: string | null;
       /** Format: int64 */
       shipping_minor?: number;
+      /**
+       * Format: uuid
+       * @description The supplier's file this quotation was read from (`reply-text`), kept as received.
+       */
+      source_document_id?: string | null;
       /** Format: uuid */
       supplier_id: string;
       supplier_reference?: string;
@@ -4070,10 +4107,39 @@ export interface components {
       /** Format: int64 */
       total_minor: number;
     };
+    RecordList: {
+      rows: components["schemas"]["RecordRow"][];
+      /** @description More rows matched than returned (narrow the search). */
+      truncated: boolean;
+    };
     RecordOrderBody: {
       notes?: string;
       /** @description The customer's own purchase order number. */
       po_number: string;
+    };
+    RecordRow: {
+      /** Format: int64 */
+      amount_minor: number;
+      counterparty: string;
+      currency: string;
+      /**
+       * Format: date
+       * @description Transaction date in the organisation's time zone.
+       */
+      date: string;
+      /**
+       * Format: uuid
+       * @description The file the record was read from, kept as received.
+       */
+      document_id?: string | null;
+      document_name?: string | null;
+      document_sha256?: string | null;
+      /** Format: uuid */
+      id: string;
+      kind: string;
+      /** @description The counterparty's or the factory's document number. */
+      reference: string;
+      request_number?: string | null;
     };
     ReplyFileBody: {
       /** @description File content, standard base64. */
@@ -4083,8 +4149,19 @@ export interface components {
        *     an Excel / CSV sheet, or a scanned page / FAX (PNG, JPEG, TIFF; OCR).
        */
       file_name: string;
+      /**
+       * Format: uuid
+       * @description The supplier who sent it, when known (kept with the file).
+       */
+      supplier_id?: string | null;
     };
     ReplyText: {
+      /**
+       * Format: uuid
+       * @description The file, kept unchanged as an electronic transaction record; pass it to the
+       *     quotation as `source_document_id`.
+       */
+      document_id: string;
       /** @description The reply as text, for the operator to read and then pass to quotation extraction. */
       text: string;
     };
@@ -11066,6 +11143,83 @@ export interface operations {
       };
     };
   };
+  search_records: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+        /** @description Dates in the organisation's time zone, inclusive. */
+        from: string | null;
+        to: string | null;
+        /** @description Part of the counterparty's name (case-insensitive). */
+        counterparty: string | null;
+        /** @description Amount in minor units, inclusive. */
+        min_minor: number | null;
+        max_minor: number | null;
+        /** @description quotation, order, supplier_invoice or fee_invoice. */
+        kind: string | null;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Transaction records matching every given condition, newest first */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["RecordList"];
+        };
+      };
+      /** @description Malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown organisation */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown kind or inverted range */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
   list_requests: {
     parameters: {
       query?: never;
@@ -13754,7 +13908,7 @@ export interface operations {
       };
     };
     responses: {
-      /** @description Text read from the supplier's reply (nothing stored) */
+      /** @description Text read from the supplier's reply; the file is kept as received */
       200: {
         headers: {
           [name: string]: unknown;
@@ -14305,6 +14459,54 @@ export interface operations {
         };
       };
       /** @description Not for sale */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  download_document: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+        document_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The file as the supplier sent it (application/octet-stream, attachment) */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown document */
       404: {
         headers: {
           [name: string]: unknown;

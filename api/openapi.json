@@ -8818,6 +8818,166 @@
         ]
       }
     },
+    "/api/v1/orgs/{org_id}/records": {
+      "get": {
+        "tags": [
+          "records"
+        ],
+        "operationId": "search_records",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "from",
+            "in": "path",
+            "description": "Dates in the organisation's time zone, inclusive.",
+            "required": true,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "date"
+            }
+          },
+          {
+            "name": "to",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "date"
+            }
+          },
+          {
+            "name": "counterparty",
+            "in": "path",
+            "description": "Part of the counterparty's name (case-insensitive).",
+            "required": true,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "min_minor",
+            "in": "path",
+            "description": "Amount in minor units, inclusive.",
+            "required": true,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int64"
+            }
+          },
+          {
+            "name": "max_minor",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int64"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "path",
+            "description": "quotation, order, supplier_invoice or fee_invoice.",
+            "required": true,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Transaction records matching every given condition, newest first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecordList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown organisation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unknown kind or inverted range",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/orgs/{org_id}/requests": {
       "get": {
         "tags": [
@@ -12677,7 +12837,7 @@
         },
         "responses": {
           "200": {
-            "description": "Text read from the supplier's reply (nothing stored)",
+            "description": "Text read from the supplier's reply; the file is kept as received",
             "content": {
               "application/json": {
                 "schema": {
@@ -13475,6 +13635,74 @@
           },
           "404": {
             "description": "Not for sale",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/orgs/{org_id}/supplier-documents/{document_id}/content": {
+      "get": {
+        "tags": [
+          "records"
+        ],
+        "operationId": "download_document",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The file as the supplier sent it (application/octet-stream, attachment)"
+          },
+          "401": {
+            "description": "No valid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown document",
             "content": {
               "application/json": {
                 "schema": {
@@ -19294,6 +19522,14 @@
             "type": "integer",
             "format": "int64"
           },
+          "source_document_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "The supplier's file this quotation was read from (`reply-text`), kept as received."
+          },
           "supplier_id": {
             "type": "string",
             "format": "uuid"
@@ -19718,6 +19954,25 @@
           }
         }
       },
+      "RecordList": {
+        "type": "object",
+        "required": [
+          "rows",
+          "truncated"
+        ],
+        "properties": {
+          "rows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RecordRow"
+            }
+          },
+          "truncated": {
+            "type": "boolean",
+            "description": "More rows matched than returned (narrow the search)."
+          }
+        }
+      },
       "RecordOrderBody": {
         "type": "object",
         "required": [
@@ -19730,6 +19985,72 @@
           "po_number": {
             "type": "string",
             "description": "The customer's own purchase order number."
+          }
+        }
+      },
+      "RecordRow": {
+        "type": "object",
+        "required": [
+          "kind",
+          "id",
+          "date",
+          "amount_minor",
+          "currency",
+          "counterparty",
+          "reference"
+        ],
+        "properties": {
+          "amount_minor": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "counterparty": {
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "description": "Transaction date in the organisation's time zone."
+          },
+          "document_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "The file the record was read from, kept as received."
+          },
+          "document_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "document_sha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "reference": {
+            "type": "string",
+            "description": "The counterparty's or the factory's document number."
+          },
+          "request_number": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         }
       },
@@ -19747,15 +20068,29 @@
           "file_name": {
             "type": "string",
             "description": "A saved supplier email (`.eml`, attachments read too), a PDF (text layer, else OCR),\nan Excel / CSV sheet, or a scanned page / FAX (PNG, JPEG, TIFF; OCR)."
+          },
+          "supplier_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "The supplier who sent it, when known (kept with the file)."
           }
         }
       },
       "ReplyText": {
         "type": "object",
         "required": [
-          "text"
+          "text",
+          "document_id"
         ],
         "properties": {
+          "document_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The file, kept unchanged as an electronic transaction record; pass it to the\nquotation as `source_document_id`."
+          },
           "text": {
             "type": "string",
             "description": "The reply as text, for the operator to read and then pass to quotation extraction."

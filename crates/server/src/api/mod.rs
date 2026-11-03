@@ -14,6 +14,7 @@ pub mod ops;
 pub mod orders;
 pub mod orgs;
 pub mod products;
+pub mod records;
 pub mod requests;
 pub mod rfqs;
 pub mod savings;

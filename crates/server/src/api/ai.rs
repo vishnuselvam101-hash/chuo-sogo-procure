@@ -249,12 +249,17 @@ pub struct ReplyFileBody {
     pub file_name: String,
     /// File content, standard base64.
     pub data_base64: String,
+    /// The supplier who sent it, when known (kept with the file).
+    pub supplier_id: Option<Uuid>,
 }
 
 #[derive(Serialize, utoipa::ToSchema)]
 pub struct ReplyText {
     /// The reply as text, for the operator to read and then pass to quotation extraction.
     pub text: String,
+    /// The file, kept unchanged as an electronic transaction record; pass it to the
+    /// quotation as `source_document_id`.
+    pub document_id: Uuid,
 }
 
 #[utoipa::path(
@@ -265,7 +270,7 @@ pub struct ReplyText {
     request_body = ReplyFileBody,
     security(("bearer" = [])),
     responses(
-        (status = 200, description = "Text read from the supplier's reply (nothing stored)", body = ReplyText),
+        (status = 200, description = "Text read from the supplier's reply; the file is kept as received", body = ReplyText),
         (status = 403, description = "Not permitted", body = ErrorBody),
         (status = 404, description = "Unknown RFQ or not assigned", body = ErrorBody),
         (status = 422, description = "Unsupported, empty or too large file; OCR not installed", body = ErrorBody),
@@ -316,7 +321,36 @@ pub async fn reply_text(
             crate::intake::IntakeError::Failed => ApiError::Conflict("intake_failed"),
             other => ApiError::Validation(other.code()),
         })?;
-    Ok(Json(ReplyText { text }))
+    let mut tx = db::tenant_tx(&state.pool, p.user_id, org_id).await?;
+    if let Some(s) = body.supplier_id {
+        let invited: bool = sqlx::query_scalar(
+            "SELECT EXISTS (SELECT 1 FROM rfq_recipients WHERE rfq_id = $1 AND supplier_id = $2)",
+        )
+        .bind(rfq_id)
+        .bind(s)
+        .fetch_one(&mut *tx)
+        .await?;
+        if !invited {
+            return Err(ApiError::Validation("supplier_id"));
+        }
+    }
+    let document_id = crate::api::records::keep_document(
+        &state,
+        &mut tx,
+        org_id,
+        Some(&p),
+        &crate::api::records::KeptFile {
+            rfq_id,
+            supplier_id: body.supplier_id,
+            channel: crate::api::records::Channel::Upload,
+            file_name: &file_name,
+            bytes: &bytes,
+            received_at: None,
+        },
+    )
+    .await?;
+    tx.commit().await?;
+    Ok(Json(ReplyText { text, document_id }))
 }
 
 #[utoipa::path(

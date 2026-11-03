@@ -13,6 +13,7 @@ export type PageId =
   | "billing"
   | "savings"
   | "history"
+  | "records"
   | "listings"
   | "catalogue"
   | "reports"
@@ -68,6 +69,8 @@ export function navFor(m: MembershipView): NavItem[] {
     if (has("view_finance") && m.access !== "assigned") items.push(item("billing", true));
     // How we are paid: half of what each price went down, line by line.
     if (has("view_finance") || has("view_all_requests")) items.push(item("savings", true));
+    // Electronic transaction records (電子帳簿保存法): quotations, orders, invoices.
+    if (has("view_finance") || has("view_all_requests")) items.push(item("records", true));
     if (has("view_reports")) items.push(item("reports"));
     if (has("manage_org_users")) items.push(item("members", true));
   }

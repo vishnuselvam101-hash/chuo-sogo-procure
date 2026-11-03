@@ -184,9 +184,30 @@ pub fn is_attachment_type(name: &str) -> bool {
     })
 }
 
+/// A kept supplier file (電子帳簿保存法 record): what attachments allow, plus saved emails,
+/// FAX TIFF scans and old Excel files. Saved to Downloads, never opened by the app.
+pub fn is_record_type(name: &str) -> bool {
+    is_attachment_type(name)
+        || name.rsplit_once('.').is_some_and(|(_, ext)| {
+            matches!(
+                ext.to_ascii_lowercase().as_str(),
+                "eml" | "tif" | "tiff" | "xls"
+            )
+        })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn record_types_add_mail_and_fax_files() {
+        assert!(
+            is_record_type("reply.eml") && is_record_type("fax.TIFF") && is_record_type("q.xls")
+        );
+        assert!(is_record_type("q.pdf"));
+        assert!(!is_record_type("run.exe") && !is_record_type("noext"));
+    }
 
     const V1: &str = "/api/v1/";
     const ADMIN: &str = "/api/admin/v1/";
