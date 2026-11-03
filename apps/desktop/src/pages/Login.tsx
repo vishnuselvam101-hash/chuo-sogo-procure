@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { LoginStage } from "../components/LoginStage";
 import { useTranslation } from "react-i18next";
 import { useBridge } from "../lib/BridgeContext";
 import { errorCode, ok } from "../lib/bridge";
@@ -171,7 +172,7 @@ export function Login({ serverUrl, onLoggedIn }: Props) {
 
   if (mode === TOKEN)
     return (
-      <main className="login">
+      <LoginStage>
         <TokenForm
           onBack={() => setMode(SIGNIN)}
           onDone={() => {
@@ -179,20 +180,20 @@ export function Login({ serverUrl, onLoggedIn }: Props) {
             setMode(SIGNIN);
           }}
         />
-      </main>
+      </LoginStage>
     );
   if (mode === FORGOT)
     return (
-      <main className="login">
+      <LoginStage>
         <ForgotForm onBack={() => setMode(SIGNIN)} />
-      </main>
+      </LoginStage>
     );
 
   if (trial === undefined)
     return (
-      <main className="login">
+      <LoginStage>
         <p className="muted">{t("state.loading")}</p>
-      </main>
+      </LoginStage>
     );
   if (trial.length > 0 && !useForm)
     return (
@@ -205,9 +206,10 @@ export function Login({ serverUrl, onLoggedIn }: Props) {
     );
 
   return (
-    <main className="login">
+    <LoginStage>
       <form className="card login-card" onSubmit={submit}>
         <h1>{t("app.name")}</h1>
+        <p className="login-lead">{t("auth.welcome")}</p>
         {notice && (
           <p className="ok" role="status">
             {notice}
@@ -253,6 +255,6 @@ export function Login({ serverUrl, onLoggedIn }: Props) {
           </button>
         </div>
       </form>
-    </main>
+    </LoginStage>
   );
 }

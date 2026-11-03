@@ -431,5 +431,97 @@
     "rfqNumber": "RFQ number",
     "assign": "Assign",
     "setAside": "Not a reply: set aside"
+  },
+  "guide": {
+    "title": "Where are we?",
+    "now": "Now",
+    "next": "What happens next",
+    "stepOf": "Step {{n}} of {{total}}",
+    "step": {
+      "ask": "Request",
+      "find": "Find products",
+      "quote": "Get prices",
+      "approve": "Approval",
+      "deliver": "Order and delivery",
+      "pay": "Invoice and finish"
+    },
+    "status": {
+      "draft": {
+        "now": "This request is a draft. Only you can see it.",
+        "next": "Check the items, then submit it to send it to us."
+      },
+      "submitted": {
+        "now": "We have received your request.",
+        "next": "Our team picks it up and starts finding the right products."
+      },
+      "needs_clarification": {
+        "now": "We have a question about this request.",
+        "next": "Read the question below, write your answer and send it."
+      },
+      "identifying": {
+        "now": "We are identifying the exact products you need.",
+        "next": "When the products are confirmed, we look for suppliers."
+      },
+      "sourcing": {
+        "now": "We are looking for suppliers who can provide these items.",
+        "next": "We ask the suppliers for prices (request for quotation)."
+      },
+      "rfq_sent": {
+        "now": "We have asked suppliers for prices.",
+        "next": "We wait for the suppliers to send their quotations."
+      },
+      "quotes_received": {
+        "now": "Suppliers have sent their quotations.",
+        "next": "We compare the quotations side by side."
+      },
+      "under_comparison": {
+        "now": "We are comparing the quotations.",
+        "next": "We recommend the best option to you."
+      },
+      "recommended": {
+        "now": "We have recommended a quotation.",
+        "next": "The recommendation goes to your company for approval."
+      },
+      "awaiting_approval": {
+        "now": "This request is waiting for approval in your company.",
+        "next": "An approver checks it, then approves or rejects it."
+      },
+      "approved": {
+        "now": "This request has been approved.",
+        "next": "The order is placed with the supplier."
+      },
+      "rejected": {
+        "now": "This request was not approved.",
+        "next": "Read the reason below to decide what to do next."
+      },
+      "ordered": {
+        "now": "The order has been placed with the supplier.",
+        "next": "We wait for the goods to be delivered."
+      },
+      "delivered": {
+        "now": "The goods have been delivered.",
+        "next": "The supplier’s invoice is checked against the order."
+      },
+      "invoiced": {
+        "now": "The invoice has arrived.",
+        "next": "We check that the invoice matches the order and the delivery."
+      },
+      "disputed": {
+        "now": "There is a problem with the invoice or the delivery.",
+        "next": "It is being sorted out with the supplier. Details are below."
+      },
+      "reconciled": {
+        "now": "The invoice matches the order and the delivery.",
+        "next": "The request will be closed."
+      },
+      "closed": {
+        "now": "This request is finished.",
+        "next": "Nothing more to do. You can still read everything here."
+      },
+      "cancelled": {
+        "now": "This request was cancelled.",
+        "next": "Nothing more will happen. You can still read everything here."
+      }
+    }
   }
 }

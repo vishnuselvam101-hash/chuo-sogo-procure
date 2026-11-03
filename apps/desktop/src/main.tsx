@@ -2,6 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { initI18n, isLanguage } from "./i18n";
 import { bridge } from "./lib/bridge";
+import { applyDisplay } from "./lib/display";
 import "./styles.css";
 
 // Forward uncaught UI errors to the native log (no data, just the message).
@@ -10,6 +11,7 @@ window.addEventListener("unhandledrejection", (e) => void bridge.log("error", St
 
 async function start() {
   const prefs = await bridge.prefsGet().catch(() => null);
+  applyDisplay(prefs);
   await initI18n(isLanguage(prefs?.language) ? prefs.language : undefined);
   const root = document.getElementById("root");
   if (!root) return;

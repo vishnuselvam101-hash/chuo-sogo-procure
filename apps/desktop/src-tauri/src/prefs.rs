@@ -9,6 +9,19 @@ pub struct Prefs {
     /// User's explicit choice; `None` means "use the organisation default".
     pub language: Option<String>,
     pub server_url: String,
+    /// Reading comfort: "normal", "large" or "xlarge". Display only.
+    #[serde(default = "default_text_size")]
+    pub text_size: String,
+    /// Stronger colours and outlines. Display only.
+    #[serde(default)]
+    pub high_contrast: bool,
+}
+
+/// Text sizes the UI offers (Settings → Display).
+pub const TEXT_SIZES: [&str; 3] = ["normal", "large", "xlarge"];
+
+fn default_text_size() -> String {
+    TEXT_SIZES[0].into()
 }
 
 /// Server a fresh installation connects to: set at build time with `PROCURE_DEFAULT_SERVER`
@@ -24,6 +37,8 @@ impl Default for Prefs {
         Prefs {
             language: None,
             server_url: DEFAULT_SERVER.into(),
+            text_size: default_text_size(),
+            high_contrast: false,
         }
     }
 }
@@ -52,6 +67,9 @@ pub fn load(app: &tauri::AppHandle) -> Prefs {
             {
                 prefs.language = None;
             }
+            if !TEXT_SIZES.contains(&prefs.text_size.as_str()) {
+                prefs.text_size = default_text_size();
+            }
             match crate::validate::server_url(&prefs.server_url) {
                 Ok(u) => prefs.server_url = u,
                 Err(_) => prefs.server_url = Prefs::default().server_url,
@@ -71,4 +89,17 @@ pub fn save(app: &tauri::AppHandle, prefs: &Prefs) -> Result<(), String> {
     let tmp = p.with_extension("json.tmp");
     std::fs::write(&tmp, bytes).map_err(|e| e.to_string())?;
     std::fs::rename(&tmp, &p).map_err(|e| e.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Prefs;
+
+    #[test]
+    fn older_prefs_files_still_load_with_display_defaults() {
+        let p: Prefs =
+            serde_json::from_str(r#"{"language":"ja","server_url":"https://a.test"}"#).unwrap();
+        assert_eq!(p.text_size, "normal");
+        assert!(!p.high_contrast);
+    }
 }

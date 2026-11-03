@@ -31,6 +31,7 @@ fn main() {
     let manifest = tauri_build::AppManifest::new().commands(&[
         "prefs_get",
         "prefs_set_language",
+        "prefs_set_display",
         "prefs_set_server",
         "auth_login",
         // Business and shop apps: trial server role buttons (granted in capabilities/default.json).

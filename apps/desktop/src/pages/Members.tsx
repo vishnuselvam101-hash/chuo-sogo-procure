@@ -4,7 +4,9 @@ import { useBridge } from "../lib/BridgeContext";
 import { errorCode, ok } from "../lib/bridge";
 import { useApi } from "../lib/useApi";
 import type { MemberView, MembershipView } from "../lib/types";
-import { ErrorText, PageHeader, StatusBadge } from "../components/ui";
+import { ConfirmButton, EmptyState, ErrorText, PageHeader, StatusBadge } from "../components/ui";
+
+const DEACTIVATED = "deactivated";
 
 const CUSTOMER_ROLES = ["customer_admin", "procurement_manager", "requester", "finance"];
 const INTERNAL_ROLES = ["procurement_operator", "procurement_admin", "platform_super_admin"];
@@ -84,7 +86,7 @@ export function Members({ active, selfId }: { active: MembershipView; selfId: st
       {rows === null ? (
         <p className="muted">{t("state.loading")}</p>
       ) : rows.length === 0 ? (
-        <p className="muted">{t("state.empty")}</p>
+        <EmptyState hint={t("empty.members")} />
       ) : (
         <table className="table">
           <thead>
@@ -109,9 +111,10 @@ export function Members({ active, selfId }: { active: MembershipView; selfId: st
                 </td>
                 <td className="row-actions">
                   {m.user_id !== selfId && m.membership_status === "active" && (
-                    <button type="button" onClick={() => void setStatus(m.user_id, "deactivated")}>
-                      {t("members.deactivate")}
-                    </button>
+                    <ConfirmButton
+                      label={t("members.deactivate")}
+                      onConfirm={() => void setStatus(m.user_id, DEACTIVATED)}
+                    />
                   )}
                   {m.membership_status === "deactivated" && (
                     <button type="button" onClick={() => void setStatus(m.user_id, "active")}>

@@ -4,7 +4,8 @@ import { formatDate, formatNumber } from "../lib/format";
 import type { ItemView, MembershipView, RequestDetail as Detail, SupplierShortlist } from "../lib/types";
 import { useAction } from "../lib/useAction";
 import { useApi } from "../lib/useApi";
-import { ErrorText, Loading, PageHeader, StatusBadge } from "../components/ui";
+import { ConfirmButton, ErrorText, Loading, PageHeader, StatusBadge } from "../components/ui";
+import { RequestGuide } from "../components/RequestGuide";
 import { ItemFields, emptyItem, toItemInput } from "./ItemFields";
 import { RecommendationPanel } from "./RecommendationPanel";
 import { RfqPanel } from "./RfqPanel";
@@ -17,6 +18,9 @@ import { StaffPanel } from "./StaffPanel";
 import { OrderPanel } from "./OrderPanel";
 import { P } from "../lib/perm";
 import { PriceReference } from "./PriceReference";
+
+const CANCEL_PATH = "/cancel";
+const CANCEL_BODY = { reason: "" };
 
 const EDITABLE = ["draft", "needs_clarification"];
 const CLOSED = ["cancelled", "rejected", "closed"];
@@ -70,6 +74,8 @@ export function RequestDetail({ active, selfId, requestId, onBack }: Props) {
           {t("action.back")}
         </button>
       </PageHeader>
+
+      <RequestGuide status={r.status} />
 
       <div className="card grid-2">
         <div>
@@ -174,13 +180,11 @@ export function RequestDetail({ active, selfId, requestId, onBack }: Props) {
               </button>
             )}
             {owner && ["draft", "submitted", "needs_clarification"].includes(r.status) && (
-              <button
-                type="button"
+              <ConfirmButton
                 disabled={action.busy}
-                onClick={() => void post("/cancel", { reason: "" })}
-              >
-                {t("procurement:request.cancel")}
-              </button>
+                label={t("procurement:request.cancel")}
+                onConfirm={() => void post(CANCEL_PATH, CANCEL_BODY)}
+              />
             )}
             {operator && r.status === "submitted" && (
               <button type="button" className="primary" onClick={() => void post("/pick-up")}>
@@ -311,9 +315,7 @@ function ItemRow({ item, orgId, canVerify, canDelete, onVerify, onDelete }: Item
             </button>
           )}
           {canDelete && (
-            <button type="button" onClick={() => void onDelete()}>
-              {t("procurement:item.remove")}
-            </button>
+            <ConfirmButton label={t("procurement:item.remove")} onConfirm={() => void onDelete()} />
           )}
         </td>
       </tr>

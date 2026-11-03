@@ -51,7 +51,12 @@ export interface ApiResponse<T = unknown> {
 export interface Prefs {
   language: string | null;
   server_url: string;
+  /** Reading comfort; older prefs files and test fakes may leave these out. */
+  text_size?: TextSize;
+  high_contrast?: boolean;
 }
+
+export type TextSize = "normal" | "large" | "xlarge";
 export type InvoiceSummary = Schemas["InvoiceSummary"];
 export type SupplierShortlist = Schemas["ShortlistView"];
 export type OpportunityView = Schemas["OpportunityView"];

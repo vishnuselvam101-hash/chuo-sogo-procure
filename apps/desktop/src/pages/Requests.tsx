@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { formatDateTime } from "../lib/format";
 import type { MembershipView, RequestSummary } from "../lib/types";
 import { useApi } from "../lib/useApi";
-import { Loading, PageHeader, StatusBadge } from "../components/ui";
+import { EmptyState, Loading, PageHeader, StatusBadge } from "../components/ui";
 import { NewRequest } from "./NewRequest";
 import { RequestDetail } from "./RequestDetail";
 import { P } from "../lib/perm";
@@ -102,7 +102,11 @@ export function Requests({ active, selfId, status, title, initialOpen, stage }: 
         )}
       </PageHeader>
       <Loading data={data} error={error} />
-      {data && data.length === 0 && <p className="muted">{t("state.empty")}</p>}
+      {data && data.length === 0 && (
+        <EmptyState
+          hint={t(canCreate && !status && !stage ? "empty.requestsCreate" : "empty.requestsStage")}
+        />
+      )}
       {data && data.length > 0 && (
         <table className="table clickable">
           <thead>

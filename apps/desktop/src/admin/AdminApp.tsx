@@ -3,9 +3,10 @@ import { useTranslation } from "react-i18next";
 import { DEFAULT_LANGUAGE, isLanguage, setDocumentLanguage, type LanguageCode } from "../i18n";
 import { useBridge } from "../lib/BridgeContext";
 import { errorCode, ok } from "../lib/bridge";
-import type { Prefs } from "../lib/types";
+import type { Prefs, TextSize } from "../lib/types";
 import { LanguageMenu } from "../components/LanguageMenu";
 import { Settings } from "../pages/Settings";
+import { applyDisplay, DEFAULT_TEXT_SIZE } from "../lib/display";
 import { AdminLogin } from "./AdminLogin";
 import { Overview } from "./Overview";
 import { Orgs } from "./Orgs";
@@ -50,6 +51,18 @@ export function AdminApp() {
     if (i18n.language !== language) void i18n.changeLanguage(language);
     setDocumentLanguage(language);
   }, [i18n, language]);
+
+  useEffect(() => {
+    if (prefs) applyDisplay(prefs);
+  }, [prefs]);
+
+  const chooseDisplay = useCallback(
+    async (textSize: TextSize, highContrast: boolean) => {
+      await bridge.prefsSetDisplay(textSize, highContrast);
+      setPrefs((p) => (p ? { ...p, text_size: textSize, high_contrast: highContrast } : p));
+    },
+    [bridge],
+  );
 
   const chooseLanguage = useCallback(
     async (code: LanguageCode | null) => {
@@ -119,6 +132,9 @@ export function AdminApp() {
         orgDefault={DEFAULT_LANGUAGE}
         timezone={PLATFORM_TZ}
         onLanguage={(c) => void chooseLanguage(c)}
+        textSize={prefs.text_size ?? DEFAULT_TEXT_SIZE}
+        highContrast={prefs.high_contrast ?? false}
+        onDisplay={(size, contrast) => void chooseDisplay(size, contrast)}
       />
     );
 

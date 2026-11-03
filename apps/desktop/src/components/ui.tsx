@@ -1,4 +1,5 @@
 import { formatMoney } from "../lib/format";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 export function ErrorText({ code }: { code: string | null }) {
@@ -39,4 +40,66 @@ export function Loading({ data, error }: { data: unknown; error: string | null }
   if (error) return <ErrorText code={error} />;
   if (data === null) return <p className="muted">{t("state.loading")}</p>;
   return null;
+}
+
+/** An empty list says so, and says what to do about it. */
+export function EmptyState({ hint }: { hint?: string }) {
+  const { t } = useTranslation();
+  return (
+    <div className="empty-state" role="status">
+      <p className="empty-title">{t("state.empty")}</p>
+      {hint && <p className="empty-hint">{hint}</p>}
+    </div>
+  );
+}
+
+/**
+ * A dangerous action needs a second, explicit click ("Remove" → "Yes, Remove").
+ * No browser dialogs: they are not available in every webview.
+ */
+export function ConfirmButton({
+  label,
+  confirmLabel,
+  disabled,
+  className,
+  onConfirm,
+}: {
+  label: string;
+  confirmLabel?: string;
+  disabled?: boolean;
+  className?: string;
+  onConfirm: () => void;
+}) {
+  const { t } = useTranslation();
+  const [armed, setArmed] = useState(false);
+  const yes = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (armed) yes.current?.focus();
+  }, [armed]);
+  if (!armed)
+    return (
+      <button type="button" className={className} disabled={disabled} onClick={() => setArmed(true)}>
+        {label}
+      </button>
+    );
+  return (
+    <span className="confirm" role="group" aria-label={t("action.confirmAsk")}>
+      <span className="confirm-ask">{t("action.confirmAsk")}</span>
+      <button
+        ref={yes}
+        type="button"
+        className="danger"
+        disabled={disabled}
+        onClick={() => {
+          setArmed(false);
+          onConfirm();
+        }}
+      >
+        {confirmLabel ?? t("action.confirmDo", { action: label })}
+      </button>
+      <button type="button" onClick={() => setArmed(false)}>
+        {t("action.cancel")}
+      </button>
+    </span>
+  );
 }

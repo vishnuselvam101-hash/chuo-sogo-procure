@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { MembershipView, OrgSupplierView, SupplierView } from "../lib/types";
 import { useAction } from "../lib/useAction";
 import { useApi } from "../lib/useApi";
-import { ErrorText, Loading, PageHeader, StatusBadge } from "../components/ui";
+import { EmptyState, ErrorText, Loading, PageHeader, StatusBadge } from "../components/ui";
 import { P } from "../lib/perm";
 
 const SUPPLIER_STATUSES = ["discovered", "contacted", "under_review", "verified", "inactive"];
@@ -167,7 +167,7 @@ function Directory({ active }: { active: MembershipView }) {
       )}
       <ErrorText code={action.error} />
       <Loading data={data} error={error} />
-      {data && data.length === 0 && <p className="muted">{t("state.empty")}</p>}
+      {data && data.length === 0 && <EmptyState hint={t("empty.suppliers")} />}
       {data && data.length > 0 && (
         <table className="table">
           <thead>
@@ -253,7 +253,7 @@ function OrgSuppliers({ active }: { active: MembershipView }) {
       )}
       <ErrorText code={action.error} />
       <Loading data={data} error={error} />
-      {data && data.length === 0 && <p className="muted">{t("state.empty")}</p>}
+      {data && data.length === 0 && <EmptyState />}
       {data && data.length > 0 && (
         <table className="table">
           <thead>

@@ -1,6 +1,8 @@
 {
   "app": {
-    "name": "Chuo-Sogo Procure"
+    "name": "Chuo-Sogo Procure",
+    "skip": "Skip to main content",
+    "tagline": "Industrial buying, handled for your factory."
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -55,12 +57,17 @@
     "forgot": "Forgot password?",
     "forgotTitle": "Reset your password",
     "sendReset": "Send reset email",
-    "resetSent": "If the address has an account, a reset email is on its way."
+    "resetSent": "If the address has an account, a reset email is on its way.",
+    "welcome": "Welcome. Please sign in to continue."
   },
   "dashboard": {
     "welcome": "Welcome, {{name}}",
     "role": "Role: {{role}}",
-    "notYet": "This module arrives in a later phase."
+    "notYet": "This module arrives in a later phase.",
+    "startHere": "Where would you like to start?",
+    "startHint": "Choose a task. You can always come back here with the menu on the left.",
+    "invitations": "Invitations waiting for you",
+    "workspace": "You are working in"
   },
   "role": {
     "platform_super_admin": "Platform super administrator",
@@ -153,7 +160,9 @@
     "cancel": "Cancel",
     "refresh": "Refresh",
     "back": "Back",
-    "remove": "Remove"
+    "remove": "Remove",
+    "confirmAsk": "Are you sure?",
+    "confirmDo": "Yes, {{action}}"
   },
   "state": {
     "loading": "Loading…",
@@ -167,5 +176,16 @@
     "lead": "This is the trial. Choose a role to start straight away (no password).",
     "note": "All data is fictional demo data, reset every night at 03:00 Japan time. To change role, use “Sign out” in the menu to come back here.",
     "useEmail": "Sign in with email instead"
+  },
+  "empty": {
+    "requestsCreate": "When you need something bought, press “New procurement request” above.",
+    "requestsStage": "Requests appear here when they reach this stage.",
+    "suppliers": "Suppliers appear here once they are added. Use “Add supplier” to add one.",
+    "products": "Nothing matches yet. Try another search word or a different filter.",
+    "attachments": "Files added to this request (drawings, photos, documents) appear here.",
+    "tasks": "No tasks are waiting right now.",
+    "followUps": "No follow-ups are needed right now.",
+    "members": "Use the form above to add a colleague.",
+    "comments": "Use the comment box to ask a question or leave a note."
   }
 }

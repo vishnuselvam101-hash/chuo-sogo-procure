@@ -124,6 +124,23 @@ fn prefs_set_language(
     prefs::save(&app, &p)
 }
 
+/// Reading comfort (text size, high contrast); display only, saved for this user.
+#[tauri::command]
+fn prefs_set_display(
+    app: tauri::AppHandle,
+    prefs: State<'_, Mutex<Prefs>>,
+    text_size: String,
+    high_contrast: bool,
+) -> Result<(), String> {
+    if !prefs::TEXT_SIZES.contains(&text_size.as_str()) {
+        return Err("unsupported_text_size".into());
+    }
+    let mut p = lock(&prefs)?;
+    p.text_size = text_size;
+    p.high_contrast = high_contrast;
+    prefs::save(&app, &p)
+}
+
 #[tauri::command]
 fn prefs_set_server(
     app: tauri::AppHandle,
@@ -556,6 +573,7 @@ fn handlers() -> impl Fn(tauri::ipc::Invoke) -> bool + Send + Sync + 'static {
     tauri::generate_handler![
         prefs_get,
         prefs_set_language,
+        prefs_set_display,
         prefs_set_server,
         auth_login,
         auth_demo,
@@ -576,6 +594,7 @@ fn handlers() -> impl Fn(tauri::ipc::Invoke) -> bool + Send + Sync + 'static {
     tauri::generate_handler![
         prefs_get,
         prefs_set_language,
+        prefs_set_display,
         prefs_set_server,
         auth_login,
         auth_logout,

@@ -7,5 +7,18 @@
   },
   "server": {
     "title": "Server connection"
+  },
+  "display": {
+    "title": "Reading comfort",
+    "help": "Make text bigger or colours stronger. This only changes how the screen looks, on this computer, for you.",
+    "textSize": "Text size",
+    "sample": "Aa あ",
+    "size": {
+      "normal": "Normal",
+      "large": "Large",
+      "xlarge": "Extra large"
+    },
+    "contrast": "High contrast",
+    "contrastHelp": "Darker text, stronger borders and clearer buttons."
   }
 }

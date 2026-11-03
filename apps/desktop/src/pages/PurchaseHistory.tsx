@@ -12,7 +12,7 @@ import { P } from "../lib/perm";
 import type { HistoryImport, HistoryPreview, HistoryRow, ItemAlias, MembershipView } from "../lib/types";
 import { useAction } from "../lib/useAction";
 import { useApi } from "../lib/useApi";
-import { ErrorText, Loading, PageHeader } from "../components/ui";
+import { ConfirmButton, ErrorText, Loading, PageHeader } from "../components/ui";
 import { BuyingCriteriaCard } from "./BuyingCriteria";
 import { Opportunities } from "./Opportunities";
 
@@ -386,9 +386,11 @@ function AliasList({ active }: { active: MembershipView }) {
                 <td>{formatDateTime(a.created_at, i18n.language, active.timezone)}</td>
                 <td className="row-actions">
                   {canManage && (
-                    <button type="button" disabled={action.busy} onClick={() => void remove(a.id)}>
-                      {t("history:aliases.remove")}
-                    </button>
+                    <ConfirmButton
+                      disabled={action.busy}
+                      label={t("history:aliases.remove")}
+                      onConfirm={() => void remove(a.id)}
+                    />
                   )}
                 </td>
               </tr>

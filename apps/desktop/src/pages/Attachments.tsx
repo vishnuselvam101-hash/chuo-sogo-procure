@@ -7,7 +7,7 @@ import { formatDateTime } from "../lib/format";
 import type { AttachmentView, ItemView, MembershipView } from "../lib/types";
 import { useAction } from "../lib/useAction";
 import { useApi } from "../lib/useApi";
-import { ErrorText, Loading } from "../components/ui";
+import { ConfirmButton, EmptyState, ErrorText, Loading } from "../components/ui";
 
 interface Props {
   active: MembershipView;
@@ -72,7 +72,7 @@ export function Attachments({ active, requestId, selfId, items, canUpload }: Pro
     <div className="card stack">
       <h2>{t("procurement:attachment.heading")}</h2>
       <Loading data={data} error={error} />
-      {data && data.length === 0 && <p className="muted">{t("state.empty")}</p>}
+      {data && data.length === 0 && <EmptyState hint={t("empty.attachments")} />}
       {data && data.length > 0 && (
         <table className="table">
           <thead>
@@ -99,9 +99,7 @@ export function Attachments({ active, requestId, selfId, items, canUpload }: Pro
                     {t("procurement:attachment.download")}
                   </button>
                   {a.uploaded_by === selfId && (
-                    <button type="button" onClick={() => void remove(a)}>
-                      {t("procurement:item.remove")}
-                    </button>
+                    <ConfirmButton label={t("procurement:item.remove")} onConfirm={() => void remove(a)} />
                   )}
                 </td>
               </tr>

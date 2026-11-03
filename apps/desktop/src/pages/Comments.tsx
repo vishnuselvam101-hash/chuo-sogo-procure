@@ -6,7 +6,7 @@ import { P } from "../lib/perm";
 import type { MembershipView } from "../lib/types";
 import { useAction } from "../lib/useAction";
 import { useApi } from "../lib/useApi";
-import { ErrorText, Loading } from "../components/ui";
+import { EmptyState, ErrorText, Loading } from "../components/ui";
 
 type Comment = components["schemas"]["CommentView"];
 const CUSTOMER = "customer";
@@ -33,7 +33,7 @@ export function Comments({ active, requestId }: { active: MembershipView; reques
     <div className="card stack">
       <h2>{t("procurement:comment.heading")}</h2>
       <Loading data={data} error={error} />
-      {data && data.length === 0 && <p className="muted">{t("state.empty")}</p>}
+      {data && data.length === 0 && <EmptyState hint={t("empty.comments")} />}
       <ul className="plain stack">
         {data?.map((c) => (
           <li key={c.id} className={c.visibility === INTERNAL ? "internal-note" : undefined}>

@@ -4,7 +4,7 @@ import { P } from "../lib/perm";
 import type { MembershipView, ProductDetail, ProductView } from "../lib/types";
 import { useAction } from "../lib/useAction";
 import { useApi } from "../lib/useApi";
-import { ErrorText, Loading, PageHeader, StatusBadge } from "../components/ui";
+import { EmptyState, ErrorText, Loading, PageHeader, StatusBadge } from "../components/ui";
 
 export const EVIDENCE_KINDS = [
   "datasheet",
@@ -76,7 +76,7 @@ export function Products({ active }: { active: MembershipView }) {
         />
       )}
       <Loading data={data} error={error} />
-      {data && data.length === 0 && <p className="muted">{t("state.empty")}</p>}
+      {data && data.length === 0 && <EmptyState hint={t("empty.products")} />}
       {data && data.length > 0 && (
         <table className="table clickable">
           <thead>

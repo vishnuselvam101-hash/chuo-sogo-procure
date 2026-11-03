@@ -8,6 +8,8 @@ export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 export const bridge = {
   prefsGet: () => invoke<Prefs>("prefs_get"),
   prefsSetLanguage: (language: string | null) => invoke<null>("prefs_set_language", { language }),
+  prefsSetDisplay: (textSize: string, highContrast: boolean) =>
+    invoke<null>("prefs_set_display", { textSize, highContrast }),
   prefsSetServer: (url: string) => invoke<null>("prefs_set_server", { url }),
   login: (email: string, password: string) =>
     invoke<ApiResponse<Me & { expires_at: string }>>("auth_login", { email, password }),

@@ -4,7 +4,7 @@ import type { components } from "../lib/api-schema";
 import { formatDate, formatDateTime } from "../lib/format";
 import { useAction } from "../lib/useAction";
 import { useApi } from "../lib/useApi";
-import { ErrorText, Loading, PageHeader, StatusBadge } from "../components/ui";
+import { EmptyState, ErrorText, Loading, PageHeader, StatusBadge } from "../components/ui";
 
 type Queue = components["schemas"]["Queue"];
 
@@ -43,7 +43,7 @@ export function OpsQueue({
       {data && (
         <>
           <h2>{t("procurement:ops.tasks")}</h2>
-          {data.tasks.length === 0 && <p className="muted">{t("state.empty")}</p>}
+          {data.tasks.length === 0 && <EmptyState hint={t("empty.tasks")} />}
           {data.tasks.length > 0 && (
             <table className="table">
               <thead>
@@ -114,7 +114,7 @@ export function OpsQueue({
             </table>
           )}
           <h2>{t("procurement:ops.followUps")}</h2>
-          {data.follow_ups.length === 0 && <p className="muted">{t("state.empty")}</p>}
+          {data.follow_ups.length === 0 && <EmptyState hint={t("empty.followUps")} />}
           {data.follow_ups.length > 0 && (
             <table className="table">
               <thead>

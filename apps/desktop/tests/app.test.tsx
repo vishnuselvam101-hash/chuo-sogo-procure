@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { App, resolveLanguage } from "../src/App";
 import { initI18n } from "../src/i18n";
@@ -92,7 +92,9 @@ describe("desktop shell", () => {
     );
     await signIn();
     expect(await screen.findByRole("button", { name: "ダッシュボード" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "調達依頼" })).toBeTruthy();
+    // The sidebar is the navigation; the dashboard repeats a few of its entries as shortcuts.
+    const nav = within(screen.getByRole("navigation"));
+    expect(nav.getByRole("button", { name: "調達依頼" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "メンバー管理" })).toBeNull();
     expect(screen.queryByRole("button", { name: "監査ログ" })).toBeNull();
     expect(screen.queryByRole("button", { name: "承認" })).toBeNull();
@@ -165,7 +167,9 @@ describe("desktop shell", () => {
     );
     await signIn();
     expect(await screen.findByText("Procurement operations")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Organisations" })).toBeTruthy();
+    expect(
+      within(screen.getByRole("navigation")).getByRole("button", { name: "Organisations" }),
+    ).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Approvals" })).toBeNull();
   });
 });

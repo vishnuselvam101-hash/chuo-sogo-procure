@@ -6,6 +6,7 @@
   "permissions": [
     "allow-prefs-get",
     "allow-prefs-set-language",
+    "allow-prefs-set-display",
     "allow-prefs-set-server",
     "allow-auth-login",
     "allow-auth-logout",

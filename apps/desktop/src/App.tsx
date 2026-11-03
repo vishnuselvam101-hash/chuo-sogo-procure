@@ -4,7 +4,8 @@ import { DEFAULT_LANGUAGE, isLanguage, setDocumentLanguage, type LanguageCode } 
 import { useBridge } from "./lib/BridgeContext";
 import { ok } from "./lib/bridge";
 import { navFor, type PageId } from "./lib/nav";
-import type { Me, MembershipView, Prefs } from "./lib/types";
+import type { Me, MembershipView, Prefs, TextSize } from "./lib/types";
+import { applyDisplay, DEFAULT_TEXT_SIZE } from "./lib/display";
 import { Sidebar } from "./components/Sidebar";
 import { Login } from "./pages/Login";
 import { Dashboard } from "./pages/Dashboard";
@@ -91,6 +92,18 @@ export function App() {
     [bridge],
   );
 
+  useEffect(() => {
+    if (prefs) applyDisplay(prefs);
+  }, [prefs]);
+
+  const chooseDisplay = useCallback(
+    async (textSize: TextSize, highContrast: boolean) => {
+      await bridge.prefsSetDisplay(textSize, highContrast);
+      setPrefs((p) => (p ? { ...p, text_size: textSize, high_contrast: highContrast } : p));
+    },
+    [bridge],
+  );
+
   const refreshMe = useCallback(async () => {
     const res = await bridge.api<Me>("GET", "/api/v1/me");
     if (ok(res)) setMe(res.body);
@@ -122,7 +135,17 @@ export function App() {
   let body: React.ReactNode;
   switch (current?.implemented ? current.id : null) {
     case "dashboard":
-      body = <Dashboard me={me} active={active} onChanged={() => void refreshMe()} />;
+      body = (
+        <Dashboard
+          me={me}
+          active={active}
+          onChanged={() => void refreshMe()}
+          onNavigate={(p) => {
+            setOpenRequest(null);
+            setPage(p);
+          }}
+        />
+      );
       break;
     case "procurement":
       body = (
@@ -206,6 +229,9 @@ export function App() {
           orgDefault={resolveLanguage(null, active.default_locale)}
           timezone={active.timezone}
           onLanguage={(c) => void chooseLanguage(c)}
+          textSize={prefs.text_size ?? DEFAULT_TEXT_SIZE}
+          highContrast={prefs.high_contrast ?? false}
+          onDisplay={(size, contrast) => void chooseDisplay(size, contrast)}
         />
       );
       break;
@@ -215,6 +241,9 @@ export function App() {
 
   return (
     <div className="shell">
+      <a className="skip-link" href="#main">
+        {t("app.skip")}
+      </a>
       <Sidebar
         memberships={me.memberships}
         active={active}
@@ -231,7 +260,9 @@ export function App() {
         onLanguage={(c) => void chooseLanguage(c)}
         onSignOut={() => void signOut()}
       />
-      <main className="content">{body}</main>
+      <main className="content" id="main" tabIndex={-1}>
+        {body}
+      </main>
     </div>
   );
 }

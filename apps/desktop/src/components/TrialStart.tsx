@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { LoginStage } from "./LoginStage";
 import { useTranslation } from "react-i18next";
 import { useBridge } from "../lib/BridgeContext";
 import { errorCode, ok } from "../lib/bridge";
@@ -85,7 +86,7 @@ export function TrialStart({
   }
 
   return (
-    <main className="login">
+    <LoginStage>
       <div className="card login-card trial-card" data-testid="trial-start">
         <h1>{title}</h1>
         <p className="muted small">{t("trial.lead")}</p>
@@ -110,6 +111,6 @@ export function TrialStart({
           {t("trial.useEmail")}
         </button>
       </div>
-    </main>
+    </LoginStage>
   );
 }

@@ -1,11 +1,12 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Main window: only the app's own eleven commands. No core:default (menus, events, path resolution), no shell, filesystem, HTTP or opener plugins.",
+  "description": "Main window: only the app's own twelve commands. No core:default (menus, events, path resolution), no shell, filesystem, HTTP or opener plugins.",
   "windows": ["main"],
   "permissions": [
     "allow-prefs-get",
     "allow-prefs-set-language",
+    "allow-prefs-set-display",
     "allow-prefs-set-server",
     "allow-auth-login",
     "allow-auth-demo",
