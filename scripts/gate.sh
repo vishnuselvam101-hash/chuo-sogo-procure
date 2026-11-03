@@ -44,6 +44,8 @@ if [ -f apps/desktop/package.json ]; then
   step ui-build pnpm -C apps/desktop build
 fi
 
+# Keep target/ under the size limit before and after the build steps.
+scripts/target-guard.sh
 step fmt cargo fmt --all --check
 step clippy cargo clippy --workspace --all-targets -- -D warnings
 step test cargo test --workspace
@@ -64,4 +66,5 @@ fi
 echo >>"$OUT"
 if [ "$FAIL" -eq 0 ]; then echo "**Overall: PASS**" >>"$OUT"; else echo "**Overall: FAIL**" >>"$OUT"; fi
 cat "$OUT"
+scripts/target-guard.sh
 exit "$FAIL"
