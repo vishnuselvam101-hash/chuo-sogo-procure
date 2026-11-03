@@ -19,7 +19,8 @@ export function SavingsAdmin({ orgId }: { orgId: string }) {
   const lang = i18n.language;
   const [terms, setTerms] = useState({ starts_on: "", share: "50", months: "36", notes: "" });
   const [baseline, setBaseline] = useState({ mpn: "", description: "", price: "", unit: "", note: "" });
-  const [through, setThrough] = useState("");
+  const [month, setMonth] = useState("");
+  const [fixResult, setFixResult] = useState<{ fixed: number; waiting_for_factory: number } | null>(null);
   const [created, setCreated] = useState<string | null>(null);
 
   if (!data) return <Loading data={data} error={error} />;
@@ -65,9 +66,20 @@ export function SavingsAdmin({ orgId }: { orgId: string }) {
   }
 
   async function invoice() {
-    const res = await action.run<{ id: string }>("POST", `${base}/invoice`, { through });
+    const res = await action.run<{ id: string }>("POST", `${base}/invoice`, { month });
     if (res) {
       setCreated(res.body.id);
+      reload();
+    }
+  }
+
+  async function fixBaselines() {
+    const res = await action.run<{ fixed: number; waiting_for_factory: number }>(
+      "POST",
+      `${base}/baselines/from-records`,
+    );
+    if (res) {
+      setFixResult(res.body);
       reload();
     }
   }
@@ -138,10 +150,10 @@ export function SavingsAdmin({ orgId }: { orgId: string }) {
         ))}
         <div className="row">
           <label>
-            {t("billing:savings.through")}
-            <input type="date" value={through} onChange={(e) => setThrough(e.target.value)} />
+            {t("billing:savings.month")}
+            <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} />
           </label>
-          <button type="button" disabled={action.busy || !through} onClick={() => void invoice()}>
+          <button type="button" disabled={action.busy || !month} onClick={() => void invoice()}>
             {t("billing:savings.createInvoice")}
           </button>
         </div>
@@ -150,6 +162,19 @@ export function SavingsAdmin({ orgId }: { orgId: string }) {
 
       <div className="card stack">
         <h2>{t("billing:savings.baselines")}</h2>
+        <div className="row">
+          <button type="button" disabled={action.busy || !data.agreement} onClick={() => void fixBaselines()}>
+            {t("billing:savings.fixFromRecords")}
+          </button>
+          {fixResult && (
+            <span className="muted small">
+              {t("billing:savings.fixedFromRecords", {
+                fixed: fixResult.fixed,
+                waiting: fixResult.waiting_for_factory,
+              })}
+            </span>
+          )}
+        </div>
         <p className="muted small">{t("billing:savings.agreedHint")}</p>
         <table className="table">
           <thead>

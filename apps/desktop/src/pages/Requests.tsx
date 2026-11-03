@@ -4,6 +4,8 @@ import { formatDateTime } from "../lib/format";
 import type { MembershipView, RequestSummary } from "../lib/types";
 import { useApi } from "../lib/useApi";
 import { EmptyState, Loading, PageHeader, StatusBadge } from "../components/ui";
+import { CsvExport } from "../components/CsvExport";
+import { RequestImport } from "./RequestImport";
 import { NewRequest } from "./NewRequest";
 import { RequestDetail } from "./RequestDetail";
 import { P } from "../lib/perm";
@@ -37,10 +39,13 @@ interface Props {
 }
 
 /** Request list for customers (own or all, as the backend decides) and assigned operators. */
+const ORDERS_CSV = "orders";
+
 export function Requests({ active, selfId, status, title, initialOpen, stage }: Props) {
   const { t, i18n } = useTranslation();
   const [open, setOpen] = useState<string | null>(initialOpen ?? null);
   const [creating, setCreating] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [filter, setFilter] = useState(status ?? "");
   const query = filter
     ? `?status=${encodeURIComponent(filter)}`
@@ -96,11 +101,20 @@ export function Requests({ active, selfId, status, title, initialOpen, stage }: 
           {t("action.refresh")}
         </button>
         {canCreate && !status && !stage && (
+          <button type="button" onClick={() => setImporting(!importing)}>
+            {t("procurement:import.open")}
+          </button>
+        )}
+        {canCreate && !status && !stage && (
           <button type="button" className="primary" onClick={() => setCreating(true)}>
             {t("procurement:request.new")}
           </button>
         )}
       </PageHeader>
+      {importing && <RequestImport active={active} onImported={reload} />}
+      {stage === "orders" && active.permissions.includes(P.viewOrders) && (
+        <CsvExport active={active} kind={ORDERS_CSV} />
+      )}
       <Loading data={data} error={error} />
       {data && data.length === 0 && (
         <EmptyState

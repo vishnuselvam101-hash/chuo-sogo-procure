@@ -7,6 +7,7 @@ import type { MembershipView } from "../lib/types";
 import { useAction } from "../lib/useAction";
 import { useApi } from "../lib/useApi";
 import { ErrorText, Money, StatusBadge } from "../components/ui";
+import { OrderEmail } from "./OrderEmail";
 
 type OrderDetail = components["schemas"]["OrderDetail"];
 const ROUNDINGS = ["floor", "half_up", "ceil"];
@@ -261,6 +262,7 @@ function OrderDetails({
           </button>
         </div>
       )}
+      <OrderEmail active={active} orderId={o.id} />
       <table className="table">
         <thead>
           <tr>

@@ -132,6 +132,9 @@
     "description": "品名",
     "unit": "単位",
     "evidence": "単価の根拠",
-    "addBaseline": "単価を追加"
+    "addBaseline": "単価を追加",
+    "month": "対象月",
+    "fixFromRecords": "工場の購買記録から従来単価を確定",
+    "fixedFromRecords": "従来単価{{fixed}}件を確定、うち{{waiting}}件は工場の確認待ちです。"
   }
 }

@@ -423,6 +423,42 @@ async fn invoice_download(
     save_download(&app, &session, &base, url, &name).await
 }
 
+/// Saves a CSV file for the factory's own systems (orders or the savings ledger, optionally
+/// for one month `YYYY-MM`) into Downloads. Only these two export endpoints can be reached.
+#[cfg(not(feature = "admin"))]
+#[tauri::command]
+async fn csv_download(
+    app: tauri::AppHandle,
+    prefs: State<'_, Mutex<Prefs>>,
+    session: State<'_, Session>,
+    org_id: String,
+    kind: String,
+    month: Option<String>,
+) -> Result<ApiResponse, String> {
+    let org = uuid::Uuid::parse_str(&org_id).map_err(|_| "invalid_id".to_string())?;
+    let kind = match kind.as_str() {
+        "orders" => "orders",
+        "savings" => "savings",
+        _ => return Err("invalid_kind".into()),
+    };
+    let month = month.filter(|m| !m.is_empty());
+    if let Some(m) = &month
+        && !validate::is_month(m)
+    {
+        return Err("invalid_month".into());
+    }
+    let base = lock(&prefs)?.server_url.clone();
+    let mut url = validate::api_url(&base, &format!("/api/v1/orgs/{org}/exports/{kind}.csv"))?;
+    let name = match &month {
+        Some(m) => {
+            url.query_pairs_mut().append_pair("month", m);
+            format!("{kind}-{m}.csv")
+        }
+        None => format!("{kind}.csv"),
+    };
+    save_download(&app, &session, &base, url, &name).await
+}
+
 /// Saves a kept supplier file (email, PDF, spreadsheet, FAX scan) into Downloads.
 #[tauri::command]
 async fn document_download(
@@ -588,6 +624,7 @@ fn handlers() -> impl Fn(tauri::ipc::Invoke) -> bool + Send + Sync + 'static {
         api_download,
         invoice_download,
         document_download,
+        csv_download,
         api_image,
         client_log,
         standalone::local_status,

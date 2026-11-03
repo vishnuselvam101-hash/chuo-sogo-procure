@@ -171,7 +171,13 @@
     "baseline_exists": "This item already has a price paid before.",
     "baseline_fixed": "This price is confirmed or already used and cannot be removed.",
     "nothing_to_bill": "No unbilled fees up to that date.",
-    "already_confirmed": "Already confirmed."
+    "already_confirmed": "Already confirmed.",
+    "order_email_not_checked": "Tick the check before sending the order.",
+    "no_agreement": "Save the savings terms first.",
+    "month": "Choose a month.",
+    "unsupported": "Use a CSV, TSV or Excel (.xlsx) file.",
+    "no_readable_rows": "No row could be read. Check the item name/model number and quantity columns.",
+    "invalid_month": "Choose a valid month."
   },
   "payload_too_large": "The file or request is too large.",
   "invalid_file_name": "This file name cannot be used.",

@@ -394,3 +394,28 @@ mod tests {
         }
     }
 }
+
+/// `YYYY-MM` (a month for CSV exports).
+pub fn is_month(s: &str) -> bool {
+    let b = s.as_bytes();
+    b.len() == 7
+        && b[4] == b'-'
+        && b.iter()
+            .enumerate()
+            .all(|(i, c)| i == 4 || c.is_ascii_digit())
+        && matches!(
+            &s[5..],
+            "01" | "02" | "03" | "04" | "05" | "06" | "07" | "08" | "09" | "10" | "11" | "12"
+        )
+}
+
+#[cfg(test)]
+mod month_tests {
+    #[test]
+    fn months() {
+        assert!(super::is_month("2026-11"));
+        for bad in ["2026-13", "2026-1", "2026/11", "20261-1", "2026-11&x=1", ""] {
+            assert!(!super::is_month(bad), "{bad}");
+        }
+    }
+}

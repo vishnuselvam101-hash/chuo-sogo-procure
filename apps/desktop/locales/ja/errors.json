@@ -171,7 +171,13 @@
     "baseline_exists": "この品目の従来単価は登録済みです。",
     "baseline_fixed": "この単価は確認済みまたは使用済みのため削除できません。",
     "nothing_to_bill": "その日までの未請求の報酬はありません。",
-    "already_confirmed": "確認済みです。"
+    "already_confirmed": "確認済みです。",
+    "order_email_not_checked": "送信前に確認欄にチェックしてください。",
+    "no_agreement": "先に成果報酬の条件を保存してください。",
+    "month": "対象月を選んでください。",
+    "unsupported": "CSV・TSV・Excel（.xlsx）ファイルを使ってください。",
+    "no_readable_rows": "読み取れる行がありません。品名・型番と数量の列を確認してください。",
+    "invalid_month": "正しい月を選んでください。"
   },
   "payload_too_large": "ファイルまたはリクエストが大きすぎます。",
   "invalid_file_name": "このファイル名は使用できません。",

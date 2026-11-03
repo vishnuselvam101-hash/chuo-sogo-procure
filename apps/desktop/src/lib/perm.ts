@@ -14,6 +14,7 @@ export const P = {
   manageProducts: "manage_products",
   viewInternalNotes: "view_internal_notes",
   recordOrders: "record_orders",
+  viewOrders: "view_orders",
   receiveGoods: "receive_goods",
   manageInvoices: "manage_invoices",
   managePurchaseHistory: "manage_purchase_history",

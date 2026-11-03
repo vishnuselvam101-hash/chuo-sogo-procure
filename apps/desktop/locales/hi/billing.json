@@ -132,6 +132,9 @@
     "description": "विवरण",
     "unit": "इकाई",
     "evidence": "कीमत का स्रोत",
-    "addBaseline": "कीमत जोड़ें"
+    "addBaseline": "कीमत जोड़ें",
+    "month": "महीना",
+    "fixFromRecords": "फ़ैक्टरी के रिकॉर्ड से आधार मूल्य तय करें",
+    "fixedFromRecords": "{{fixed}} आधार मूल्य तय, {{waiting}} फ़ैक्टरी की पुष्टि की प्रतीक्षा में।"
   }
 }

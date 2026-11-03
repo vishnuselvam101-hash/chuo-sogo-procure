@@ -191,5 +191,11 @@
   "files": {
     "choose": "Choose a file",
     "none": "No file chosen"
+  },
+  "csv": {
+    "month": "Month (empty = all)",
+    "orders": "Save orders CSV",
+    "savings": "Save savings ledger CSV",
+    "saved": "Saved to {{path}}"
   }
 }

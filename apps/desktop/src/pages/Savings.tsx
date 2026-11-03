@@ -5,12 +5,15 @@ import type { MembershipView, SavingsView } from "../lib/types";
 import { useAction } from "../lib/useAction";
 import { useApi } from "../lib/useApi";
 import { ErrorText, Loading, Money, PageHeader } from "../components/ui";
+import { CsvExport } from "../components/CsvExport";
 
 /**
  * How Chuo-Sogo is paid: an agreed share of the amount each price went down from the price
  * the factory paid before. The factory sees every line, the baseline it was measured
  * against, and confirms baselines that did not come from its own records.
  */
+const SAVINGS_CSV = "savings";
+
 export function Savings({ active }: { active: MembershipView }) {
   const { t, i18n } = useTranslation();
   const base = `/api/v1/orgs/${active.org_id}/savings`;
@@ -43,6 +46,7 @@ export function Savings({ active }: { active: MembershipView }) {
               <p className="muted">{t("billing:savings.noAgreement")}</p>
             )}
             <p className="muted small">{t("billing:savings.rule")}</p>
+            <CsvExport active={active} kind={SAVINGS_CSV} />
             {data.totals.map((x) => (
               <div className="grid-2" key={x.currency}>
                 <div>

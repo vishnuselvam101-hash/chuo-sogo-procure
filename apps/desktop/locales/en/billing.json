@@ -132,6 +132,9 @@
     "description": "Description",
     "unit": "Unit",
     "evidence": "Where the price comes from",
-    "addBaseline": "Add price"
+    "addBaseline": "Add price",
+    "month": "Month",
+    "fixFromRecords": "Fix baselines from the factory's records",
+    "fixedFromRecords": "{{fixed}} baseline(s) fixed, {{waiting}} waiting for the factory to confirm."
   }
 }

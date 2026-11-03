@@ -34,6 +34,9 @@ export const bridge = {
   /** Saves a kept supplier file (email, PDF, spreadsheet, FAX scan) into Downloads. */
   documentDownload: (orgId: string, documentId: string, fileName: string) =>
     invoke<ApiResponse<{ saved_to: string }>>("document_download", { orgId, documentId, fileName }),
+  /** Saves the orders or savings-ledger CSV (optionally one month, `YYYY-MM`) into Downloads. */
+  csvDownload: (orgId: string, kind: "orders" | "savings", month: string | null) =>
+    invoke<ApiResponse<{ saved_to: string }>>("csv_download", { orgId, kind, month }),
   /** A listing photo as a `data:` URL (fetched and checked by the native layer). */
   image: (path: string) => invoke<ApiResponse<{ data_url: string }>>("api_image", { path }),
   /** Standalone mode: the local database, server and AI on this PC. */

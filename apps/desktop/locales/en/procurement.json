@@ -258,7 +258,11 @@
     "compare": "Compare",
     "follow_up": "Follow-up",
     "exception": "Exception",
-    "other": "Other"
+    "other": "Other",
+    "check_delivery": "Check delivery",
+    "send_order": "Send order email",
+    "no_reply": "No reply from suppliers",
+    "unknown_item": "Unknown model number"
   },
   "direction": {
     "inbound": "Inbound",
@@ -522,6 +526,39 @@
         "now": "This request was cancelled.",
         "next": "Nothing more will happen. You can still read everything here."
       }
+    }
+  },
+  "orderEmail": {
+    "heading": "Order email to the supplier",
+    "status": {
+      "draft": "Prepared, not sent",
+      "recorded": "Recorded (test mode)",
+      "queued": "Queued",
+      "sent": "Sent",
+      "failed": "Not sent"
+    },
+    "checkedBy": "Checked by {{name}}",
+    "show": "Show",
+    "hide": "Hide",
+    "confirm": "I checked the order against the approved quotation",
+    "send": "Send the order",
+    "waiting": "Our staff check and send the order to the supplier.",
+    "testMode": "Test mode: the message was recorded, not sent."
+  },
+  "import": {
+    "open": "Import CSV",
+    "heading": "Requests from a CSV or Excel file",
+    "explain": "One row per item: item name or model number, quantity, unit; optional request name (rows with the same name become one request), needed-by date, delivery location, notes. Drafts are created for you to check and submit.",
+    "created": "{{requests}} draft request(s) with {{lines}} line(s) created.",
+    "skipped": "Row {{row}} not imported: {{reason}}",
+    "reason": {
+      "no_item": "no item name or model number",
+      "quantity": "quantity is not a whole number above 0",
+      "unit": "unknown unit",
+      "needed_by": "date not readable",
+      "too_long": "text too long",
+      "too_many_lines": "more than 200 lines in one request",
+      "too_many_requests": "more than 50 requests in one file"
     }
   }
 }
