@@ -14,7 +14,7 @@ cd "$(dirname "$0")/../.."
 [ $# -eq 4 ] || { [ $# -eq 2 ] && [ "$1" = --from ]; } || { sed -n 2,9p "$0" >&2; exit 2; }
 VERSION="$(sed -n 's/^version = "\(.*\)"/\1/p' apps/desktop/src-tauri/Cargo.toml | head -1)"
 OUT="reports/builds/$VERSION/trial"
-DEMO_URL="${DEMO_URL:-https://vnx-hostinger.taild091df.ts.net:8443}"
+DEMO_URL="${DEMO_URL:-https://trial.vsnexustechnologies.com}"
 DL="$(mktemp -d)"
 trap 'rm -rf "$DL"' EXIT
 
@@ -55,7 +55,15 @@ for f in "$PKG"/Windows/*.exe "$PKG"/Mac/*.dmg "$PKG"/Android/*.apk "$PKG"/Linux
   7z x -y -o"$x" "$f" >/dev/null
   # The Windows setup holds the app exe in its own archive layer.
   find "$x" -name '*.exe' -size +1M -exec 7z x -y -o"$x/inner" {} \; >/dev/null 2>&1 || true
-  grep -rqaF "$DEMO_URL" "$x" || { echo "no $DEMO_URL inside $f" >&2; exit 1; }
+  # Mac files cannot be built on this server; a reused one may still carry the old address.
+  OLD_URL="https://vnx-hostinger.taild091df.ts.net:8443"
+  if ! grep -rqaF "$DEMO_URL" "$x"; then
+    case "$f" in
+      *.dmg) grep -rqaF "$OLD_URL" "$x" || { echo "no demo address inside $f" >&2; exit 1; }
+             echo "warning: $(basename "$f") still uses $OLD_URL (Mac file reused from an earlier build)"; continue ;;
+      *) echo "no $DEMO_URL inside $f" >&2; exit 1 ;;
+    esac
+  fi
   echo "checked: $(basename "$f") contains $DEMO_URL"
 done
 if [ "$1" = --from ]; then

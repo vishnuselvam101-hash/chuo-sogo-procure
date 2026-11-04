@@ -26,7 +26,7 @@ PG_SHA256="fbe23da234ee31547bf8a36d29dfd81e82b849df2d2b78d2eecb43d360252f8c"
 export RUSTUP_HOME="${RUSTUP_HOME:-/opt/rust/rustup}" CARGO_HOME="${CARGO_HOME:-/opt/rust/cargo}"
 export PATH="/opt/rust/cargo/bin:$PATH" RUSTUP_TOOLCHAIN="${RUSTUP_TOOLCHAIN:-1.95}"
 export XWIN_ACCEPT_LICENSE=1 XWIN_CACHE_DIR="$ROOT/target/xwin-cache"
-export PROCURE_DEFAULT_SERVER="${DEMO_URL:-https://vnx-hostinger.taild091df.ts.net:8443}"
+export PROCURE_DEFAULT_SERVER="${DEMO_URL:-https://trial.vsnexustechnologies.com}"
 TARGET_DIR="$ROOT/target/trial-win-business"
 WIN="$TARGET_DIR/x86_64-pc-windows-msvc/release"
 

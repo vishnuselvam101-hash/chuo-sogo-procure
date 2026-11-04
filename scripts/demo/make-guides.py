@@ -13,7 +13,7 @@ import os
 import subprocess
 import sys
 
-DEMO = "https://vnx-hostinger.taild091df.ts.net:8443"
+DEMO = "https://trial.vsnexustechnologies.com"
 PAGE = "https://vsnexustechnologies.com/trial/procure"
 VERSION = "1.0.0"
 

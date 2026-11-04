@@ -11,7 +11,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 ROOT="$PWD"
-SERVER="${DEMO_URL:-https://vnx-hostinger.taild091df.ts.net:8443}"
+SERVER="${DEMO_URL:-https://trial.vsnexustechnologies.com}"
 OUT="$ROOT/target/trial-out"
 # This server's Rust (1.95, with the Windows and Android targets) lives in /opt/rust.
 export RUSTUP_HOME="${RUSTUP_HOME:-/opt/rust/rustup}" CARGO_HOME="${CARGO_HOME:-/opt/rust/cargo}"

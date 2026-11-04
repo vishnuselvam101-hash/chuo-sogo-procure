@@ -77,7 +77,11 @@ security; see `docs/security/`.
 
 A separate, public instance for trial users (`scripts/demo/install-demo.sh`, as root): unit
 `procure-demo.service` on 127.0.0.1:8090, published with
-`tailscale funnel --bg --https=8443 http://127.0.0.1:8090`. It runs as its own user
+`tailscale funnel --bg --https=8443 http://127.0.0.1:8090`. Since 2026-11-04 the apps and the
+download page use `https://trial.vsnexustechnologies.com` instead (Cloudflare, proxied, to the
+server's Caddy on port 443: `/downloads/` from `/srv/procure-trial`, everything else to
+127.0.0.1:8090), because office networks often block port 8443. The Funnel on 8443 stays for
+apps installed before that. It runs as its own user
 (`procure-demo`) with its own database (`procure_demo`) and logins, which cannot connect to
 `procure_live`; it cannot see `/var/lib/procure` or `/etc/procure/procure.env`. No speech-to-text,
 200 MB of files per organisation, no shop self sign-up, CPU and task limits.
