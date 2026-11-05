@@ -107,7 +107,7 @@ grep -qaF "$PROCURE_DEFAULT_SERVER" "$WIN/procure-desktop.exe" ||
   { echo "the app does not contain $PROCURE_DEFAULT_SERVER" >&2; exit 1; }
 mkdir -p "$OUT"
 SETUP="$OUT/ChuoSogo-Setup-$VERSION.exe"
-cp "$WIN"/bundle/nsis/*-setup.exe "$SETUP"
+cp "$WIN"/bundle/nsis/*_"$VERSION"_x64-setup.exe "$SETUP"
 (cd "$OUT" && sha256sum "$(basename "$SETUP")" > SHA256SUMS)
 {
   echo "built on this server from $(git rev-parse --short HEAD)$(git diff --quiet || echo ' (uncommitted changes)'), $(date -u +%FT%TZ)"
