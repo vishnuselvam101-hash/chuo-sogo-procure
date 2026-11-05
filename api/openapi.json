@@ -8405,6 +8405,166 @@
         ]
       }
     },
+    "/api/v1/orgs/{org_id}/matching/tolerances": {
+      "get": {
+        "tags": [
+          "matching"
+        ],
+        "operationId": "matching_get_tolerances",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Match tolerances (all zero = exact when never set)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatchTolerancesView"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown or unrelated organisation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "matching"
+        ],
+        "operationId": "matching_put_tolerances",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MatchTolerances"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Tolerances saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatchTolerancesView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not permitted (finance decides tolerances)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown or unrelated organisation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Out of range",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/orgs/{org_id}/members": {
       "get": {
         "tags": [
@@ -8670,6 +8830,131 @@
           },
           "422": {
             "description": "Self-modification, last admin, pending invitation, invalid role",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/orgs/{org_id}/orders/{order_id}/ai/extract-invoice": {
+      "post": {
+        "tags": [
+          "matching"
+        ],
+        "operationId": "matching_extract_invoice",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "order_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExtractBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Suggestion stored (pending, or failed with error_code); output lines carry the order_item_id they bill",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuggestionView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown or not visible order",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Not delivered yet, already invoiced, or AI switched off",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Empty or too long text",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "AI rate limit reached",
             "content": {
               "application/json": {
                 "schema": {
@@ -20571,6 +20856,78 @@
             "description": "Quote requests are really sent (else only recorded, test mode)."
           }
         }
+      },
+      "MatchTolerances": {
+        "type": "object",
+        "description": "Match tolerances. A zero limit is not set; a difference is within tolerance only when it is\nwithin every limit set for its kind. All zero (the default) = exact: nothing is proposed for\nacceptance.",
+        "required": [
+          "currency",
+          "price_bps",
+          "price_line_abs_minor",
+          "quantity_bps",
+          "quantity_abs",
+          "rounding_minor"
+        ],
+        "properties": {
+          "currency": {
+            "type": "string",
+            "description": "Currency of the absolute limits (never applied to another currency)."
+          },
+          "price_bps": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Unit price difference as a share of the ordered price, in basis points (100 = 1%).",
+            "minimum": 0
+          },
+          "price_line_abs_minor": {
+            "type": "integer",
+            "format": "int64",
+            "description": "A line's price difference (unit difference × invoiced quantity), minor units."
+          },
+          "quantity_abs": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Quantity difference in units.",
+            "minimum": 0
+          },
+          "quantity_bps": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Quantity difference as a share of the ordered/received quantity, basis points.",
+            "minimum": 0
+          },
+          "rounding_minor": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Tax difference allowed for rounding, minor units."
+          }
+        }
+      },
+      "MatchTolerancesView": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/MatchTolerances"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "updated_at": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time"
+              },
+              "updated_by": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid"
+              }
+            }
+          }
+        ]
       },
       "MeResponse": {
         "type": "object",

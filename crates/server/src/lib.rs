@@ -527,6 +527,14 @@ pub fn router(state: AppState) -> Router {
             post(api::agents::decide),
         )
         .route("/orgs/{org_id}/agents/summary", get(api::agents::summary))
+        .route(
+            "/orgs/{org_id}/matching/tolerances",
+            get(api::matching::get_tolerances).put(api::matching::put_tolerances),
+        )
+        .route(
+            "/orgs/{org_id}/orders/{order_id}/ai/extract-invoice",
+            post(api::matching::extract_invoice),
+        )
         .route("/ops/queue", get(api::ops::queue))
         .route("/orgs/{org_id}/tasks", post(api::ops::create_task))
         .route(

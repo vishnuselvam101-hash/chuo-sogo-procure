@@ -5,6 +5,7 @@
 use serde_json::{Value, json};
 
 use crate::extract::{EXTRACT_ITEMS, EXTRACT_QUOTATION};
+use crate::invoice::EXTRACT_INVOICE;
 use crate::listing::{EXTRACT_LISTING, TRANSLATE_LISTING};
 use crate::provider::{AiError, BoxFuture, ModelCall, Provider};
 
@@ -156,6 +157,67 @@ fn quotation(text: &str) -> Value {
             "supplier_reference": reference, "lines": lines })
 }
 
+/// "Invoice No: INV-1", "Invoice date: 2026-10-20", "Due: 2026-11-30", "Currency: JPY",
+/// "Shipping: 2000", "Tax rate: 10", "Tax: 30200", "Line 1: 1,200 x 100" (order line 1) and
+/// "Extra: Handling fee 500 x 1" (not on the order).
+fn invoice(text: &str) -> Value {
+    let mut out = json!({ "supplier_invoice_number": "", "invoice_date": "", "due_date": "",
+                          "currency": "", "shipping": "0", "tax_rate_percent": 10, "tax": "0" });
+    let mut lines = Vec::new();
+    for line in text.lines().map(str::trim) {
+        let Some((key, value)) = line.split_once(':') else {
+            continue;
+        };
+        let (key, value) = (key.trim().to_ascii_lowercase(), value.trim());
+        let plain = |v: &str| v.replace([',', '¥', '円'], "").trim().to_string();
+        // "<price> x <quantity>", the price being the last number before the "x".
+        let priced = |v: &str| -> Option<(String, i64, String)> {
+            let toks: Vec<&str> = v.split_whitespace().collect();
+            let x = toks.iter().position(|t| t.eq_ignore_ascii_case("x"))?;
+            let price = plain(toks.get(x.checked_sub(1)?)?);
+            let qty = number(toks.get(x + 1)?)?;
+            Some((price, qty, toks[..x - 1].join(" ")))
+        };
+        match key.as_str() {
+            "invoice no" | "invoice number" | "請求書番号" => {
+                out["supplier_invoice_number"] = json!(value)
+            }
+            "invoice date" | "date" | "請求日" => out["invoice_date"] = json!(value),
+            "due" | "due date" | "支払期限" => out["due_date"] = json!(value),
+            "currency" => out["currency"] = json!(value),
+            "shipping" | "送料" => out["shipping"] = json!(plain(value)),
+            "tax rate" => {
+                if let Some(n) = number(value) {
+                    out["tax_rate_percent"] = json!(n)
+                }
+            }
+            "tax" | "消費税" => out["tax"] = json!(plain(value)),
+            "extra" => {
+                if let Some((price, qty, desc)) = priced(value) {
+                    lines.push(
+                        json!({ "line_no": null, "description": desc, "quantity": qty,
+                                       "unit_price": price, "tax_rate_percent": null,
+                                       "confidence": 60 }),
+                    );
+                }
+            }
+            k if k.starts_with("line") => {
+                let line_no = number(k);
+                if let (Some(line_no), Some((price, qty, _))) = (line_no, priced(value)) {
+                    lines.push(
+                        json!({ "line_no": line_no, "description": "", "quantity": qty,
+                                       "unit_price": price, "tax_rate_percent": null,
+                                       "confidence": 60 }),
+                    );
+                }
+            }
+            _ => {}
+        }
+    }
+    out["lines"] = json!(lines);
+    out
+}
+
 /// "Key: value" lines (メーカー / 型番 / 品名 / 状態 or maker / model / name / condition are
 /// fields, other keys become specifications); otherwise the first part-number-like word is
 /// the model and the first line the title.
@@ -258,6 +320,7 @@ impl Provider for MockProvider {
             let value = match call.capability {
                 EXTRACT_ITEMS => items(text),
                 EXTRACT_QUOTATION => quotation(text),
+                EXTRACT_INVOICE => invoice(text),
                 EXTRACT_LISTING => listing(text),
                 TRANSLATE_LISTING => translation(text),
                 _ => return Err(AiError::Unavailable),

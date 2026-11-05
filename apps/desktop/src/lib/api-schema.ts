@@ -1566,6 +1566,22 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/orgs/{org_id}/matching/tolerances": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["matching_get_tolerances"];
+    put: operations["matching_put_tolerances"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/orgs/{org_id}/members": {
     parameters: {
       query?: never;
@@ -1596,6 +1612,22 @@ export interface paths {
     options?: never;
     head?: never;
     patch: operations["update_member"];
+    trace?: never;
+  };
+  "/api/v1/orgs/{org_id}/orders/{order_id}/ai/extract-invoice": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["matching_extract_invoice"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
     trace?: never;
   };
   "/api/v1/orgs/{org_id}/orders/{order_id}/deliveries": {
@@ -4044,6 +4076,46 @@ export interface components {
       inbox: boolean;
       /** @description Quote requests are really sent (else only recorded, test mode). */
       live: boolean;
+    };
+    /**
+     * @description Match tolerances. A zero limit is not set; a difference is within tolerance only when it is
+     *     within every limit set for its kind. All zero (the default) = exact: nothing is proposed for
+     *     acceptance.
+     */
+    MatchTolerances: {
+      /** @description Currency of the absolute limits (never applied to another currency). */
+      currency: string;
+      /**
+       * Format: int32
+       * @description Unit price difference as a share of the ordered price, in basis points (100 = 1%).
+       */
+      price_bps: number;
+      /**
+       * Format: int64
+       * @description A line's price difference (unit difference × invoiced quantity), minor units.
+       */
+      price_line_abs_minor: number;
+      /**
+       * Format: int32
+       * @description Quantity difference in units.
+       */
+      quantity_abs: number;
+      /**
+       * Format: int32
+       * @description Quantity difference as a share of the ordered/received quantity, basis points.
+       */
+      quantity_bps: number;
+      /**
+       * Format: int64
+       * @description Tax difference allowed for rounding, minor units.
+       */
+      rounding_minor: number;
+    };
+    MatchTolerancesView: components["schemas"]["MatchTolerances"] & {
+      /** Format: date-time */
+      updated_at?: string | null;
+      /** Format: uuid */
+      updated_by?: string | null;
     };
     MeResponse: {
       invitations: components["schemas"]["InvitationView"][];
@@ -11465,6 +11537,126 @@ export interface operations {
       };
     };
   };
+  matching_get_tolerances: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Match tolerances (all zero = exact when never set) */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["MatchTolerancesView"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown or unrelated organisation */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  matching_put_tolerances: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["MatchTolerances"];
+      };
+    };
+    responses: {
+      /** @description Tolerances saved */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["MatchTolerancesView"];
+        };
+      };
+      /** @description Malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted (finance decides tolerances) */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown or unrelated organisation */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Out of range */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
   list_members: {
     parameters: {
       query?: never;
@@ -11664,6 +11856,96 @@ export interface operations {
       };
       /** @description Self-modification, last admin, pending invitation, invalid role */
       422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  matching_extract_invoice: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+        order_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ExtractBody"];
+      };
+    };
+    responses: {
+      /** @description Suggestion stored (pending, or failed with error_code); output lines carry the order_item_id they bill */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SuggestionView"];
+        };
+      };
+      /** @description Malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown or not visible order */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not delivered yet, already invoiced, or AI switched off */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Empty or too long text */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description AI rate limit reached */
+      429: {
         headers: {
           [name: string]: unknown;
         };

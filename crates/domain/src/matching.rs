@@ -263,6 +263,233 @@ pub fn three_way<Id: PartialEq + Clone>(
     out
 }
 
+// ---------------------------------------------------------------------------------------
+// Tolerances (agent layer L2). `three_way` stays exact: every difference is a discrepancy.
+// A tolerance only *classifies* a discrepancy afterwards, so the matching agent can propose
+// accepting a small one; a person still decides each.
+
+/// Per-organisation match tolerances. A zero limit is "not set". A family (price, quantity,
+/// rounding) applies only when at least one of its limits is set, and a difference is within
+/// tolerance only when it is within **every** limit set for its family (the stricter wins).
+/// [`Tolerance::exact`] sets nothing: every discrepancy is out of tolerance.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Tolerance {
+    /// Currency of the absolute limits. They never apply to another currency (no FX): a
+    /// discrepancy in another currency fails any absolute limit that is set.
+    pub currency: Currency,
+    /// Unit price may differ from the ordered price by at most this share of it (bps).
+    pub price_bps: u32,
+    /// The line's difference (unit price difference × invoiced quantity) at most this.
+    pub price_line_abs: Money,
+    /// Invoiced quantity may differ from the ordered/received quantity by at most this share.
+    pub quantity_bps: u32,
+    /// ... and by at most this many units.
+    pub quantity_abs: u32,
+    /// Printed tax may differ from the recomputed tax by at most this (rounding).
+    pub rounding: Money,
+}
+
+impl Tolerance {
+    pub const fn exact(currency: Currency) -> Self {
+        Tolerance {
+            currency,
+            price_bps: 0,
+            price_line_abs: Money::zero(currency),
+            quantity_bps: 0,
+            quantity_abs: 0,
+            rounding: Money::zero(currency),
+        }
+    }
+}
+
+/// What the matching agent proposes for one discrepancy.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Classification {
+    /// Small enough to accept as invoiced.
+    WithinTolerance,
+    /// Out of tolerance and the supplier billed too much: ask for a credit note.
+    CreditNote,
+    /// Out of tolerance but not an overcharge (billed less, missing lines, other currency):
+    /// a person looks at it.
+    Review,
+}
+
+impl Classification {
+    pub const fn code(self) -> &'static str {
+        match self {
+            Classification::WithinTolerance => "within_tolerance",
+            Classification::CreditNote => "out_of_tolerance",
+            Classification::Review => "needs_review",
+        }
+    }
+}
+
+/// |a − b| of two amounts in the same currency.
+fn abs_diff(a: Money, b: Money) -> Option<i128> {
+    (a.currency() == b.currency()).then(|| (i128::from(a.minor()) - i128::from(b.minor())).abs())
+}
+
+/// `diff ≤ base × bps / 10 000`, exactly.
+fn within_share(diff: i128, base: i128, bps: u32) -> bool {
+    diff * 10_000 <= base.abs() * i128::from(bps)
+}
+
+/// `diff ≤ limit` for an absolute limit in `limit`'s currency; a difference in another
+/// currency never fits.
+fn within_abs(diff: i128, currency: Currency, limit: Money) -> bool {
+    currency == limit.currency() && diff <= i128::from(limit.minor())
+}
+
+fn quantity_within(reference: u32, invoiced: u32, tol: &Tolerance) -> bool {
+    if tol.quantity_bps == 0 && tol.quantity_abs == 0 {
+        return false;
+    }
+    let diff = (i128::from(reference) - i128::from(invoiced)).abs();
+    (tol.quantity_bps == 0 || within_share(diff, i128::from(reference), tol.quantity_bps))
+        && (tol.quantity_abs == 0 || diff <= i128::from(tol.quantity_abs))
+}
+
+/// The amount at stake in a discrepancy (minor units), when it has one: a price
+/// difference × the invoiced quantity, a shipping or tax difference.
+pub fn difference<Id>(d: &Discrepancy<Id>, invoiced_quantity: u32) -> Option<Money> {
+    let (a, b, qty) = match d {
+        Discrepancy::PriceMismatch {
+            ordered, invoiced, ..
+        } => (*ordered, *invoiced, invoiced_quantity),
+        Discrepancy::ShippingMismatch { ordered, invoiced } => (*ordered, *invoiced, 1),
+        Discrepancy::TaxMismatch { expected, invoiced } => (*expected, *invoiced, 1),
+        _ => return None,
+    };
+    let diff = abs_diff(a, b)? * i128::from(qty);
+    i64::try_from(diff)
+        .ok()
+        .map(|m| Money::from_minor(m, b.currency()))
+}
+
+/// Classifies one discrepancy. `invoiced_quantity` is the invoiced quantity of the line a
+/// price difference is on (ignored otherwise). Pure and exact (integer arithmetic only).
+pub fn classify<Id>(
+    d: &Discrepancy<Id>,
+    invoiced_quantity: u32,
+    tol: &Tolerance,
+) -> Classification {
+    let within = match d {
+        Discrepancy::PriceMismatch {
+            ordered, invoiced, ..
+        } => {
+            if tol.price_bps == 0 && tol.price_line_abs.minor() == 0 {
+                false
+            } else {
+                match abs_diff(*ordered, *invoiced) {
+                    None => false,
+                    Some(unit) => {
+                        let line = unit * i128::from(invoiced_quantity);
+                        (tol.price_bps == 0
+                            || within_share(unit, i128::from(ordered.minor()), tol.price_bps))
+                            && (tol.price_line_abs.minor() == 0
+                                || within_abs(line, invoiced.currency(), tol.price_line_abs))
+                    }
+                }
+            }
+        }
+        Discrepancy::QuantityOverOrdered {
+            ordered, invoiced, ..
+        } => quantity_within(*ordered, *invoiced, tol),
+        Discrepancy::QuantityOverReceived {
+            received, invoiced, ..
+        }
+        | Discrepancy::QuantityUnderReceived {
+            received, invoiced, ..
+        } => quantity_within(*received, *invoiced, tol),
+        Discrepancy::TaxMismatch { expected, invoiced } => {
+            tol.rounding.minor() > 0
+                && abs_diff(*expected, *invoiced)
+                    .is_some_and(|diff| within_abs(diff, invoiced.currency(), tol.rounding))
+        }
+        // Never a matter of tolerance.
+        Discrepancy::CurrencyMismatch
+        | Discrepancy::UnknownItem { .. }
+        | Discrepancy::DuplicateLine { .. }
+        | Discrepancy::NotInvoiced { .. }
+        | Discrepancy::ShippingMismatch { .. }
+        | Discrepancy::Overflow => false,
+    };
+    if within {
+        return Classification::WithinTolerance;
+    }
+    let overbilled = match d {
+        Discrepancy::PriceMismatch {
+            ordered, invoiced, ..
+        }
+        | Discrepancy::ShippingMismatch { ordered, invoiced } => invoiced.minor() > ordered.minor(),
+        Discrepancy::TaxMismatch { expected, invoiced } => invoiced.minor() > expected.minor(),
+        Discrepancy::QuantityOverOrdered { .. }
+        | Discrepancy::QuantityOverReceived { .. }
+        | Discrepancy::UnknownItem { .. }
+        | Discrepancy::DuplicateLine { .. } => true,
+        Discrepancy::QuantityUnderReceived { .. }
+        | Discrepancy::NotInvoiced { .. }
+        | Discrepancy::CurrencyMismatch
+        | Discrepancy::Overflow => false,
+    };
+    if overbilled {
+        Classification::CreditNote
+    } else {
+        Classification::Review
+    }
+}
+
+impl<Id> Discrepancy<Id> {
+    /// Rebuilds a discrepancy from its stored form (`discrepancies.kind`, `expected`,
+    /// `actual`, the invoice currency). `None` for an unknown kind or missing values.
+    pub fn from_stored(
+        code: &str,
+        item: Id,
+        expected: Option<i64>,
+        actual: Option<i64>,
+        currency: Currency,
+    ) -> Option<Self> {
+        let money = |v: Option<i64>| v.map(|m| Money::from_minor(m, currency));
+        let qty = |v: Option<i64>| v.and_then(|q| u32::try_from(q).ok());
+        Some(match code {
+            "currency_mismatch" => Discrepancy::CurrencyMismatch,
+            "unknown_item" => Discrepancy::UnknownItem { item },
+            "duplicate_line" => Discrepancy::DuplicateLine { item },
+            "not_invoiced" => Discrepancy::NotInvoiced { item },
+            "amount_overflow" => Discrepancy::Overflow,
+            "price_mismatch" => Discrepancy::PriceMismatch {
+                item,
+                ordered: money(expected)?,
+                invoiced: money(actual)?,
+            },
+            "quantity_over_ordered" => Discrepancy::QuantityOverOrdered {
+                item,
+                ordered: qty(expected)?,
+                invoiced: qty(actual)?,
+            },
+            "quantity_over_received" => Discrepancy::QuantityOverReceived {
+                item,
+                received: qty(expected)?,
+                invoiced: qty(actual)?,
+            },
+            "quantity_under_received" => Discrepancy::QuantityUnderReceived {
+                item,
+                received: qty(expected)?,
+                invoiced: qty(actual)?,
+            },
+            "shipping_mismatch" => Discrepancy::ShippingMismatch {
+                ordered: money(expected)?,
+                invoiced: money(actual)?,
+            },
+            "tax_mismatch" => Discrepancy::TaxMismatch {
+                expected: money(expected)?,
+                invoiced: money(actual)?,
+            },
+            _ => return None,
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -415,6 +642,257 @@ mod tests {
         assert_eq!(
             three_way(&order(), JPY, yen(2000), &[(1, 100)], &inv),
             vec![Discrepancy::CurrencyMismatch]
+        );
+    }
+
+    fn tol() -> Tolerance {
+        Tolerance {
+            currency: JPY,
+            price_bps: 100, // 1%
+            price_line_abs: yen(1000),
+            quantity_bps: 0,
+            quantity_abs: 2,
+            rounding: yen(1),
+        }
+    }
+
+    fn price(ordered: i64, invoiced: i64) -> Discrepancy<u32> {
+        Discrepancy::PriceMismatch {
+            item: 1,
+            ordered: yen(ordered),
+            invoiced: yen(invoiced),
+        }
+    }
+
+    #[test]
+    fn exact_tolerance_accepts_nothing_three_way_reports() {
+        // Zero tolerance changes nothing: every discrepancy three_way reports stays out.
+        let inv = invoice(
+            vec![(1, 110, 1201), (3, 1, 10), (2, 4, 45_000), (2, 1, 1)],
+            2500,
+            1,
+        );
+        let found = three_way(&order(), JPY, yen(2000), &[(1, 100), (2, 3)], &inv);
+        assert_eq!(found.len(), 8);
+        let exact = Tolerance::exact(JPY);
+        for d in &found {
+            assert_ne!(
+                classify(d, 110, &exact),
+                Classification::WithinTolerance,
+                "{d:?}"
+            );
+        }
+        assert_eq!(
+            classify(&price(1200, 1201), 1, &exact),
+            Classification::CreditNote
+        );
+        assert_eq!(
+            classify(&price(1200, 1199), 1, &exact),
+            Classification::Review
+        );
+    }
+
+    #[test]
+    fn price_tolerance_needs_every_limit_set() {
+        let t = tol();
+        // 1% of 1,200 = 12 per unit; line limit ¥1,000.
+        assert_eq!(
+            classify(&price(1200, 1212), 50, &t),
+            Classification::WithinTolerance
+        );
+        assert_eq!(
+            classify(&price(1200, 1213), 50, &t),
+            Classification::CreditNote
+        );
+        // Within 1% but the line difference (12 × 100 = 1,200) exceeds ¥1,000.
+        assert_eq!(
+            classify(&price(1200, 1212), 100, &t),
+            Classification::CreditNote
+        );
+        // Undercharges within tolerance are accepted too; outside they need review.
+        assert_eq!(
+            classify(&price(1200, 1190), 10, &t),
+            Classification::WithinTolerance
+        );
+        assert_eq!(classify(&price(1200, 1000), 10, &t), Classification::Review);
+        // Only a percentage set: the line amount does not matter.
+        let pct = Tolerance {
+            price_line_abs: yen(0),
+            ..t
+        };
+        assert_eq!(
+            classify(&price(1200, 1212), 1_000_000, &pct),
+            Classification::WithinTolerance
+        );
+        // Only an absolute limit set.
+        let abs = Tolerance { price_bps: 0, ..t };
+        assert_eq!(
+            classify(&price(1200, 1300), 10, &abs),
+            Classification::WithinTolerance
+        );
+        assert_eq!(
+            classify(&price(1200, 1301), 10, &abs),
+            Classification::CreditNote
+        );
+        // Boundary is exact in integers: 0.5% of 999 = 4.995, so 4 fits and 5 does not.
+        let half = Tolerance {
+            price_bps: 50,
+            price_line_abs: yen(0),
+            ..t
+        };
+        assert_eq!(
+            classify(&price(999, 1003), 1, &half),
+            Classification::WithinTolerance
+        );
+        assert_eq!(
+            classify(&price(999, 1004), 1, &half),
+            Classification::CreditNote
+        );
+    }
+
+    #[test]
+    fn absolute_limits_never_apply_to_another_currency() {
+        let usd = |n| Money::from_minor(n, Currency::Usd);
+        let d = Discrepancy::PriceMismatch {
+            item: 1,
+            ordered: usd(1000),
+            invoiced: usd(1001),
+        };
+        assert_eq!(classify(&d, 1, &tol()), Classification::CreditNote);
+        let pct_only = Tolerance {
+            price_line_abs: yen(0),
+            ..tol()
+        };
+        assert_eq!(classify(&d, 1, &pct_only), Classification::WithinTolerance);
+        let tax = Discrepancy::<u32>::TaxMismatch {
+            expected: usd(100),
+            invoiced: usd(101),
+        };
+        assert_eq!(classify(&tax, 0, &tol()), Classification::CreditNote);
+    }
+
+    #[test]
+    fn quantity_and_rounding_tolerances() {
+        let t = tol();
+        let over = |ordered, invoiced| Discrepancy::QuantityOverOrdered {
+            item: 1u32,
+            ordered,
+            invoiced,
+        };
+        assert_eq!(
+            classify(&over(100, 102), 0, &t),
+            Classification::WithinTolerance
+        );
+        assert_eq!(classify(&over(100, 103), 0, &t), Classification::CreditNote);
+        let both = Tolerance {
+            quantity_bps: 100,
+            ..t
+        };
+        // 1% of 100 = 1 unit, stricter than 2.
+        assert_eq!(
+            classify(&over(100, 102), 0, &both),
+            Classification::CreditNote
+        );
+        let under = Discrepancy::QuantityUnderReceived {
+            item: 1u32,
+            received: 100,
+            invoiced: 90,
+        };
+        assert_eq!(classify(&under, 0, &t), Classification::Review);
+        let tax = |e, i| Discrepancy::<u32>::TaxMismatch {
+            expected: yen(e),
+            invoiced: yen(i),
+        };
+        assert_eq!(
+            classify(&tax(30_200, 30_201), 0, &t),
+            Classification::WithinTolerance
+        );
+        assert_eq!(
+            classify(&tax(30_200, 30_199), 0, &t),
+            Classification::WithinTolerance
+        );
+        assert_eq!(
+            classify(&tax(30_200, 30_202), 0, &t),
+            Classification::CreditNote
+        );
+        // Never a matter of tolerance.
+        assert_eq!(
+            classify(&Discrepancy::UnknownItem { item: 3u32 }, 1, &t),
+            Classification::CreditNote
+        );
+        assert_eq!(
+            classify(&Discrepancy::NotInvoiced { item: 3u32 }, 0, &t),
+            Classification::Review
+        );
+        assert_eq!(
+            classify(&Discrepancy::<u32>::CurrencyMismatch, 0, &t),
+            Classification::Review
+        );
+        let ship = Discrepancy::<u32>::ShippingMismatch {
+            ordered: yen(2000),
+            invoiced: yen(2001),
+        };
+        assert_eq!(classify(&ship, 0, &t), Classification::CreditNote);
+    }
+
+    #[test]
+    fn stored_discrepancies_round_trip_and_differences() {
+        let inv = invoice(vec![(1, 110, 1250), (3, 1, 10)], 2500, 1);
+        let found = three_way(&order(), JPY, yen(2000), &[(1, 100), (2, 3)], &inv);
+        for d in &found {
+            let (expected, actual) = match d {
+                Discrepancy::PriceMismatch {
+                    ordered, invoiced, ..
+                }
+                | Discrepancy::ShippingMismatch { ordered, invoiced } => {
+                    (Some(ordered.minor()), Some(invoiced.minor()))
+                }
+                Discrepancy::TaxMismatch { expected, invoiced } => {
+                    (Some(expected.minor()), Some(invoiced.minor()))
+                }
+                Discrepancy::QuantityOverOrdered {
+                    ordered: a,
+                    invoiced: b,
+                    ..
+                }
+                | Discrepancy::QuantityOverReceived {
+                    received: a,
+                    invoiced: b,
+                    ..
+                }
+                | Discrepancy::QuantityUnderReceived {
+                    received: a,
+                    invoiced: b,
+                    ..
+                } => (Some(i64::from(*a)), Some(i64::from(*b))),
+                _ => (None, None),
+            };
+            let item = match d {
+                Discrepancy::UnknownItem { item }
+                | Discrepancy::DuplicateLine { item }
+                | Discrepancy::NotInvoiced { item }
+                | Discrepancy::PriceMismatch { item, .. }
+                | Discrepancy::QuantityOverOrdered { item, .. }
+                | Discrepancy::QuantityOverReceived { item, .. }
+                | Discrepancy::QuantityUnderReceived { item, .. } => *item,
+                _ => 0,
+            };
+            let back = Discrepancy::from_stored(d.code(), item, expected, actual, JPY);
+            assert_eq!(back.as_ref(), Some(d));
+        }
+        assert_eq!(
+            Discrepancy::<u32>::from_stored("price_mismatch", 1, None, Some(1), JPY),
+            None
+        );
+        assert_eq!(
+            Discrepancy::<u32>::from_stored("nonsense", 1, None, None, JPY),
+            None
+        );
+        assert_eq!(difference(&price(1200, 1250), 110), Some(yen(5500)));
+        assert_eq!(difference(&price(1250, 1200), 2), Some(yen(100)));
+        assert_eq!(
+            difference(&Discrepancy::NotInvoiced { item: 1u32 }, 1),
+            None
         );
     }
 }
