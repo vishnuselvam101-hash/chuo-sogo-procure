@@ -154,6 +154,8 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
             let bind = std::env::var("PROCURE_BIND").unwrap_or_else(|_| "127.0.0.1:8088".into());
             // Exceptions for our staff: suppliers that did not reply by the response date.
             procure_server::api::ops::spawn_exception_checks(state.clone());
+            // Agent runs (only for organisations that switched agents on).
+            procure_server::agents::worker::spawn(state.clone());
             if let Some(m) = state.supplier_mail.clone() {
                 procure_server::supplier_mail::spawn(state.clone(), m);
             }

@@ -158,6 +158,13 @@ pub enum Permission {
     ManageShop,
     /// Import, view and remove the organisation's past-purchase records and buying criteria.
     ManagePurchaseHistory,
+    /// See the organisation's agent runs, exceptions and agent settings.
+    ViewAgents,
+    /// Turn agents on or off, set their budget and mail rule, start a run by hand.
+    ManageAgents,
+    /// Approve, edit or reject what an agent proposes (the action's own permission is
+    /// checked again when it is executed).
+    DecideAgentExceptions,
 }
 
 impl Permission {
@@ -198,6 +205,9 @@ impl Permission {
             Permission::Shop => "shop",
             Permission::ManageShop => "manage_shop",
             Permission::ManagePurchaseHistory => "manage_purchase_history",
+            Permission::ViewAgents => "view_agents",
+            Permission::ManageAgents => "manage_agents",
+            Permission::DecideAgentExceptions => "decide_agent_exceptions",
         }
     }
 }
@@ -235,6 +245,9 @@ pub fn home_permissions(role: Role) -> &'static [Permission] {
             ManageApprovalPolicy,
             ApproveSuppliers,
             ManagePurchaseHistory,
+            ViewAgents,
+            ManageAgents,
+            DecideAgentExceptions,
             ViewAudit,
             SubmitRequest,
             ViewOwnRequests,
@@ -253,6 +266,8 @@ pub fn home_permissions(role: Role) -> &'static [Permission] {
             ApproveRecommendation,
             ApproveSuppliers,
             ManagePurchaseHistory,
+            ViewAgents,
+            DecideAgentExceptions,
             RecordOrders,
             ReceiveGoods,
             ViewOrders,
@@ -266,6 +281,8 @@ pub fn home_permissions(role: Role) -> &'static [Permission] {
             ViewFinance,
             ManageInvoices,
             ViewReports,
+            ViewAgents,
+            DecideAgentExceptions,
         ],
         Role::SupplierAdmin => &[ManageOrgUsers, ViewAudit, ManageListings],
         Role::SupplierStaff => &[ManageListings],
@@ -292,6 +309,8 @@ pub fn service_permissions(role: Role) -> &'static [Permission] {
             ViewInternalNotes,
             ViewOrders,
             ViewReports,
+            ViewAgents,
+            DecideAgentExceptions,
         ],
         Role::ProcurementOperator => &[
             ViewAllRequests,
@@ -302,6 +321,8 @@ pub fn service_permissions(role: Role) -> &'static [Permission] {
             RecordQuotations,
             ViewInternalNotes,
             ViewOrders,
+            ViewAgents,
+            DecideAgentExceptions,
         ],
         Role::CustomerAdmin
         | Role::ProcurementManager
@@ -536,5 +557,44 @@ mod tests {
             assert!(!allows(Access::Member(r), m), "{r}");
         }
         assert!(!allows(Access::Assigned(Role::PlatformSuperAdmin), m));
+    }
+
+    #[test]
+    fn agents_are_set_up_by_the_customer_and_decided_by_buyers_and_staff() {
+        for r in Role::ALL {
+            let member = Access::Member(r);
+            assert_eq!(
+                allows(member, Permission::ManageAgents),
+                r == Role::CustomerAdmin,
+                "{r}"
+            );
+            // Staff never change a customer's agent settings.
+            assert!(
+                !allows(Access::Assigned(r), Permission::ManageAgents),
+                "{r}"
+            );
+            let decides = matches!(
+                r,
+                Role::CustomerAdmin | Role::ProcurementManager | Role::Finance
+            );
+            assert_eq!(
+                allows(member, Permission::DecideAgentExceptions),
+                decides,
+                "{r}"
+            );
+            assert_eq!(allows(member, Permission::ViewAgents), decides, "{r}");
+        }
+        for r in [Role::ProcurementAdmin, Role::ProcurementOperator] {
+            assert!(allows(
+                Access::Assigned(r),
+                Permission::DecideAgentExceptions
+            ));
+            assert!(allows(Access::Assigned(r), Permission::ViewAgents));
+            assert!(!allows(Access::Member(r), Permission::ViewAgents));
+        }
+        assert!(!allows(
+            Access::Member(Role::Requester),
+            Permission::ViewAgents
+        ));
     }
 }

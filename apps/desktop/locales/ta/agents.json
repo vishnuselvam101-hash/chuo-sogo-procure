@@ -1,0 +1,23 @@
+{
+  "runtime": {
+    "exceptionStatus": {
+      "open": "நிலுவையில்",
+      "approved": "ஒப்புதல் அளிக்கப்பட்டது",
+      "edited": "மாற்றங்களுடன் ஒப்புதல்",
+      "rejected": "நிராகரிக்கப்பட்டது",
+      "resolved_elsewhere": "வேறு இடத்தில் தீர்க்கப்பட்டது"
+    },
+    "severity": {
+      "info": "தகவல்",
+      "warning": "சரிபார்க்க வேண்டும்",
+      "critical": "அவசரம்"
+    },
+    "runStatus": {
+      "queued": "வரிசையில்",
+      "running": "இயங்குகிறது",
+      "succeeded": "முடிந்தது",
+      "failed": "தோல்வி",
+      "skipped": "தவிர்க்கப்பட்டது"
+    }
+  }
+}

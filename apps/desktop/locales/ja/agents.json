@@ -1,0 +1,23 @@
+{
+  "runtime": {
+    "exceptionStatus": {
+      "open": "未対応",
+      "approved": "承認済み",
+      "edited": "修正して承認",
+      "rejected": "却下",
+      "resolved_elsewhere": "他で対応済み"
+    },
+    "severity": {
+      "info": "お知らせ",
+      "warning": "要確認",
+      "critical": "至急"
+    },
+    "runStatus": {
+      "queued": "待機中",
+      "running": "実行中",
+      "succeeded": "完了",
+      "failed": "失敗",
+      "skipped": "スキップ"
+    }
+  }
+}

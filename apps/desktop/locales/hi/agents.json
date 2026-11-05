@@ -1,0 +1,23 @@
+{
+  "runtime": {
+    "exceptionStatus": {
+      "open": "लंबित",
+      "approved": "स्वीकृत",
+      "edited": "बदलाव के साथ स्वीकृत",
+      "rejected": "अस्वीकृत",
+      "resolved_elsewhere": "कहीं और हल किया गया"
+    },
+    "severity": {
+      "info": "सूचना",
+      "warning": "जाँच आवश्यक",
+      "critical": "अत्यावश्यक"
+    },
+    "runStatus": {
+      "queued": "कतार में",
+      "running": "चल रहा है",
+      "succeeded": "पूर्ण",
+      "failed": "विफल",
+      "skipped": "छोड़ा गया"
+    }
+  }
+}

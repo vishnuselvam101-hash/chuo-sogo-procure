@@ -1,0 +1,23 @@
+{
+  "runtime": {
+    "exceptionStatus": {
+      "open": "Open",
+      "approved": "Approved",
+      "edited": "Approved with changes",
+      "rejected": "Rejected",
+      "resolved_elsewhere": "Resolved elsewhere"
+    },
+    "severity": {
+      "info": "Info",
+      "warning": "Needs review",
+      "critical": "Urgent"
+    },
+    "runStatus": {
+      "queued": "Queued",
+      "running": "Running",
+      "succeeded": "Completed",
+      "failed": "Failed",
+      "skipped": "Skipped"
+    }
+  }
+}

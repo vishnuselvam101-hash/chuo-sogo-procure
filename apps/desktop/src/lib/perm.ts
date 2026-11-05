@@ -19,6 +19,9 @@ export const P = {
   manageInvoices: "manage_invoices",
   managePurchaseHistory: "manage_purchase_history",
   viewAllRequests: "view_all_requests",
+  viewAgents: "view_agents",
+  manageAgents: "manage_agents",
+  decideAgentExceptions: "decide_agent_exceptions",
 } as const;
 
 export const AWAITING_APPROVAL = "awaiting_approval";

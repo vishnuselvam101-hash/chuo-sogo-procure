@@ -1,5 +1,6 @@
 //! Chuo-Sogo Procure backend: one Axum application over PostgreSQL.
 
+pub mod agents;
 pub mod api;
 pub mod audit;
 pub mod db;
@@ -75,6 +76,8 @@ pub struct AppState {
     /// Live supplier mail and FAX (`PROCURE_SUPPLIER_MAIL=live`); `None` = test mode, every
     /// supplier message is only recorded.
     pub supplier_mail: Option<Arc<supplier_mail::SupplierMail>>,
+    /// The agents this server runs (`agents::registry()`); tests install their own.
+    pub agents: Arc<Vec<Arc<dyn agents::Agent>>>,
 }
 
 impl AppState {
@@ -110,6 +113,7 @@ impl AppState {
                 .filter(|e| !e.is_empty())
                 .collect(),
             supplier_mail: None,
+            agents: Arc::new(agents::registry()),
         }
     }
 }
@@ -505,6 +509,24 @@ pub fn router(state: AppState) -> Router {
             "/orgs/{org_id}/requests/{request_id}/close",
             post(api::orders::close_request),
         )
+        .route(
+            "/orgs/{org_id}/agents/settings",
+            get(api::agents::get_settings).put(api::agents::put_settings),
+        )
+        .route("/orgs/{org_id}/agents/runs", get(api::agents::list_runs))
+        .route(
+            "/orgs/{org_id}/agents/{agent}/run",
+            post(api::agents::trigger_run),
+        )
+        .route(
+            "/orgs/{org_id}/agents/exceptions",
+            get(api::agents::list_exceptions),
+        )
+        .route(
+            "/orgs/{org_id}/agents/exceptions/{exception_id}/decide",
+            post(api::agents::decide),
+        )
+        .route("/orgs/{org_id}/agents/summary", get(api::agents::summary))
         .route("/ops/queue", get(api::ops::queue))
         .route("/orgs/{org_id}/tasks", post(api::ops::create_task))
         .route(
@@ -670,6 +692,7 @@ pub fn router(state: AppState) -> Router {
             axum::routing::delete(api::admin::unassign),
         )
         .route("/orgs/{org_id}/audit", get(api::admin::org_audit))
+        .route("/ops/agents/exceptions", get(api::agents::staff_exceptions))
         .route("/accounts", get(api::admin::list_accounts))
         .route("/accounts/{user_id}", patch(api::admin::update_account))
         .route(

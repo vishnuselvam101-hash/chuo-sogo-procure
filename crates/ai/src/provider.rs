@@ -35,7 +35,7 @@ impl AiError {
     }
 
     /// Worth another attempt (transport problems, malformed output).
-    const fn retryable(&self) -> bool {
+    pub const fn retryable(&self) -> bool {
         matches!(
             self,
             AiError::Unavailable | AiError::Timeout | AiError::InvalidOutput

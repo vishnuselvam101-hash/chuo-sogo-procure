@@ -276,6 +276,22 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/admin/v1/ops/agents/exceptions": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["admin_agent_exceptions"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/admin/v1/orgs": {
     parameters: {
       query?: never;
@@ -872,6 +888,102 @@ export interface paths {
     get: operations["queue"];
     put?: never;
     post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/orgs/{org_id}/agents/exceptions": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["agents_list_exceptions"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/orgs/{org_id}/agents/exceptions/{exception_id}/decide": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["agents_decide"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/orgs/{org_id}/agents/runs": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["agents_list_runs"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/orgs/{org_id}/agents/settings": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["agents_get_settings"];
+    put: operations["agents_put_settings"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/orgs/{org_id}/agents/summary": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["agents_summary"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/orgs/{org_id}/agents/{agent}/run": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["agents_trigger_run"];
     delete?: never;
     options?: never;
     head?: never;
@@ -2781,6 +2893,99 @@ export interface components {
       expires_at: string;
       token: string;
     };
+    AgentException: {
+      agent: string;
+      /** Format: date-time */
+      created_at: string;
+      /** @description The action that was executed (the proposal, or the person's edit of it). */
+      decided_action?: Record<string, never> | null;
+      /** Format: date-time */
+      decided_at?: string | null;
+      /** Format: uuid */
+      decided_by?: string | null;
+      decision_note: string;
+      dedupe_key: string;
+      /** Format: uuid */
+      id: string;
+      kind: string;
+      /** Format: uuid */
+      org_id: string;
+      params: Record<string, never>;
+      /** @description `{"type": "...", ...}`; executed only after a person approves or edits it. */
+      proposed_action?: Record<string, never> | null;
+      /** Format: uuid */
+      request_id?: string | null;
+      /** Format: uuid */
+      run_id?: string | null;
+      /** @description `info` | `warning` | `critical` */
+      severity: string;
+      /** @description `open` | `approved` | `edited` | `rejected` | `resolved_elsewhere` */
+      status: string;
+      /** Format: uuid */
+      subject_id?: string | null;
+      subject_type?: string | null;
+      /** Format: uuid */
+      suggestion_id?: string | null;
+      /** @description Locale key (`agents:<lane>.…`); `params` holds the values its text needs. */
+      title_key: string;
+      /** Format: date-time */
+      updated_at: string;
+    };
+    AgentRun: {
+      agent: string;
+      /** Format: int32 */
+      attempts: number;
+      /** Format: date-time */
+      created_at: string;
+      /** Format: uuid */
+      created_by?: string | null;
+      dedupe_key?: string | null;
+      error_code?: string | null;
+      /** Format: date-time */
+      finished_at?: string | null;
+      /** Format: uuid */
+      id: string;
+      input: Record<string, never>;
+      /** Format: date-time */
+      locked_until?: string | null;
+      /** Format: int32 */
+      model_calls: number;
+      /** Format: uuid */
+      org_id: string;
+      output?: Record<string, never> | null;
+      /** Format: date-time */
+      run_after: string;
+      /** Format: date-time */
+      started_at?: string | null;
+      /** @description `queued` | `running` | `succeeded` | `failed` | `skipped` */
+      status: string;
+      /** Format: uuid */
+      subject_id?: string | null;
+      subject_type?: string | null;
+      /** @description `schedule` | `event` | `manual` */
+      trigger: string;
+    };
+    AgentSettings: {
+      auto_send_supplier_mail: boolean;
+      enabled: boolean;
+      /** Format: int32 */
+      monthly_model_call_budget: number;
+      /** Format: date-time */
+      updated_at?: string | null;
+      /** Format: uuid */
+      updated_by?: string | null;
+    };
+    AgentSummary: {
+      enabled: boolean;
+      /** Format: int64 */
+      model_calls_this_month: number;
+      /** Format: int32 */
+      monthly_model_call_budget: number;
+      /** @description Open exceptions by severity. */
+      open_exceptions_by_severity: components["schemas"]["CountBy"][];
+      /** @description Runs of the last 30 days by status. */
+      runs_by_status: components["schemas"]["CountBy"][];
+    };
     AgreedBaselineInput: {
       currency?: string | null;
       description?: string;
@@ -3051,6 +3256,11 @@ export interface components {
       /** @description `email` or `fax`. */
       rfq_channel: string;
     };
+    CountBy: {
+      /** Format: int64 */
+      count: number;
+      key: string;
+    };
     CreateOrgRequest: {
       admin_email: string;
       admin_name: string;
@@ -3145,6 +3355,13 @@ export interface components {
        * @description Fees not yet on a Chuo-Sogo invoice.
        */
       unbilled_fee_minor: number;
+    };
+    DecideRequest: {
+      /** @description For `edit`: the action as changed (same `type` as the proposal). */
+      action?: Record<string, never> | null;
+      /** @description `approve` | `edit` | `reject` */
+      decision: string;
+      note?: string | null;
     };
     DecisionBody: {
       /** @description true: applied to the editor; false: discarded. */
@@ -4286,6 +4503,16 @@ export interface components {
       /** Format: date-time */
       verified_at?: string | null;
     };
+    PutAgentSettings: {
+      /**
+       * @description Supplier mail from approved actions is sent only when this is on and the server's
+       *     live mail is configured; otherwise it stays a test-mode record.
+       */
+      auto_send_supplier_mail: boolean;
+      enabled: boolean;
+      /** Format: int32 */
+      monthly_model_call_budget: number;
+    };
     Queue: {
       /** @description Sent RFQs past their response date with suppliers still silent. */
       follow_ups: components["schemas"]["FollowUp"][];
@@ -4636,6 +4863,12 @@ export interface components {
       /** @description 1-based row number in the file, as the spreadsheet shows it. */
       row: number;
     };
+    RunRequest: {
+      input?: Record<string, never> | null;
+      /** Format: uuid */
+      subject_id?: string | null;
+      subject_type?: string | null;
+    };
     SavingsInvoiceInput: {
       currency?: string | null;
       /**
@@ -4861,6 +5094,10 @@ export interface components {
     Spec: {
       key: string;
       value: string;
+    };
+    StaffException: {
+      exception: components["schemas"]["AgentException"];
+      org_name: string;
     };
     SubmitBody: {
       /** @description Required when answering a clarification question. */
@@ -6000,6 +6237,59 @@ export interface operations {
       };
       /** @description No valid admin session */
       401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  admin_agent_exceptions: {
+    parameters: {
+      query?: {
+        /** @description `open` (default) | `approved` | `edited` | `rejected` | `resolved_elsewhere` | `all` */
+        status?: string;
+        agent?: string;
+        /** @description At most 500 (default 200). */
+        limit?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Exceptions of every customer the caller is assigned to */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["StaffException"][];
+        };
+      };
+      /** @description Malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description No valid admin session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
         headers: {
           [name: string]: unknown;
         };
@@ -8202,6 +8492,438 @@ export interface operations {
       };
       /** @description Not internal staff */
       403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  agents_list_exceptions: {
+    parameters: {
+      query?: {
+        /** @description `open` (default) | `approved` | `edited` | `rejected` | `resolved_elsewhere` | `all` */
+        status?: string;
+        agent?: string;
+        /** @description At most 500 (default 200). */
+        limit?: number;
+      };
+      header?: never;
+      path: {
+        org_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Exceptions, most severe and newest first */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AgentException"][];
+        };
+      };
+      /** @description Malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown or unrelated organisation */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  agents_decide: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+        exception_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["DecideRequest"];
+      };
+    };
+    responses: {
+      /** @description Decided; for approve/edit the action was executed */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AgentException"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted (to decide, or to perform the action) */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown organisation or exception */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Already decided (exception_not_open) */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  agents_list_runs: {
+    parameters: {
+      query?: {
+        agent?: string;
+        /** @description `queued` | `running` | `succeeded` | `failed` | `skipped` */
+        status?: string;
+        /** @description At most 500 (default 100), newest first. */
+        limit?: number;
+      };
+      header?: never;
+      path: {
+        org_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Runs, newest first */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AgentRun"][];
+        };
+      };
+      /** @description Malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown or unrelated organisation */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  agents_get_settings: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Agent settings (defaults when never set: off) */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AgentSettings"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown or unrelated organisation */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  agents_put_settings: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["PutAgentSettings"];
+      };
+    };
+    responses: {
+      /** @description Settings saved */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AgentSettings"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown or unrelated organisation */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  agents_summary: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Counts for the agent console */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AgentSummary"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown or unrelated organisation */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  agents_trigger_run: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+        agent: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["RunRequest"];
+      };
+    };
+    responses: {
+      /** @description Run queued (or the same run already waiting) */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["IdResponse"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown organisation or agent */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Agents are off for this organisation (agents_disabled) */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Invalid input */
+      422: {
         headers: {
           [name: string]: unknown;
         };
