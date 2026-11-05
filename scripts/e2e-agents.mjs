@@ -186,7 +186,9 @@ async function drain(org = A.org, token = A.admin, label = "") {
 }
 const exceptions = async (q, token = A.admin) =>
   ok("GET", url(`agents/exceptions?limit=500&${q}`), token);
-const decide = (token, ex, body) => req("POST", url(`agents/exceptions/${ex.id}/decide`), token, body);
+// Decisions carry the version of the exception the decider saw (409 exception_changed otherwise).
+const decide = (token, ex, body) =>
+  req("POST", url(`agents/exceptions/${ex.id}/decide`), token, { expected_updated_at: ex.updated_at, ...body });
 
 // ---------------------------------------------------------------------------------------
 // 0. Agents are off by default; enabling them is an admin setting.
@@ -241,6 +243,12 @@ const decide = (token, ex, body) => req("POST", url(`agents/exceptions/${ex.id}/
     && ex.proposed_action?.resolution === "accepted" && ex.params.difference_minor === 5000,
     "within_tolerance proposes resolve_discrepancy accepted", ex);
   expect((await status(o.request)) === "disputed", "nothing resolved before the decision");
+  // A decision on a version the decider did not see is refused (L9 S2).
+  const stale = await decide(finance, ex, { decision: "approve", expected_updated_at: "2000-01-01T00:00:00Z" });
+  expect(stale.status === 409 && stale.body?.error?.detail === "exception_changed", "stale version refused (409 exception_changed)", stale);
+  const unversioned = await req("POST", url(`agents/exceptions/${ex.id}/decide`), finance, { decision: "approve" });
+  expect(unversioned.status === 422, "decision without a version refused (422)", unversioned);
+  expect((await status(o.request)) === "disputed", "nothing resolved by refused decisions");
   const d = await decide(finance, ex, { decision: "approve", note: "許容範囲内" });
   expect(d.status === 200 && d.body.status === "approved", "finance approves", d);
   const st = await status(o.request);
@@ -474,7 +482,7 @@ const decide = (token, ex, body) => req("POST", url(`agents/exceptions/${ex.id}/
   }
   const target = aEx.find((e) => e.status === "open") ?? aEx[0];
   for (const path of [url(`agents/exceptions/${target.id}/decide`), `/orgs/${B.org}/agents/exceptions/${target.id}/decide`]) {
-    const r = await req("POST", path, B.admin, { decision: "reject" });
+    const r = await req("POST", path, B.admin, { decision: "reject", expected_updated_at: target.updated_at });
     expect(r.status === 403 || r.status === 404, `B cannot decide A's exception via ${path}`, r);
   }
   const bRuns = await ok("GET", `/orgs/${B.org}/agents/runs?limit=500`, B.admin);

@@ -103,4 +103,25 @@ import agent correctly blocked as a `duplicate`).
 - **The instruction scan is a phrase list**: paraphrases it does not know ("kindly settle to our new beneficiary") are not flagged. They still cannot do anything: the reply schema has no action field and every proposal needs a person; but the reviewer is not warned. Homoglyphs (Cyrillic `а` in "approve") are not normalised.
 - **Huge brief facts**: facts are cut at 600 lines, but 600 long lines can still exceed the 20,000-character input limit; the brief then fails cleanly with `InputTooLarge` (tested) instead of being drafted from fewer lines.
 - **Load test** runs in-process (debug build, 4 Tokio tasks sharing one 10-connection pool), not 4 server processes; the claim path is the same SQL (`FOR UPDATE SKIP LOCKED`). Lease expiry under a killed worker is not exercised here (covered by `tests/agents.rs`).
-- Open review findings in `docs/agents/L9_FINDINGS.md` (S1–S6, C2–C5) are outside this QA change and not addressed here.
+- Review findings in `docs/agents/L9_FINDINGS.md` (S1–S6, C2–C5) are fixed below (section 5).
+
+## 5. Fixes (L9 review findings, 2026-11-05)
+
+Server fixes in `029681c`, desktop/API contract in `517ef4c`, E2E and this report in the
+following commit. Schema changes are only in `migrations/0029_agents_hardening.sql`. Each
+regression test below was run against the unfixed code (0358622 + the new tests) and failed;
+the two marked † cannot compile against it (they use the changed `decide` / `Profile` API).
+
+| # | Finding | Fix | Regression test |
+|---|---|---|---|
+| 1 | S1 rejected chase counted as history | Rejected `chase_due` ends the series for that PO+type; attempt 2+ auto-sends only if the previous attempt is in the outbox and the series has a follow-up a person approved (`checked_by` set) | `chasing::a_rejected_follow_up_never_lets_a_reminder_go_out_automatically`; `the_sweep_finds_each_condition_once_per_attempt` now expects the series to stop |
+| 2 | S2/C1 decide executes the current proposal | `DecideRequest.expected_updated_at` required (422 without); 409 `exception_changed` on mismatch; inbox sends the `updated_at` it displayed (locale keys ja/en/ta/hi) | `agents::a_decision_on_a_refreshed_exception_is_refused`; E2E scenario 1 (stale → 409, unversioned → 422) |
+| 3 | S3 reply floods / failed calls uncounted | ≤5 reply readings per order (one supplier) per 24 h, refused before any model call (`reply_rate_limited`); `AgentCx::ai` wraps the provider and counts every attempt, retries and failures included | `chasing::a_reply_flood_is_rate_limited_per_order`, `chasing::failed_model_calls_count_against_the_budget` |
+| 4 | S4 reply supplier not checked | Agent refuses a document whose supplier is not the order's (`supplier_mismatch`); manual run validates `document_id`/`order_id` exist in the org, order open, same supplier (422) | `chasing::replies_are_read_only_for_the_senders_own_order` |
+| 5 | S5 one-party auto_send | `auto_send_supplier_mail` is the customer's request; `auto_send_confirmed_by/_at` set by staff via `GET/PUT /api/admin/v1/orgs/{org_id}/agents/auto-send` (ManageOrganisations, audited in both orgs); effective only when both set; a changed request clears the confirmation. Customer settings show "pending staff confirmation"; admin org rules tab has the toggle | `chasing::automatic_supplier_mail_needs_staff_confirmation` |
+| 6 | S6/C5 budget by created_at, UTC; Tokyo hard-coded | Budget counts `started_at` from the month start in `organisations.timezone`; supplier_watch days, "today" and scorecards use the org's time zone | `agents::the_budget_month_is_by_start_in_the_organisations_time_zone`, `supplier_watch::scorecards_use_the_organisations_time_zone` |
+| 7 | C2 import forces floor / 10 % | Profile `tax_rounding` (default `floor`) and `default_tax_rate_bps` (`null` = none); invoices without a rate are refused (`tax_rate`/`required`) when the profile has no default; staged rows carry the rounding | `integrations::imported_invoice_tax_rules_come_from_the_profile`, `connector::invoice_tax_rate_and_rounding_come_from_the_profile` † |
+| 8 | C3 sweep commits outbox separately | `Outcome.tx`: the sweep hands its open transaction to the worker, which raises exceptions and finishes the run in it | `chasing::automatic_reminders_commit_with_the_run` (same `xmin` on outbox row, exception and run) |
+| 9 | C4 staff scope left on | `open_negotiation_task` restores the previous `app.staff` like supplier_watch | `cost_analyst::recorded_quotations_are_analysed_and_a_brief_is_saved_only_on_approval` (decides in-process and checks the scope) † |
+
+E2E after the fixes (`scripts/e2e-agents.sh`, decide now sends the version): ALL PASS (9 scenarios), 136 s.
