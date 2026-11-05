@@ -8,6 +8,7 @@ pub mod listing;
 pub mod mock;
 pub mod negotiation;
 pub mod provider;
+pub mod reply;
 pub mod testing;
 
 pub use provider::{AiError, ModelCall, Provider};

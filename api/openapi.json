@@ -4229,6 +4229,156 @@
         ]
       }
     },
+    "/api/v1/orgs/{org_id}/agents/chasing/settings": {
+      "get": {
+        "tags": [
+          "agents"
+        ],
+        "operationId": "chasing_get_settings",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Follow-up cadence (defaults when never set)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChaseSettings"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown or unrelated organisation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "agents"
+        ],
+        "operationId": "chasing_put_settings",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChaseCadence"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Cadence saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChaseSettings"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown or unrelated organisation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "A value out of range",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/orgs/{org_id}/agents/exceptions": {
       "get": {
         "tags": [
@@ -19116,6 +19266,75 @@
             "format": "date-time"
           }
         }
+      },
+      "ChaseCadence": {
+        "type": "object",
+        "required": [
+          "ack_days",
+          "delivery_date_days",
+          "overdue_days",
+          "invoice_days",
+          "repeat_days",
+          "max_attempts"
+        ],
+        "properties": {
+          "ack_days": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Business days after the order email before asking for an acknowledgement (1–30)."
+          },
+          "delivery_date_days": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Business days after the order email before asking for a delivery date (1–30)."
+          },
+          "invoice_days": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Business days after everything arrived before asking for the invoice (1–60)."
+          },
+          "max_attempts": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Follow-ups per order and type before a person takes over (1–10)."
+          },
+          "overdue_days": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Business days after the expected delivery date before asking where the goods are (1–30)."
+          },
+          "repeat_days": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Business days between follow-ups (1–30)."
+          }
+        }
+      },
+      "ChaseSettings": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ChaseCadence"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "updated_at": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time"
+              },
+              "updated_by": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid"
+              }
+            }
+          }
+        ]
       },
       "CheckBody": {
         "type": "object",

@@ -564,7 +564,10 @@ async fn within_tolerance_proposals_resolve_and_reconcile_on_approval(pool: PgPo
     // The invoice queued exactly one matching run.
     // Other agents (e.g. cost_analyst on recorded quotations) may also run; all must succeed.
     let runs = f.run_agents().await;
-    assert!(!runs.is_empty() && runs.iter().all(|s| s == "succeeded"), "{runs:?}");
+    assert!(
+        !runs.is_empty() && runs.iter().all(|s| s == "succeeded"),
+        "{runs:?}"
+    );
     let open = f.exceptions("open").await;
     assert_eq!(open.len(), 2, "{open:?}");
     let price = open
@@ -753,7 +756,10 @@ async fn rejected_or_manually_handled_proposals_are_not_raised_again(pool: PgPoo
     assert_eq!(r.status, StatusCode::ACCEPTED);
     // Other agents (e.g. cost_analyst on recorded quotations) may also run; all must succeed.
     let runs = f.run_agents().await;
-    assert!(!runs.is_empty() && runs.iter().all(|s| s == "succeeded"), "{runs:?}");
+    assert!(
+        !runs.is_empty() && runs.iter().all(|s| s == "succeeded"),
+        "{runs:?}"
+    );
     assert!(f.exceptions("open").await.is_empty());
     assert_eq!(f.status(o.request).await, "disputed");
 }

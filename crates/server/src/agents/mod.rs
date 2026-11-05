@@ -8,6 +8,7 @@
 //! - [`exceptions`]: `agent_exceptions`, the inbox (raise with dedupe, decide).
 //! - [`worker`]: the background loop that claims and runs queued work and schedules sweeps.
 
+pub mod chasing;
 pub mod cost_analyst;
 pub mod exceptions;
 pub mod matching;
@@ -40,6 +41,7 @@ pub fn registry() -> Vec<Arc<dyn Agent>> {
     vec![
         Arc::new(matching::Matching),
         Arc::new(cost_analyst::CostAnalyst),
+        Arc::new(chasing::Chasing),
     ]
 }
 

@@ -9,6 +9,7 @@ use crate::invoice::EXTRACT_INVOICE;
 use crate::listing::{EXTRACT_LISTING, TRANSLATE_LISTING};
 use crate::negotiation::{self, NEGOTIATION_BRIEF};
 use crate::provider::{AiError, BoxFuture, ModelCall, Provider};
+use crate::reply::{PARSE_SUPPLIER_REPLY, mock_answer as supplier_reply};
 
 pub struct MockProvider;
 
@@ -325,6 +326,7 @@ impl Provider for MockProvider {
                 EXTRACT_LISTING => listing(text),
                 TRANSLATE_LISTING => translation(text),
                 NEGOTIATION_BRIEF => negotiation::mock_answer(text),
+                PARSE_SUPPLIER_REPLY => supplier_reply(text),
                 _ => return Err(AiError::Unavailable),
             };
             Ok(value.to_string())

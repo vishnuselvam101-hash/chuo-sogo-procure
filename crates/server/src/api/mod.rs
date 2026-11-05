@@ -5,6 +5,7 @@ pub mod approvals;
 pub mod attachments;
 pub mod auth;
 pub mod billing;
+pub mod chasing;
 pub mod common;
 pub mod cost;
 pub mod demo;

@@ -111,5 +111,57 @@
         "not_japanese": "Contains text that is not Japanese"
       }
     }
+  },
+  "chasing": {
+    "due": {
+      "order_ack": "{{po_number}}: {{supplier_name}} has not acknowledged the order (follow-up {{attempt}})",
+      "delivery_date": "{{po_number}}: {{supplier_name}} has not given a delivery date (follow-up {{attempt}})",
+      "overdue_delivery": "{{po_number}}: the expected delivery date {{expected_on}} has passed (follow-up {{attempt}})",
+      "missing_invoice": "{{po_number}}: delivered but no invoice yet (follow-up {{attempt}})"
+    },
+    "exhausted": {
+      "order_ack": "{{po_number}}: no acknowledgement after {{attempts}} follow-ups; please call the supplier",
+      "delivery_date": "{{po_number}}: no delivery date after {{attempts}} follow-ups; please call the supplier",
+      "overdue_delivery": "{{po_number}}: still not delivered after {{attempts}} follow-ups; please call the supplier",
+      "missing_invoice": "{{po_number}}: still no invoice after {{attempts}} follow-ups; please call the supplier"
+    },
+    "reply": {
+      "confirmed": "{{po_number}}: {{supplier_name}} gave the delivery date {{promised_date}}",
+      "acknowledged": "{{po_number}}: {{supplier_name}} acknowledged the order",
+      "attention": "{{po_number}}: the reply from {{supplier_name}} needs a person",
+      "suspicious": "{{po_number}}: the reply from {{supplier_name}} contains suspicious instructions; read it carefully"
+    },
+    "chaseType": {
+      "order_ack": "Acknowledgement",
+      "delivery_date": "Delivery date",
+      "overdue_delivery": "Overdue delivery",
+      "missing_invoice": "Missing invoice"
+    },
+    "action": {
+      "send_chase": "Send the follow-up",
+      "record_promised_date": "Record acknowledgement and date",
+      "confirm_delivery_date": "Record the confirmed date"
+    },
+    "flags": {
+      "suspicious_instructions": "Suspicious instructions",
+      "date_not_in_source": "Date not in the reply",
+      "date_out_of_range": "Date out of range",
+      "quantity_not_in_source": "Quantity not in the reply",
+      "quantity_out_of_range": "Quantity out of range"
+    },
+    "ack": {
+      "yes": "Acknowledged",
+      "no": "Declined or cannot supply",
+      "unclear": "Unclear"
+    },
+    "settings": {
+      "title": "Follow-up cadence (business days, Japan time)",
+      "ack_days": "After the order email, before asking for acknowledgement",
+      "delivery_date_days": "After the order email, before asking for a delivery date",
+      "overdue_days": "After the expected date, before asking about delivery",
+      "invoice_days": "After delivery, before asking for the invoice",
+      "repeat_days": "Between follow-ups",
+      "max_attempts": "Follow-ups at most"
+    }
   }
 }
