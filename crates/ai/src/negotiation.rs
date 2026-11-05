@@ -14,6 +14,7 @@ use serde_json::{Value, json};
 
 use crate::extract::{Outcome, fence_text, numbers_present, run_capability};
 use crate::provider::{AiError, ModelCall, Provider};
+use crate::reply::suspicious_text;
 
 pub const NEGOTIATION_BRIEF: &str = "negotiation_brief";
 pub const PROMPT_VERSION: &str = "negotiation_brief/v1";
@@ -38,7 +39,7 @@ pub struct BriefSuggestion {
     pub arguments: Vec<String>,
     /// Suggested target for the quoted lines' total (minor units), never above it.
     pub target_price_minor: Option<i64>,
-    /// `number_not_in_facts`, `not_japanese`.
+    /// `number_not_in_facts`, `not_japanese`, `suspicious_instructions`.
     pub flags: Vec<String>,
     pub needs_review: bool,
 }
@@ -200,6 +201,11 @@ fn validate(text: &str, facts: &str, quoted_total_minor: i64) -> Result<BriefSug
     }
     if !all_text.iter().all(|t| mostly_japanese(t)) {
         flags.push("not_japanese".to_string());
+    }
+    // Facts may carry text typed by suppliers; a narrative that asks the buyer to approve,
+    // pay or change bank details is an injection that got through, never advice.
+    if all_text.iter().any(|t| suspicious_text(t)) {
+        flags.push("suspicious_instructions".to_string());
     }
     Ok(BriefSuggestion {
         summary,

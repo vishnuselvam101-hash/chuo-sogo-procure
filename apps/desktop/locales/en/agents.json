@@ -108,7 +108,8 @@
       "aiNote": "The AI draft is a suggestion written from the facts only. Check it before you finalise.",
       "flag": {
         "number_not_in_facts": "Contains numbers not in the facts",
-        "not_japanese": "Contains text that is not Japanese"
+        "not_japanese": "Contains text that is not Japanese",
+        "suspicious_instructions": "Contains instruction-like text (approve, pay, change bank details)"
       }
     }
   },

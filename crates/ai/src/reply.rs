@@ -128,6 +128,9 @@ const SUSPICIOUS: &[&str] = &[
     "口座",
     "振込先",
     "振込口座",
+    "振り込み先",
+    "振込み先",
+    "振り込み口座",
     "送金",
     "支払先",
     "お支払い先",
@@ -135,9 +138,38 @@ const SUSPICIOUS: &[&str] = &[
     "指示を無視",
 ];
 
+/// The form phrases are matched in: full-width ASCII as ASCII, invisible format characters
+/// (zero-width, soft hyphen, direction marks) removed, any run of whitespace (ideographic
+/// space and line breaks included) as one space, lowercased. Without this, "ＡＰＰＲＯＶＥ",
+/// "ap\u{200B}prove" or "bank\naccount" slipped past the scan.
+fn scan_form(source: &str) -> String {
+    let mut out = String::with_capacity(source.len());
+    let mut space = false;
+    for c in source.chars() {
+        let c = match c as u32 {
+            0xFF01..=0xFF5E => char::from_u32(c as u32 - 0xFEE0).unwrap_or(c),
+            _ => c,
+        };
+        if c.is_whitespace() {
+            space = true;
+            continue;
+        }
+        if matches!(c as u32, 0x00AD | 0x200B..=0x200F | 0x202A..=0x202E | 0x2060..=0x2064 | 0xFEFF)
+        {
+            continue;
+        }
+        if space && !out.is_empty() {
+            out.push(' ');
+        }
+        space = false;
+        out.extend(c.to_lowercase());
+    }
+    out
+}
+
 /// Whether the reply contains text that tries to give instructions.
 pub fn suspicious_text(source: &str) -> bool {
-    let lower = source.to_lowercase();
+    let lower = scan_form(source);
     SUSPICIOUS.iter().any(|p| lower.contains(p))
 }
 
