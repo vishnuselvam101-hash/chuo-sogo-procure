@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { components } from "../lib/api-schema";
-import { formatDate, formatDateTime, minorToInput, parseMinor } from "../lib/format";
+import { bpsToPercent, formatDate, formatDateTime, minorToInput, parseMinor } from "../lib/format";
 import { P } from "../lib/perm";
 import type { MembershipView } from "../lib/types";
 import { useAction } from "../lib/useAction";
 import { useApi } from "../lib/useApi";
 import { ErrorText, Money, StatusBadge } from "../components/ui";
 import { OrderEmail } from "./OrderEmail";
+import { InvoiceExtract, type InvoiceSuggestion } from "./InvoiceExtract";
 
 type OrderDetail = components["schemas"]["OrderDetail"];
 const ROUNDINGS = ["floor", "half_up", "ceil"];
@@ -211,6 +212,32 @@ function OrderDetails({
       refresh();
   }
 
+  /** An AI reading of the invoice only pre-fills the form; a person checks and records it. */
+  function fillFromSuggestion(s: InvoiceSuggestion) {
+    const lines = { ...invoiceForm.lines };
+    for (const l of s.lines) {
+      if (!l.order_item_id || !(l.order_item_id in lines)) continue;
+      lines[l.order_item_id] = {
+        qty: String(l.quantity),
+        price: minorToInput(l.unit_price_minor, cur),
+        rate:
+          l.tax_rate_bps === null || l.tax_rate_bps === undefined || l.tax_rate_bps === s.tax_rate_bps
+            ? ""
+            : bpsToPercent(l.tax_rate_bps),
+      };
+    }
+    setInv({
+      ...invoiceForm,
+      number: s.supplier_invoice_number,
+      date: s.invoice_date ?? invoiceForm.date,
+      due: s.due_date ?? "",
+      shipping: minorToInput(s.shipping_minor, cur),
+      rate: bpsToPercent(s.tax_rate_bps),
+      tax: minorToInput(s.tax_minor, cur),
+      lines,
+    });
+  }
+
   const setLine = (id: string, patch: Partial<{ qty: string; price: string; rate: string }>) =>
     setInv({
       ...invoiceForm,
@@ -355,6 +382,7 @@ function OrderDetails({
       {status === "delivered" && has(P.manageInvoices) && (
         <div className="stack sub-card">
           <h3>{t("procurement:invoice.record")}</h3>
+          <InvoiceExtract orgId={active.org_id} orderId={o.id} onSuggestion={fillFromSuggestion} />
           <div className="row">
             <label>
               {t("procurement:invoice.number")}

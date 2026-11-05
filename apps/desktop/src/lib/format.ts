@@ -111,3 +111,16 @@ export function formatDate(iso: string, lang: string): string {
     new Date(`${iso}T00:00:00Z`),
   );
 }
+
+/**
+ * A plain non-negative decimal ("0.25", "1,200.5") scaled to an integer with `digits`
+ * decimals (0.25 with 3 → 250), exactly; null if it has more decimals or is not a number.
+ */
+export function parseScaled(input: string, digits: number): number | null {
+  const m = /^(\d+)(?:\.(\d*))?$/.exec(input.trim().replace(/[,\s]/g, ""));
+  if (!m?.[1]) return null;
+  const frac = m[2] ?? "";
+  if (frac.length > digits) return null;
+  const v = BigInt(m[1]) * 10n ** BigInt(digits) + BigInt(frac.padEnd(digits, "0") || "0");
+  return v > BigInt(Number.MAX_SAFE_INTEGER) ? null : Number(v);
+}

@@ -4,6 +4,7 @@ import { DEFAULT_LANGUAGE, isLanguage, setDocumentLanguage, type LanguageCode } 
 import { useBridge } from "./lib/BridgeContext";
 import { ok } from "./lib/bridge";
 import { navFor, type PageId } from "./lib/nav";
+import { P } from "./lib/perm";
 import type { Me, MembershipView, Prefs, TextSize } from "./lib/types";
 import { applyDisplay, DEFAULT_TEXT_SIZE } from "./lib/display";
 import { Sidebar } from "./components/Sidebar";
@@ -27,12 +28,18 @@ import { Listings } from "./pages/Listings";
 import { Catalogue } from "./pages/Catalogue";
 import { PurchaseHistory } from "./pages/PurchaseHistory";
 import { LocalGate, ModeChoice } from "./pages/LocalMode";
+import { AgentConsole } from "./pages/AgentConsole";
+import { AgentExceptions } from "./pages/AgentExceptions";
+import { CostWork } from "./pages/CostWork";
+import { Integrations } from "./pages/Integrations";
+import { MatchTolerances } from "./pages/MatchTolerances";
 
 const HOME: PageId = "dashboard";
 const PROCUREMENT: PageId = "procurement";
 const ORDERS_STAGE = "orders";
 const FINANCE_STAGE = "finance";
 const HOME_LABEL = "nav.dashboard";
+const EXCEPTIONS: PageId = "exceptions";
 
 /** Stand-in context while the user only has pending invitations. */
 function noOrg(language: LanguageCode): MembershipView {
@@ -218,6 +225,18 @@ export function App() {
     case "approvals":
       body = <Approvals key={active.org_id} active={active} selfId={me.user.id} />;
       break;
+    case "agents":
+      body = <AgentConsole key={active.org_id} active={active} onOpenInbox={() => setPage(EXCEPTIONS)} />;
+      break;
+    case "exceptions":
+      body = <AgentExceptions key={active.org_id} active={active} />;
+      break;
+    case "cost":
+      body = <CostWork key={active.org_id} active={active} />;
+      break;
+    case "integrations":
+      body = <Integrations key={active.org_id} active={active} />;
+      break;
     case "members":
       body = <Members active={active} selfId={me.user.id} />;
       break;
@@ -239,6 +258,11 @@ export function App() {
           highContrast={prefs.high_contrast ?? false}
           onDisplay={(size, contrast) => void chooseDisplay(size, contrast)}
           localMode={prefs.mode === "local"}
+          orgSettings={
+            active.org_kind === "customer" && active.permissions.includes(P.viewOrders) ? (
+              <MatchTolerances key={active.org_id} active={active} />
+            ) : undefined
+          }
         />
       );
       break;

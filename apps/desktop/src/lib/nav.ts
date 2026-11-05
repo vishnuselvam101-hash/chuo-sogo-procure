@@ -22,7 +22,11 @@ export type PageId =
   | "organisations"
   | "members"
   | "audit"
-  | "settings";
+  | "settings"
+  | "agents"
+  | "exceptions"
+  | "cost"
+  | "integrations";
 
 export interface NavItem {
   id: PageId;
@@ -66,6 +70,10 @@ export function navFor(m: MembershipView): NavItem[] {
     // unless a build turns it on (VITE_MARKETPLACE=on).
     if (MARKETPLACE && m.access !== "assigned" && has("view_catalogue")) items.push(item("catalogue", true));
     if (has("approve_recommendation") || has("manage_approval_policy")) items.push(item("approvals", true));
+    // Agents: their exceptions wait for a person; the console shows runs and settings.
+    if (has("view_agents")) items.push(item("exceptions", true), item("agents", true));
+    // Should-cost models and negotiation briefs sit next to the price records they use.
+    if (has("manage_purchase_history") || has("view_all_requests")) items.push(item("cost", true));
     if (has("view_orders")) items.push(item("orders", true));
     if (has("view_finance")) items.push(item("invoices", true));
     // Chuo-Sogo's own invoices to this customer (customer members only; staff use the console).
@@ -74,6 +82,9 @@ export function navFor(m: MembershipView): NavItem[] {
     if (has("view_finance") || has("view_all_requests")) items.push(item("savings", true));
     // Electronic transaction records (電子帳簿保存法): quotations, orders, invoices.
     if (has("view_finance") || has("view_all_requests")) items.push(item("records", true));
+    // Files from the factory's own systems: POs, receipts, supplier invoices.
+    if (has("record_orders") || has("receive_goods") || has("manage_invoices"))
+      items.push(item("integrations", true));
     if (has("view_reports")) items.push(item("reports"));
     if (has("manage_org_users")) items.push(item("members", true));
   }

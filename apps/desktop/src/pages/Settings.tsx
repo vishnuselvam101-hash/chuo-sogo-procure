@@ -17,6 +17,8 @@ interface Props {
   onDisplay: (textSize: TextSize, highContrast: boolean) => void;
   /** Standalone mode: show the pack manager. */
   localMode?: boolean;
+  /** Settings of the active organisation (e.g. invoice match tolerances), when the member may see them. */
+  orgSettings?: React.ReactNode;
 }
 
 // Fixed sample values for the preview; display only.
@@ -33,6 +35,7 @@ export function Settings({
   highContrast,
   onDisplay,
   localMode = false,
+  orgSettings,
 }: Props) {
   const { t } = useTranslation();
   const orgDefaultName = LANGUAGES.find((l) => l.code === orgDefault)?.nativeName ?? orgDefault;
@@ -101,6 +104,7 @@ export function Settings({
           <PackManager />
         </fieldset>
       )}
+      {orgSettings}
     </section>
   );
 }

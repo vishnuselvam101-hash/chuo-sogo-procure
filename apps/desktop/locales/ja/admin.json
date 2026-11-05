@@ -21,7 +21,8 @@
     "settings": "設定",
     "billing": "請求",
     "listings": "掲載審査",
-    "shop": "ショップ"
+    "shop": "ショップ",
+    "agents": "エージェント例外"
   },
   "health": {
     "server": "サーバーのバージョン",

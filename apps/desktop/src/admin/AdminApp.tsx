@@ -15,17 +15,21 @@ import { Accounts } from "./Accounts";
 import { Billing } from "./Billing";
 import { Moderation } from "./Moderation";
 import { ShopAdmin } from "./ShopAdmin";
+import { AgentExceptionsAdmin } from "./AgentExceptionsAdmin";
 import { ADMIN_API, PERM, PLATFORM_TZ, type AdminMe } from "./types";
 
 const SESSION_CHECK_MS = 60_000;
 
-export type AdminPage = "overview" | "orgs" | "accounts" | "listings" | "shop" | "billing" | "settings";
+export type AdminPage =
+  "overview" | "orgs" | "accounts" | "agents" | "listings" | "shop" | "billing" | "settings";
 
 /** Sections shown for the administrator's permissions; the server checks each call again. */
 export function adminNav(permissions: string[]): AdminPage[] {
   const pages: AdminPage[] = [];
   if (permissions.includes(PERM.viewHealth)) pages.push("overview");
   if (permissions.includes(PERM.manageOrgs)) pages.push("orgs", "accounts");
+  // Agent exceptions of assigned customers (server: the role must see agents when assigned).
+  if (permissions.includes(PERM.manageSuppliers)) pages.push("agents");
   if (permissions.includes(PERM.moderateListings)) pages.push("listings");
   if (permissions.includes(PERM.manageShop)) pages.push("shop");
   if (permissions.includes(PERM.manageBilling)) pages.push("billing");
@@ -119,6 +123,7 @@ export function AdminApp() {
     );
   else if (current === "orgs") body = <Orgs canCreate onOpen={open} />;
   else if (current === "billing") body = <Billing />;
+  else if (current === "agents") body = <AgentExceptionsAdmin />;
   else if (current === "listings") body = <Moderation />;
   else if (current === "shop") body = <ShopAdmin />;
   else if (current === "overview") body = <Overview onOpenOrg={open} />;
