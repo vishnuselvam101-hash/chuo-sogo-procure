@@ -324,6 +324,22 @@ export interface paths {
     patch: operations["admin_update_org"];
     trace?: never;
   };
+  "/api/admin/v1/orgs/{org_id}/agents/auto-send": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["admin_get_agent_auto_send"];
+    put: operations["admin_put_agent_auto_send"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/admin/v1/orgs/{org_id}/assignments": {
     parameters: {
       query?: never;
@@ -3334,6 +3350,14 @@ export interface components {
       trigger: string;
     };
     AgentSettings: {
+      /** @description Staff confirmed the request (two-party rule). Requested but not confirmed = pending. */
+      auto_send_confirmed: boolean;
+      /** Format: date-time */
+      auto_send_confirmed_at?: string | null;
+      /**
+       * @description The customer's request for automatic supplier mail. It takes effect only once
+       *     Chuo-Sogo staff confirmed it (`auto_send_confirmed`).
+       */
       auto_send_supplier_mail: boolean;
       enabled: boolean;
       /** Format: int32 */
@@ -3496,6 +3520,16 @@ export interface components {
       request_id?: string | null;
       /** Format: int64 */
       seq: number;
+    };
+    AutoSendState: {
+      /** @description Chuo-Sogo staff confirmed it; automatic mail runs only while both are set. */
+      confirmed: boolean;
+      /** Format: date-time */
+      confirmed_at?: string | null;
+      /** Format: uuid */
+      confirmed_by?: string | null;
+      /** @description The customer's admin requested automatic supplier mail. */
+      requested: boolean;
     };
     BaselineView: {
       /** Format: date-time */
@@ -3944,6 +3978,12 @@ export interface components {
       action?: Record<string, never> | null;
       /** @description `approve` | `edit` | `reject` */
       decision: string;
+      /**
+       * Format: date-time
+       * @description The `updated_at` of the exception as the decider saw it. An exception an agent
+       *     refreshed since then (new proposal) is refused with 409 `exception_changed`.
+       */
+      expected_updated_at?: string | null;
       note?: string | null;
     };
     DecisionBody: {
@@ -5324,13 +5364,16 @@ export interface components {
       decimal_separator?: string;
       /**
        * Format: int32
-       * @description When the file has no tax-rate column (basis points; default 1000 = 10%).
+       * @description Rate for invoices whose rows carry none (basis points; default 1000 = 10%). `null`:
+       *     no default, so an invoice without a rate is refused.
        */
-      default_tax_rate_bps?: number;
+      default_tax_rate_bps?: number | null;
       /** @description `auto` (default: UTF-8, else Shift_JIS) | `utf-8` | `shift_jis` */
       encoding?: string;
       /** @description `po` | `receipt` | `invoice` */
       kind: string;
+      /** @description How the suppliers round invoice tax: `floor` (default) | `half_up` | `ceil`. */
+      tax_rounding?: string;
       /** @description `,` (default), `.`, ` `, `'` or empty for none */
       thousands_separator?: string;
     };
@@ -5344,13 +5387,19 @@ export interface components {
     };
     PutAgentSettings: {
       /**
-       * @description Supplier mail from approved actions is sent only when this is on and the server's
-       *     live mail is configured; otherwise it stays a test-mode record.
+       * @description Requests automatic supplier mail. Supplier mail from approved actions is sent only
+       *     when this is on, Chuo-Sogo staff confirmed it and the server's live mail is
+       *     configured; otherwise it stays a test-mode record. Changing it clears the
+       *     confirmation.
        */
       auto_send_supplier_mail: boolean;
       enabled: boolean;
       /** Format: int32 */
       monthly_model_call_budget: number;
+    };
+    PutAutoSend: {
+      /** @description `true` confirms the customer's request (it must be on); `false` withdraws it. */
+      confirmed: boolean;
     };
     Queue: {
       /** @description Sent RFQs past their response date with suppliers still silent. */
@@ -6026,6 +6075,11 @@ export interface components {
       tax_minor?: number | null;
       /** Format: int32 */
       tax_rate_bps?: number | null;
+      /**
+       * @description Invoices: the profile's rounding rule (`floor` | `half_up` | `ceil`). Missing only on
+       *     rows staged before it was recorded, which were staged under `floor`.
+       */
+      tax_rounding?: string | null;
     };
     StagedLine: {
       description: string;
@@ -7435,6 +7489,117 @@ export interface operations {
       };
       /** @description Invalid input */
       422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  admin_get_agent_auto_send: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The customer's request and our confirmation */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AutoSendState"];
+        };
+      };
+      /** @description No valid admin session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown organisation */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  admin_put_agent_auto_send: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["PutAutoSend"];
+      };
+    };
+    responses: {
+      /** @description Confirmed or withdrawn (audited in both organisations) */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AutoSendState"];
+        };
+      };
+      /** @description No valid admin session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown organisation */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description The customer has not requested it (auto_send_not_requested) */
+      409: {
         headers: {
           [name: string]: unknown;
         };
@@ -9715,7 +9880,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorBody"];
         };
       };
-      /** @description Already decided (exception_not_open) */
+      /** @description Already decided (exception_not_open), or changed since the decider saw it (exception_changed) */
       409: {
         headers: {
           [name: string]: unknown;
@@ -9724,7 +9889,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorBody"];
         };
       };
-      /** @description Invalid input */
+      /** @description Invalid input (also: expected_updated_at missing) */
       422: {
         headers: {
           [name: string]: unknown;

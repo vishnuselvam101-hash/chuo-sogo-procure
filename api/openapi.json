@@ -1485,6 +1485,156 @@
         ]
       }
     },
+    "/api/admin/v1/orgs/{org_id}/agents/auto-send": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "operationId": "admin_get_agent_auto_send",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The customer's request and our confirmation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutoSendState"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid admin session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown organisation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "admin"
+        ],
+        "operationId": "admin_put_agent_auto_send",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PutAutoSend"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Confirmed or withdrawn (audited in both organisations)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutoSendState"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid admin session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown organisation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The customer has not requested it (auto_send_not_requested)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/admin/v1/orgs/{org_id}/assignments": {
       "get": {
         "tags": [
@@ -4563,7 +4713,7 @@
             }
           },
           "409": {
-            "description": "Already decided (exception_not_open)",
+            "description": "Already decided (exception_not_open), or changed since the decider saw it (exception_changed)",
             "content": {
               "application/json": {
                 "schema": {
@@ -4573,7 +4723,7 @@
             }
           },
           "422": {
-            "description": "Invalid input",
+            "description": "Invalid input (also: expected_updated_at missing)",
             "content": {
               "application/json": {
                 "schema": {
@@ -20048,11 +20198,24 @@
         "required": [
           "enabled",
           "auto_send_supplier_mail",
+          "auto_send_confirmed",
           "monthly_model_call_budget"
         ],
         "properties": {
+          "auto_send_confirmed": {
+            "type": "boolean",
+            "description": "Staff confirmed the request (two-party rule). Requested but not confirmed = pending."
+          },
+          "auto_send_confirmed_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
           "auto_send_supplier_mail": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "The customer's request for automatic supplier mail. It takes effect only once\nChuo-Sogo staff confirmed it (`auto_send_confirmed`)."
           },
           "enabled": {
             "type": "boolean"
@@ -20528,6 +20691,37 @@
           "seq": {
             "type": "integer",
             "format": "int64"
+          }
+        }
+      },
+      "AutoSendState": {
+        "type": "object",
+        "required": [
+          "requested",
+          "confirmed"
+        ],
+        "properties": {
+          "confirmed": {
+            "type": "boolean",
+            "description": "Chuo-Sogo staff confirmed it; automatic mail runs only while both are set."
+          },
+          "confirmed_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "confirmed_by": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "requested": {
+            "type": "boolean",
+            "description": "The customer's admin requested automatic supplier mail."
           }
         }
       },
@@ -21804,6 +21998,14 @@
           "decision": {
             "type": "string",
             "description": "`approve` | `edit` | `reject`"
+          },
+          "expected_updated_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "The `updated_at` of the exception as the decider saw it. An exception an agent\nrefreshed since then (new proposal) is refused with 409 `exception_changed`."
           },
           "note": {
             "type": [
@@ -25796,9 +25998,12 @@
             "description": "`.` (default) or `,`"
           },
           "default_tax_rate_bps": {
-            "type": "integer",
+            "type": [
+              "integer",
+              "null"
+            ],
             "format": "int32",
-            "description": "When the file has no tax-rate column (basis points; default 1000 = 10%).",
+            "description": "Rate for invoices whose rows carry none (basis points; default 1000 = 10%). `null`:\nno default, so an invoice without a rate is refused.",
             "minimum": 0
           },
           "encoding": {
@@ -25808,6 +26013,10 @@
           "kind": {
             "type": "string",
             "description": "`po` | `receipt` | `invoice`"
+          },
+          "tax_rounding": {
+            "type": "string",
+            "description": "How the suppliers round invoice tax: `floor` (default) | `half_up` | `ceil`."
           },
           "thousands_separator": {
             "type": "string",
@@ -25852,7 +26061,7 @@
         "properties": {
           "auto_send_supplier_mail": {
             "type": "boolean",
-            "description": "Supplier mail from approved actions is sent only when this is on and the server's\nlive mail is configured; otherwise it stays a test-mode record."
+            "description": "Requests automatic supplier mail. Supplier mail from approved actions is sent only\nwhen this is on, Chuo-Sogo staff confirmed it and the server's live mail is\nconfigured; otherwise it stays a test-mode record. Changing it clears the\nconfirmation."
           },
           "enabled": {
             "type": "boolean"
@@ -25860,6 +26069,18 @@
           "monthly_model_call_budget": {
             "type": "integer",
             "format": "int32"
+          }
+        }
+      },
+      "PutAutoSend": {
+        "type": "object",
+        "required": [
+          "confirmed"
+        ],
+        "properties": {
+          "confirmed": {
+            "type": "boolean",
+            "description": "`true` confirms the customer's request (it must be on); `false` withdraws it."
           }
         }
       },
@@ -27922,6 +28143,13 @@
             ],
             "format": "int32",
             "minimum": 0
+          },
+          "tax_rounding": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Invoices: the profile's rounding rule (`floor` | `half_up` | `ceil`). Missing only on\nrows staged before it was recorded, which were staged under `floor`."
           }
         }
       },

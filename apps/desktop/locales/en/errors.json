@@ -194,7 +194,13 @@
     "encoding": "The file is not in the chosen character encoding.",
     "profile_kind": "These column settings are for another kind of data.",
     "import_not_previewed": "This file has already been imported or discarded.",
-    "unknown_agent": "Unknown agent."
+    "unknown_agent": "Unknown agent.",
+    "exception_changed": "This finding was updated after you opened it. Review the latest version, then decide.",
+    "expected_updated_at": "Reload the page, then decide.",
+    "auto_send_not_requested": "The customer has not requested automatic sending.",
+    "document_id": "Choose a document from this order's supplier.",
+    "order_id": "Choose an open order of this organisation.",
+    "tax_rate": "No tax rate. Add a tax-rate column to the file or set a default rate in the profile."
   },
   "payload_too_large": "The file or request is too large.",
   "invalid_file_name": "This file name cannot be used.",

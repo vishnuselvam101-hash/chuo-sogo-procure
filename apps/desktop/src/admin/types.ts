@@ -6,6 +6,7 @@ type Schemas = components["schemas"];
 export type AdminMe = Schemas["AdminMe"];
 export type OrgOverview = Schemas["OrgOverview"];
 export type OrgSettings = Schemas["OrgSettings"];
+export type AutoSendState = Schemas["AutoSendState"];
 export type AccountView = Schemas["AccountView"];
 export type AssignmentView = Schemas["AssignmentView"];
 export type SystemHealth = Schemas["SystemHealth"];

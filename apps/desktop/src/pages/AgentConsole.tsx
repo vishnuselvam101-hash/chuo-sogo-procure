@@ -266,6 +266,13 @@ function SettingsPanel({
         <p className="notice small" role={f.auto ? "alert" : undefined}>
           {t("agents:ui.settings.autoSendWarning")}
         </p>
+        {data.auto_send_supplier_mail && (
+          <p className="small" data-testid="auto-send-state">
+            {data.auto_send_confirmed
+              ? t("agents:ui.settings.autoSendConfirmed")
+              : t("agents:ui.settings.autoSendPending")}
+          </p>
+        )}
         <label>
           {t("agents:ui.settings.budget")}
           <input

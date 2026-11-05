@@ -191,6 +191,9 @@ export function ExceptionDetail({
       decision,
       action: decision === "edit" ? draft : null,
       note: note.trim() || null,
+      // The version shown here: if an agent refreshed the proposal meanwhile, the server
+      // refuses with exception_changed instead of acting on something not seen.
+      expected_updated_at: ex.updated_at,
     });
     if (res) onDecided?.();
   }

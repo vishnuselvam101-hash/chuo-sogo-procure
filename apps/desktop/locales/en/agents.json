@@ -343,7 +343,9 @@
       "budget": "Monthly AI call budget",
       "budgetHint": "When the month's calls reach this number, agents that need AI pause until next month.",
       "updated": "Last changed {{at}}",
-      "saved": "Saved."
+      "saved": "Saved.",
+      "autoSendPending": "Requested — pending staff confirmation. Nothing is sent automatically until Chuo-Sogo staff confirm it.",
+      "autoSendConfirmed": "Confirmed by Chuo-Sogo staff."
     },
     "inbox": {
       "lead": "Findings and proposals from the agents. Check each one and approve, edit or reject it; only then is anything carried out.",

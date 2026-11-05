@@ -125,5 +125,11 @@
   "accountKind": {
     "internal": "Chuo-Sogo staff",
     "customer": "Customer"
+  },
+  "autoSend": {
+    "confirm": "Confirm automatic supplier email (Chuo-Sogo side)",
+    "requested": "The customer's administrator has requested automatic sending.",
+    "notRequested": "The customer has not requested automatic sending.",
+    "hint": "Automatic sending works only while both the customer's request and our staff's confirmation are in place. Every change is recorded in both audit logs."
   }
 }

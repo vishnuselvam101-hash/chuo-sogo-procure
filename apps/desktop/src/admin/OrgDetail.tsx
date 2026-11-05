@@ -14,6 +14,7 @@ import {
   STATE,
   type AccountView,
   type AssignmentView,
+  type AutoSendState,
   type OrgOverview,
   type OrgSettings,
 } from "./types";
@@ -27,7 +28,47 @@ function Rules({ orgId }: { orgId: string }) {
   const path = `${ADMIN_API}/orgs/${orgId}/settings`;
   const { data, error } = useApi<OrgSettings>(path);
   if (!data) return <Loading data={data} error={error} />;
-  return <RulesForm path={path} initial={data} />;
+  return (
+    <>
+      <RulesForm path={path} initial={data} />
+      <AutoSendConfirmation orgId={orgId} />
+    </>
+  );
+}
+
+/**
+ * Automatic supplier mail is two-party: the customer's admin requests it in the app, our
+ * staff confirm it here. The server enforces it; this only shows and toggles the confirmation.
+ */
+function AutoSendConfirmation({ orgId }: { orgId: string }) {
+  const { t } = useTranslation();
+  const path = `${ADMIN_API}/orgs/${orgId}/agents/auto-send`;
+  const { data, error, reload } = useApi<AutoSendState>(path);
+  const { run, busy, error: saveError } = useAction();
+  if (!data) return <Loading data={data} error={error} />;
+
+  async function toggle(confirmed: boolean) {
+    if (await run("PUT", path, { confirmed })) reload();
+  }
+
+  return (
+    <div className="card stack" data-testid="auto-send-confirmation">
+      <label className="checkbox">
+        <input
+          type="checkbox"
+          checked={data.confirmed}
+          disabled={busy || (!data.requested && !data.confirmed)}
+          onChange={(e) => void toggle(e.target.checked)}
+        />
+        {t("admin:autoSend.confirm")}
+      </label>
+      <p className="muted small">
+        {data.requested ? t("admin:autoSend.requested") : t("admin:autoSend.notRequested")}
+      </p>
+      <p className="muted small">{t("admin:autoSend.hint")}</p>
+      <ErrorText code={saveError} />
+    </div>
+  );
 }
 
 function RulesForm({ path, initial }: { path: string; initial: OrgSettings }) {
