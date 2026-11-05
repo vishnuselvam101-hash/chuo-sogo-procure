@@ -5,6 +5,7 @@ pub mod agents;
 pub mod aliases;
 pub mod approval;
 pub mod comparison;
+pub mod connector;
 pub mod decision;
 pub mod history;
 pub mod invoicing;

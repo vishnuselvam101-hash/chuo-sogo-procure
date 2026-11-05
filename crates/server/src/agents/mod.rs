@@ -9,6 +9,7 @@
 //! - [`worker`]: the background loop that claims and runs queued work and schedules sweeps.
 
 pub mod exceptions;
+pub mod import;
 pub mod queue;
 pub mod worker;
 
@@ -35,7 +36,7 @@ pub use queue::{AgentRun, enqueue};
 /// `Arc::new(matching::Matching),`. Test agents are never listed here; tests put their own
 /// registry into `AppState::agents`.
 pub fn registry() -> Vec<Arc<dyn Agent>> {
-    vec![]
+    vec![Arc::new(import::Import)]
 }
 
 /// The agent called `name` in this server's registry.

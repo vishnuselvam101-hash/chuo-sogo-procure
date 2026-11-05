@@ -6812,6 +6812,797 @@
         ]
       }
     },
+    "/api/v1/orgs/{org_id}/integrations/exports/agent-results.csv": {
+      "get": {
+        "tags": [
+          "integrations"
+        ],
+        "operationId": "integrations_export_agent_results",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "agent",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "description": "`open` | `approved` | `edited` | `rejected` | `resolved_elsewhere` (default: all)",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Agent exceptions with their decisions as CSV (text/csv, UTF-8 with BOM; formula-like cells quoted)"
+          },
+          "400": {
+            "description": "Invalid status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown or unrelated organisation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/orgs/{org_id}/integrations/imports": {
+      "get": {
+        "tags": [
+          "integrations"
+        ],
+        "operationId": "integrations_list_imports",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "description": "`po` | `receipt` | `invoice`",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "At most 200 (default 50), newest first.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Batches, newest first (without staged records)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ImportBatchView"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown or unrelated organisation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid kind",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "integrations"
+        ],
+        "operationId": "integrations_upload",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportUpload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "File read into a batch (preview); nothing else changed. Rows that could not be read are listed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportBatchView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not permitted for this kind of record",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown or unrelated organisation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The same file was already imported (duplicate_file)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unsupported, empty or oversized file, wrong encoding, no header, or invalid profile",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/orgs/{org_id}/integrations/imports/{batch_id}": {
+      "get": {
+        "tags": [
+          "integrations"
+        ],
+        "operationId": "integrations_get_import",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "batch_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The batch with every staged record",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportBatchView"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown organisation or batch",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/orgs/{org_id}/integrations/imports/{batch_id}/apply": {
+      "post": {
+        "tags": [
+          "integrations"
+        ],
+        "operationId": "integrations_apply",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "batch_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Every record written through the manual-entry path, all or nothing",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplyResult"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not permitted for this kind of record",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown organisation or batch",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Already applied or failed, or a record's order is not in the right state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "A record refers to an unknown request, order or item, or is invalid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/orgs/{org_id}/integrations/imports/{batch_id}/discard": {
+      "post": {
+        "tags": [
+          "integrations"
+        ],
+        "operationId": "integrations_discard",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "batch_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Batch discarded (failed); the same file may be uploaded again",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportBatchView"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown organisation or batch",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Already applied or failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/orgs/{org_id}/integrations/profiles": {
+      "get": {
+        "tags": [
+          "integrations"
+        ],
+        "operationId": "integrations_list_profiles",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Built-in presets, then the organisation's saved profiles",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ProfileView"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown or unrelated organisation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/orgs/{org_id}/integrations/profiles/{name}": {
+      "put": {
+        "tags": [
+          "integrations"
+        ],
+        "operationId": "integrations_put_profile",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileConfig"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Profile saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not permitted for this kind of record",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown or unrelated organisation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The name of a built-in preset (preset_name)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid profile",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "integrations"
+        ],
+        "operationId": "integrations_delete_profile",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Profile removed (past batches keep the settings they used)"
+          },
+          "401": {
+            "description": "No valid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown organisation or profile",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/orgs/{org_id}/item-aliases": {
       "get": {
         "tags": [
@@ -17588,6 +18379,57 @@
           }
         }
       },
+      "AppliedRecord": {
+        "type": "object",
+        "required": [
+          "seq",
+          "po_number",
+          "entity_type",
+          "entity_id"
+        ],
+        "properties": {
+          "entity_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "entity_type": {
+            "type": "string",
+            "description": "`purchase_order` | `delivery` | `invoice`"
+          },
+          "match_status": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Invoices: `matched` or `disputed` (the same three-way match as manual entry)."
+          },
+          "po_number": {
+            "type": "string"
+          },
+          "seq": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "ApplyResult": {
+        "type": "object",
+        "required": [
+          "batch",
+          "applied"
+        ],
+        "properties": {
+          "applied": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AppliedRecord"
+            }
+          },
+          "batch": {
+            "$ref": "#/components/schemas/ImportBatchView"
+          }
+        }
+      },
       "AssignBody": {
         "type": "object",
         "required": [
@@ -17908,6 +18750,22 @@
             "description": "6-digit code from the authenticator app."
           },
           "token": {
+            "type": "string"
+          }
+        }
+      },
+      "ColumnMap": {
+        "type": "object",
+        "required": [
+          "source",
+          "field"
+        ],
+        "properties": {
+          "field": {
+            "type": "string",
+            "description": "A field code (`po_number`, `request_number`, `order_date`, `received_date`,\n`invoice_number`, `invoice_date`, `due_date`, `line_no`, `mpn`, `description`,\n`quantity`, `unit_price`, `line_amount`, `currency`, `tax_rate`, `tax_amount`,\n`shipping`, `note`)."
+          },
+          "source": {
             "type": "string"
           }
         }
@@ -19373,6 +20231,115 @@
           }
         }
       },
+      "ImportBatchView": {
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "file_name",
+          "file_sha256",
+          "profile",
+          "currency",
+          "mapping",
+          "status",
+          "data_rows",
+          "records",
+          "error_rows",
+          "errors",
+          "created_by",
+          "created_at",
+          "staged"
+        ],
+        "properties": {
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "created_by": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "data_rows": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "decided_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "decided_by": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "error_rows": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RowErrorView"
+            }
+          },
+          "failure_code": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Why it failed: `nothing_to_import` or `discarded`."
+          },
+          "file_name": {
+            "type": "string"
+          },
+          "file_sha256": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "mapping": {
+            "type": "array",
+            "items": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "description": "Field code of each column (`null` = ignored)."
+          },
+          "profile": {
+            "type": "string"
+          },
+          "records": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "staged": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Staged"
+            },
+            "description": "Staged records (an upload's preview shows the first 100)."
+          },
+          "status": {
+            "type": "string",
+            "description": "`previewed` | `applied` | `failed`"
+          }
+        }
+      },
       "ImportBody": {
         "type": "object",
         "required": [
@@ -19466,6 +20433,53 @@
             "items": {
               "$ref": "#/components/schemas/SkippedRow"
             }
+          }
+        }
+      },
+      "ImportUpload": {
+        "type": "object",
+        "required": [
+          "kind",
+          "file_name",
+          "data_base64"
+        ],
+        "properties": {
+          "config": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ProfileConfig",
+                "description": "Settings for this file only (overrides `profile`'s)."
+              }
+            ]
+          },
+          "currency": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "For records without a currency column (default JPY)."
+          },
+          "data_base64": {
+            "type": "string",
+            "description": "File content, standard base64 (at most 10 MB)."
+          },
+          "file_name": {
+            "type": "string",
+            "description": "`.csv`, `.tsv`, `.txt` (UTF-8 or Shift_JIS) or `.xlsx`."
+          },
+          "kind": {
+            "type": "string",
+            "description": "`po` | `receipt` | `invoice`"
+          },
+          "profile": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A built-in preset or a saved profile (default: headers detected)."
           }
         }
       },
@@ -21960,6 +22974,75 @@
           }
         }
       },
+      "ProfileConfig": {
+        "type": "object",
+        "description": "A profile as stored and sent over the API.",
+        "required": [
+          "kind"
+        ],
+        "properties": {
+          "columns": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ColumnMap"
+            },
+            "description": "Source column header → field code. Columns not listed are recognised by header."
+          },
+          "date_format": {
+            "type": "string",
+            "description": "`auto` (default) | `ymd` | `dmy` | `mdy`"
+          },
+          "decimal_separator": {
+            "type": "string",
+            "description": "`.` (default) or `,`"
+          },
+          "default_tax_rate_bps": {
+            "type": "integer",
+            "format": "int32",
+            "description": "When the file has no tax-rate column (basis points; default 1000 = 10%).",
+            "minimum": 0
+          },
+          "encoding": {
+            "type": "string",
+            "description": "`auto` (default: UTF-8, else Shift_JIS) | `utf-8` | `shift_jis`"
+          },
+          "kind": {
+            "type": "string",
+            "description": "`po` | `receipt` | `invoice`"
+          },
+          "thousands_separator": {
+            "type": "string",
+            "description": "`,` (default), `.`, ` `, `'` or empty for none"
+          }
+        }
+      },
+      "ProfileView": {
+        "type": "object",
+        "required": [
+          "name",
+          "builtin",
+          "config"
+        ],
+        "properties": {
+          "builtin": {
+            "type": "boolean",
+            "description": "Built-in generic preset (read-only)."
+          },
+          "config": {
+            "$ref": "#/components/schemas/ProfileConfig"
+          },
+          "name": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
       "PutAgentSettings": {
         "type": "object",
         "required": [
@@ -23041,9 +24124,15 @@
           "code": {
             "type": "string"
           },
+          "field": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "row": {
             "type": "integer",
-            "description": "1-based row number in the file, as the spreadsheet shows it.",
+            "description": "File row, 1-based as a spreadsheet numbers it (0 = the whole file).",
             "minimum": 0
           }
         }
@@ -23763,6 +24852,133 @@
           },
           "org_name": {
             "type": "string"
+          }
+        }
+      },
+      "Staged": {
+        "type": "object",
+        "description": "One record as staged in `import_rows.record`.",
+        "required": [
+          "kind",
+          "po_number",
+          "currency",
+          "lines",
+          "rows"
+        ],
+        "properties": {
+          "currency": {
+            "type": "string"
+          },
+          "date": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date",
+            "description": "Order, receipt or invoice date."
+          },
+          "due_date": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "invoice_number": {
+            "type": "string",
+            "description": "Invoices: the supplier's invoice number."
+          },
+          "kind": {
+            "type": "string",
+            "description": "`po` | `receipt` | `invoice`"
+          },
+          "lines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StagedLine"
+            }
+          },
+          "note": {
+            "type": "string"
+          },
+          "po_number": {
+            "type": "string"
+          },
+          "request_number": {
+            "type": "string",
+            "description": "Purchase orders: the platform request (`PR-…`) the factory's PO is for."
+          },
+          "rows": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          "shipping_minor": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "tax_minor": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "tax_rate_bps": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
+          }
+        }
+      },
+      "StagedLine": {
+        "type": "object",
+        "required": [
+          "row",
+          "mpn",
+          "description"
+        ],
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "line_no": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
+          },
+          "mpn": {
+            "type": "string"
+          },
+          "quantity": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
+          },
+          "row": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "unit_price_minor": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
           }
         }
       },
