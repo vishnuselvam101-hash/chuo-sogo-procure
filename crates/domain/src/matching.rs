@@ -22,6 +22,14 @@ impl TaxRounding {
             _ => None,
         }
     }
+
+    pub const fn code(self) -> &'static str {
+        match self {
+            TaxRounding::Floor => "floor",
+            TaxRounding::HalfUp => "half_up",
+            TaxRounding::Ceil => "ceil",
+        }
+    }
 }
 
 /// `base × rate_bps / 10 000`, rounded once, in integer arithmetic.

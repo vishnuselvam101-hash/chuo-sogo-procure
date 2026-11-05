@@ -322,7 +322,14 @@ impl Flow {
                     ex["id"].as_str().unwrap()
                 )),
                 token,
-                decision,
+                seen(
+                    &self.w.app,
+                    self.w.org_a,
+                    token,
+                    ex["id"].as_str().unwrap(),
+                    decision,
+                )
+                .await,
             )
             .await
     }
@@ -1038,4 +1045,146 @@ async fn saved_profiles_map_an_erps_own_headers(pool: PgPool) {
     assert_eq!(r.status, StatusCode::NO_CONTENT);
     assert_eq!(f.audit("integration.profile_saved").await.len(), 1);
     assert_eq!(f.audit("integration.profile_deleted").await.len(), 1);
+}
+
+/// L9 C2: an imported invoice's tax rate and rounding come from the profile, never from
+/// hard-coded defaults; without a rate in the file or the profile the row is refused.
+#[sqlx::test(migrator = "procure_server::MIGRATOR")]
+async fn imported_invoice_tax_rules_come_from_the_profile(pool: PgPool) {
+    let f = Flow::new(pool).await;
+    let a = f.approved().await;
+    for (kind, rows) in [
+        (
+            "po",
+            csv(&[
+                &["PO Number", "Request Number"],
+                &["PO-T", a.number.as_str()],
+            ]),
+        ),
+        (
+            "receipt",
+            csv(&[
+                &["PO Number", "Received Date", "Line", "Qty"],
+                &["PO-T", "2026-10-02", "1", "100"],
+                &["PO-T", "2026-10-02", "2", "4"],
+            ]),
+        ),
+    ] {
+        let r = f.upload(&f.manager, kind, "f.csv", &rows).await;
+        assert_eq!(r.status, StatusCode::CREATED, "{kind}: {:?}", r.body);
+        let id = uuid(&r.body["id"]);
+        let r =
+            f.w.app
+                .post(
+                    &f.url(&format!("integrations/imports/{id}/apply")),
+                    &f.manager,
+                    json!({}),
+                )
+                .await;
+        assert_eq!(r.status, StatusCode::OK, "{kind}: {:?}", r.body);
+    }
+    // An invoice export without a tax-rate column.
+    let file = csv(&[
+        &[
+            "Invoice No",
+            "PO Number",
+            "Invoice Date",
+            "Line",
+            "Qty",
+            "Amount",
+            "Tax",
+            "Shipping",
+        ],
+        &[
+            "I-T",
+            "PO-T",
+            "2026-10-20",
+            "1",
+            "100",
+            "120000",
+            "30200",
+            "2000",
+        ],
+        &[
+            "I-T",
+            "PO-T",
+            "2026-10-20",
+            "2",
+            "4",
+            "180000",
+            "30200",
+            "2000",
+        ],
+    ]);
+    let profile = |default: Value| {
+        json!({ "kind": "invoice",
+                "columns": [ { "source": "Invoice No", "field": "invoice_number" },
+                             { "source": "PO Number", "field": "po_number" },
+                             { "source": "Invoice Date", "field": "invoice_date" },
+                             { "source": "Line", "field": "line_no" },
+                             { "source": "Qty", "field": "quantity" },
+                             { "source": "Amount", "field": "line_amount" },
+                             { "source": "Tax", "field": "tax_amount" },
+                             { "source": "Shipping", "field": "shipping" } ],
+                "default_tax_rate_bps": default, "tax_rounding": "half_up" })
+    };
+    let imports = f.url("integrations/imports");
+    let upload = || {
+        f.w.app.post(
+            &imports,
+            &f.finance,
+            json!({ "kind": "invoice", "file_name": "i.csv", "data_base64": b64(&file),
+                    "profile": "erp_invoice" }),
+        )
+    };
+    // No default rate: the rows are refused, nothing guessed.
+    let r =
+        f.w.app
+            .put(
+                &f.url("integrations/profiles/erp_invoice"),
+                &f.finance,
+                profile(Value::Null),
+            )
+            .await;
+    assert_eq!(r.status, StatusCode::OK, "{:?}", r.body);
+    let r = upload().await;
+    assert_eq!(r.status, StatusCode::CREATED, "{:?}", r.body);
+    assert_eq!(r.body["records"], 0, "{:?}", r.body);
+    assert!(
+        r.body["errors"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|e| e["field"] == "tax_rate" && e["code"] == "required"),
+        "{:?}",
+        r.body
+    );
+    // With a default: the profile's rate and rounding are recorded on the invoice.
+    let r =
+        f.w.app
+            .put(
+                &f.url("integrations/profiles/erp_invoice"),
+                &f.finance,
+                profile(json!(1000)),
+            )
+            .await;
+    assert_eq!(r.status, StatusCode::OK, "{:?}", r.body);
+    assert_eq!(r.body["config"]["tax_rounding"], "half_up");
+    let r = upload().await;
+    assert_eq!(r.status, StatusCode::CREATED, "{:?}", r.body);
+    assert_eq!(r.body["records"], 1, "{:?}", r.body);
+    assert_eq!(r.body["staged"][0]["tax_rounding"], "half_up");
+    let id = uuid(&r.body["id"]);
+    let r =
+        f.w.app
+            .post(
+                &f.url(&format!("integrations/imports/{id}/apply")),
+                &f.finance,
+                json!({}),
+            )
+            .await;
+    assert_eq!(r.status, StatusCode::OK, "{:?}", r.body);
+    let order = f.ok(f.order(a.request).await);
+    assert_eq!(order["invoice"]["tax_rounding"], "half_up", "{order:?}");
+    assert_eq!(order["invoice"]["tax_rate_bps"], 1000);
 }

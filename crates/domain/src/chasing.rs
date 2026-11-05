@@ -183,6 +183,15 @@ fn clock(t: ChaseType, f: &OrderFacts, c: &Cadence) -> Option<(NaiveDate, i32)> 
     }
 }
 
+/// Supplier replies read per order (one supplier) in any 24 hours; more are refused so a
+/// flood of messages cannot spend the organisation's model budget.
+pub const MAX_REPLY_READINGS_PER_DAY: i64 = 5;
+
+/// Whether one more reply may be read after `recent` readings in the last 24 hours.
+pub fn reply_within_daily_limit(recent: i64) -> bool {
+    recent < MAX_REPLY_READINGS_PER_DAY
+}
+
 /// Whether a follow-up of type `t` is due at `now`.
 pub fn due(t: ChaseType, f: &OrderFacts, h: &History, c: &Cadence, now: DateTime<Utc>) -> Due {
     let Some((start, days)) = clock(t, f, c) else {

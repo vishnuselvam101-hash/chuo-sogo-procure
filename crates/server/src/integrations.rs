@@ -10,6 +10,7 @@ use procure_domain::connector::{
     self as conn, DateFormat, Field, ImportKind, Profile, Record, RowError, TextEncoding,
 };
 use procure_domain::history::Day;
+use procure_domain::matching::TaxRounding;
 use procure_domain::money::Currency;
 use serde::{Deserialize, Serialize};
 
@@ -203,9 +204,13 @@ pub struct ProfileConfig {
     /// `auto` (default: UTF-8, else Shift_JIS) | `utf-8` | `shift_jis`
     #[serde(default = "auto")]
     pub encoding: String,
-    /// When the file has no tax-rate column (basis points; default 1000 = 10%).
+    /// Rate for invoices whose rows carry none (basis points; default 1000 = 10%). `null`:
+    /// no default, so an invoice without a rate is refused.
     #[serde(default = "ten_percent")]
-    pub default_tax_rate_bps: u32,
+    pub default_tax_rate_bps: Option<u32>,
+    /// How the suppliers round invoice tax: `floor` (default) | `half_up` | `ceil`.
+    #[serde(default = "floor")]
+    pub tax_rounding: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, utoipa::ToSchema)]
@@ -227,8 +232,11 @@ fn dot() -> String {
 fn comma() -> String {
     ",".into()
 }
-fn ten_percent() -> u32 {
-    1000
+fn ten_percent() -> Option<u32> {
+    Some(1000)
+}
+fn floor() -> String {
+    "floor".into()
 }
 
 fn one_char(s: &str) -> Option<char> {
@@ -264,6 +272,7 @@ impl ProfileConfig {
             thousands_separator: thousands,
             encoding: TextEncoding::from_code(&self.encoding).ok_or("encoding")?,
             default_tax_rate_bps: self.default_tax_rate_bps,
+            tax_rounding: TaxRounding::from_code(&self.tax_rounding).ok_or("tax_rounding")?,
         };
         p.validate().map_err(|e| e.code())?;
         Ok(p)
@@ -285,6 +294,7 @@ impl ProfileConfig {
             thousands_separator: p.thousands_separator.map(String::from).unwrap_or_default(),
             encoding: p.encoding.code().into(),
             default_tax_rate_bps: p.default_tax_rate_bps,
+            tax_rounding: p.tax_rounding.code().into(),
         }
     }
 }
@@ -306,6 +316,10 @@ pub struct Staged {
     pub due_date: Option<NaiveDate>,
     pub currency: String,
     pub tax_rate_bps: Option<u32>,
+    /// Invoices: the profile's rounding rule (`floor` | `half_up` | `ceil`). Missing only on
+    /// rows staged before it was recorded, which were staged under `floor`.
+    #[serde(default)]
+    pub tax_rounding: Option<String>,
     pub tax_minor: Option<i64>,
     pub shipping_minor: Option<i64>,
     #[serde(default)]
@@ -356,6 +370,7 @@ impl Staged {
             due_date: None,
             currency: String::new(),
             tax_rate_bps: None,
+            tax_rounding: None,
             tax_minor: None,
             shipping_minor: None,
             note: String::new(),
@@ -383,6 +398,7 @@ impl Staged {
                 due_date: p.due_date.and_then(date),
                 currency: p.currency.code().into(),
                 tax_rate_bps: Some(p.tax_rate_bps),
+                tax_rounding: Some(p.tax_rounding.code().into()),
                 tax_minor: Some(p.tax_minor),
                 shipping_minor: Some(p.shipping_minor),
                 ..base

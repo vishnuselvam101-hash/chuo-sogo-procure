@@ -213,6 +213,10 @@ pub async fn resolve_elsewhere(
 /// `agent.exception_decided`; for approve/edit, then executes the action through the
 /// agent's `apply` in the same transaction, so a refused action undoes the decision too.
 /// An edit may change the action's details, never its type.
+///
+/// `expected_updated_at` is the exception's `updated_at` as the decider saw it: an agent
+/// may refresh an open exception (a new proposal) at any time, and a decision is only valid
+/// for what the person actually looked at (409 `exception_changed` otherwise).
 pub async fn decide(
     tx: &mut Tx,
     actor: &Actor<'_>,
@@ -220,6 +224,7 @@ pub async fn decide(
     id: Uuid,
     decision: Decision<Value>,
     note: &str,
+    expected_updated_at: Option<DateTime<Utc>>,
 ) -> ApiResult<AgentException> {
     let ex = sqlx::query_as::<_, AgentException>(&format!(
         "SELECT {EXCEPTION_COLUMNS} FROM agent_exceptions WHERE id = $1 AND org_id = $2
@@ -233,6 +238,10 @@ pub async fn decide(
     let from = ExceptionStatus::from_code(&ex.status)
         .ok_or_else(|| ApiError::internal(std::io::Error::other("unknown exception status")))?;
     rules::close(from, decision.outcome()).map_err(|_| ApiError::Conflict("exception_not_open"))?;
+    let seen = expected_updated_at.ok_or(ApiError::Validation("expected_updated_at"))?;
+    if seen != ex.updated_at {
+        return Err(ApiError::Conflict("exception_changed"));
+    }
     let action = match &decision {
         Decision::Reject => None,
         Decision::Approve => ex.proposed_action.clone(),

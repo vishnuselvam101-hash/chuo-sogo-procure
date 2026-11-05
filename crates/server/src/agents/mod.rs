@@ -55,13 +55,29 @@ pub fn find(state: &AppState, name: &str) -> Option<Arc<dyn Agent>> {
 }
 
 /// What a finished run produced. `exceptions` are raised in the transaction that marks the
-/// run succeeded. `model_calls` counts calls not made through [`AgentCx::call_model`]
-/// (which counts its own); the run records the larger of the two.
-#[derive(Debug, Default)]
+/// run succeeded. `model_calls` counts calls not made through [`AgentCx::ai`] (which
+/// counts every attempt itself); the run records the larger of the two.
+///
+/// `tx`: an open transaction of the run (in its organisation's context) holding writes that
+/// must commit together with the outcome (e.g. reminders queued in the outbox). The worker
+/// raises the exceptions and ends the run in it; if that fails, the writes roll back too.
+#[derive(Default)]
 pub struct Outcome {
     pub output: Value,
     pub exceptions: Vec<NewException>,
     pub model_calls: i32,
+    pub tx: Option<Tx>,
+}
+
+impl std::fmt::Debug for Outcome {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Outcome")
+            .field("output", &self.output)
+            .field("exceptions", &self.exceptions)
+            .field("model_calls", &self.model_calls)
+            .field("tx", &self.tx.is_some())
+            .finish()
+    }
 }
 
 impl Outcome {
@@ -159,23 +175,50 @@ pub trait Agent: Send + Sync {
 /// What a run may use: the database, the AI provider, the organisation it runs for.
 pub struct AgentCx {
     pub pool: PgPool,
+    /// The server's provider, wrapped so that every attempted call (retries and failures
+    /// included) counts against the organisation's monthly budget.
     pub ai: Arc<dyn Provider>,
     pub org_id: Uuid,
     pub run_id: Uuid,
     /// The whole application state (e.g. `supplier_mail`, `ai_permits`).
     pub state: AppState,
-    model_calls: AtomicI32,
+    model_calls: Arc<AtomicI32>,
+}
+
+/// Counts every call that reaches the provider, whatever its result.
+struct Counting {
+    inner: Arc<dyn Provider>,
+    calls: Arc<AtomicI32>,
+}
+
+impl Provider for Counting {
+    fn name(&self) -> &str {
+        self.inner.name()
+    }
+
+    fn model(&self) -> &str {
+        self.inner.model()
+    }
+
+    fn complete<'a>(&'a self, call: &'a ModelCall) -> BoxFuture<'a, Result<String, AiError>> {
+        self.calls.fetch_add(1, Ordering::Relaxed);
+        self.inner.complete(call)
+    }
 }
 
 impl AgentCx {
     pub fn new(state: &AppState, org_id: Uuid, run_id: Uuid) -> Self {
+        let calls = Arc::new(AtomicI32::new(0));
         AgentCx {
             pool: state.pool.clone(),
-            ai: state.ai.clone(),
+            ai: Arc::new(Counting {
+                inner: state.ai.clone(),
+                calls: calls.clone(),
+            }),
             org_id,
             run_id,
             state: state.clone(),
-            model_calls: AtomicI32::new(0),
+            model_calls: calls,
         }
     }
 
@@ -195,7 +238,7 @@ impl AgentCx {
     }
 
     /// One validated model call (bounded by the server's AI permits), counted against the
-    /// organisation's monthly budget.
+    /// organisation's monthly budget (each attempt).
     pub async fn call_model<T>(
         &self,
         call: &ModelCall,
@@ -209,11 +252,10 @@ impl AgentCx {
             .acquire()
             .await
             .map_err(|_| AiError::Unavailable)?;
-        self.model_calls.fetch_add(1, Ordering::Relaxed);
         procure_ai::provider::call_validated(self.ai.as_ref(), call, timeout, retries, parse).await
     }
 
-    /// Model calls made through [`AgentCx::call_model`] so far.
+    /// Model calls attempted through [`AgentCx::ai`] so far (failed ones included).
     pub fn model_calls(&self) -> i32 {
         self.model_calls.load(Ordering::Relaxed)
     }

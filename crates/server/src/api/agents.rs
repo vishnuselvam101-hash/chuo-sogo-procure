@@ -28,7 +28,12 @@ const MAX_BUDGET: i32 = 1_000_000;
 #[derive(Serialize, sqlx::FromRow, utoipa::ToSchema)]
 pub struct AgentSettings {
     pub enabled: bool,
+    /// The customer's request for automatic supplier mail. It takes effect only once
+    /// Chuo-Sogo staff confirmed it (`auto_send_confirmed`).
     pub auto_send_supplier_mail: bool,
+    /// Staff confirmed the request (two-party rule). Requested but not confirmed = pending.
+    pub auto_send_confirmed: bool,
+    pub auto_send_confirmed_at: Option<DateTime<Utc>>,
     pub monthly_model_call_budget: i32,
     pub updated_by: Option<Uuid>,
     pub updated_at: Option<DateTime<Utc>>,
@@ -37,16 +42,19 @@ pub struct AgentSettings {
 #[derive(Deserialize, utoipa::ToSchema)]
 pub struct PutAgentSettings {
     pub enabled: bool,
-    /// Supplier mail from approved actions is sent only when this is on and the server's
-    /// live mail is configured; otherwise it stays a test-mode record.
+    /// Requests automatic supplier mail. Supplier mail from approved actions is sent only
+    /// when this is on, Chuo-Sogo staff confirmed it and the server's live mail is
+    /// configured; otherwise it stays a test-mode record. Changing it clears the
+    /// confirmation.
     pub auto_send_supplier_mail: bool,
     pub monthly_model_call_budget: i32,
 }
 
 async fn load_settings(tx: &mut db::Tx, org_id: Uuid) -> ApiResult<AgentSettings> {
     Ok(sqlx::query_as::<_, AgentSettings>(
-        "SELECT enabled, auto_send_supplier_mail, monthly_model_call_budget, updated_by,
-                updated_at
+        "SELECT enabled, auto_send_supplier_mail,
+                auto_send_confirmed_at IS NOT NULL AS auto_send_confirmed, auto_send_confirmed_at,
+                monthly_model_call_budget, updated_by, updated_at
          FROM agent_settings WHERE org_id = $1",
     )
     .bind(org_id)
@@ -55,6 +63,8 @@ async fn load_settings(tx: &mut db::Tx, org_id: Uuid) -> ApiResult<AgentSettings
     .unwrap_or(AgentSettings {
         enabled: false,
         auto_send_supplier_mail: false,
+        auto_send_confirmed: false,
+        auto_send_confirmed_at: None,
         monthly_model_call_budget: 2000,
         updated_by: None,
         updated_at: None,
@@ -121,6 +131,13 @@ pub async fn put_settings(
          VALUES ($1, $2, $3, $4, $5, now())
          ON CONFLICT (org_id) DO UPDATE SET enabled = EXCLUDED.enabled,
              auto_send_supplier_mail = EXCLUDED.auto_send_supplier_mail,
+             -- A changed request needs a new confirmation by our staff.
+             auto_send_confirmed_by = CASE
+                 WHEN agent_settings.auto_send_supplier_mail = EXCLUDED.auto_send_supplier_mail
+                 THEN agent_settings.auto_send_confirmed_by END,
+             auto_send_confirmed_at = CASE
+                 WHEN agent_settings.auto_send_supplier_mail = EXCLUDED.auto_send_supplier_mail
+                 THEN agent_settings.auto_send_confirmed_at END,
              monthly_model_call_budget = EXCLUDED.monthly_model_call_budget,
              updated_by = EXCLUDED.updated_by, updated_at = now()",
     )
@@ -267,6 +284,10 @@ pub async fn trigger_run(
         subject.map(|s| s.1.to_string()).unwrap_or_default()
     );
     let mut tx = db::tenant_tx(&state.pool, p.user_id, org_id).await?;
+    // A reply to read must be this organisation's, from the order's supplier.
+    if agent.name() == agents::chasing::NAME && input.get("document_id").is_some() {
+        agents::chasing::check_reply_input(&mut tx, &input).await?;
+    }
     let id = queue::enqueue_by(
         &mut tx,
         org_id,
@@ -374,6 +395,9 @@ pub struct DecideRequest {
     #[schema(value_type = Option<Object>)]
     pub action: Option<Value>,
     pub note: Option<String>,
+    /// The `updated_at` of the exception as the decider saw it. An exception an agent
+    /// refreshed since then (new proposal) is refused with 409 `exception_changed`.
+    pub expected_updated_at: Option<DateTime<Utc>>,
 }
 
 #[utoipa::path(
@@ -388,8 +412,8 @@ pub struct DecideRequest {
         (status = 200, description = "Decided; for approve/edit the action was executed", body = AgentException),
         (status = 403, description = "Not permitted (to decide, or to perform the action)", body = ErrorBody),
         (status = 404, description = "Unknown organisation or exception", body = ErrorBody),
-        (status = 409, description = "Already decided (exception_not_open)", body = ErrorBody),
-        (status = 422, description = "Invalid input", body = ErrorBody),
+        (status = 409, description = "Already decided (exception_not_open), or changed since the decider saw it (exception_changed)", body = ErrorBody),
+        (status = 422, description = "Invalid input (also: expected_updated_at missing)", body = ErrorBody),
         (status = 401, description = "No valid session", body = ErrorBody),
     )
 )]
@@ -415,7 +439,16 @@ pub async fn decide(
         state: &state,
     };
     let mut tx = db::tenant_tx(&state.pool, p.user_id, org_id).await?;
-    let decided = agents::decide(&mut tx, &actor, org_id, exception_id, decision, &note).await?;
+    let decided = agents::decide(
+        &mut tx,
+        &actor,
+        org_id,
+        exception_id,
+        decision,
+        &note,
+        body.expected_updated_at,
+    )
+    .await?;
     tx.commit().await?;
     Ok(Json(decided))
 }
@@ -488,6 +521,154 @@ pub async fn summary(
         model_calls_this_month: calls,
         monthly_model_call_budget: settings.monthly_model_call_budget,
     }))
+}
+
+#[derive(Serialize, sqlx::FromRow, utoipa::ToSchema)]
+pub struct AutoSendState {
+    /// The customer's admin requested automatic supplier mail.
+    pub requested: bool,
+    /// Chuo-Sogo staff confirmed it; automatic mail runs only while both are set.
+    pub confirmed: bool,
+    pub confirmed_by: Option<Uuid>,
+    pub confirmed_at: Option<DateTime<Utc>>,
+}
+
+#[derive(Deserialize, utoipa::ToSchema)]
+pub struct PutAutoSend {
+    /// `true` confirms the customer's request (it must be on); `false` withdraws it.
+    pub confirmed: bool,
+}
+
+async fn auto_send_state(tx: &mut db::Tx, org_id: Uuid) -> ApiResult<AutoSendState> {
+    Ok(sqlx::query_as::<_, AutoSendState>(
+        "SELECT auto_send_supplier_mail AS requested,
+                auto_send_confirmed_at IS NOT NULL AS confirmed,
+                auto_send_confirmed_by AS confirmed_by, auto_send_confirmed_at AS confirmed_at
+         FROM agent_settings WHERE org_id = $1",
+    )
+    .bind(org_id)
+    .fetch_optional(&mut **tx)
+    .await?
+    .unwrap_or(AutoSendState {
+        requested: false,
+        confirmed: false,
+        confirmed_by: None,
+        confirmed_at: None,
+    }))
+}
+
+/// A platform transaction switched into `org_id`'s context (404 for an unknown org).
+async fn staff_org_tx(
+    state: &AppState,
+    p: &Principal,
+    platform: Uuid,
+    org_id: Uuid,
+) -> ApiResult<db::Tx> {
+    let mut tx = db::tenant_tx(&state.pool, p.user_id, platform).await?;
+    db::enable_platform_scope(&mut tx).await?;
+    let exists: bool = sqlx::query_scalar(
+        "SELECT EXISTS (SELECT 1 FROM organisations WHERE id = $1 AND kind = 'customer')",
+    )
+    .bind(org_id)
+    .fetch_one(&mut *tx)
+    .await?;
+    if !exists {
+        return Err(ApiError::NotFound);
+    }
+    // Audit events go to both organisations (as `admin::put_settings` does).
+    db::set_org(&mut tx, org_id).await?;
+    Ok(tx)
+}
+
+#[utoipa::path(
+    operation_id = "admin_get_agent_auto_send",
+    get,
+    path = "/api/admin/v1/orgs/{org_id}/agents/auto-send",
+    tag = "admin",
+    params(("org_id" = Uuid, Path)),
+    security(("bearer" = [])),
+    responses(
+        (status = 200, description = "The customer's request and our confirmation", body = AutoSendState),
+        (status = 403, description = "Not permitted", body = ErrorBody),
+        (status = 404, description = "Unknown organisation", body = ErrorBody),
+        (status = 401, description = "No valid admin session", body = ErrorBody),
+    )
+)]
+pub async fn admin_get_auto_send(
+    State(state): State<AppState>,
+    AdminPrincipal(p): AdminPrincipal,
+    ApiPath(org_id): ApiPath<Uuid>,
+) -> ApiResult<Json<AutoSendState>> {
+    let platform = p.require_platform(Permission::ManageOrganisations)?;
+    let mut tx = staff_org_tx(&state, &p, platform, org_id).await?;
+    let s = auto_send_state(&mut tx, org_id).await?;
+    tx.commit().await?;
+    Ok(Json(s))
+}
+
+#[utoipa::path(
+    operation_id = "admin_put_agent_auto_send",
+    put,
+    path = "/api/admin/v1/orgs/{org_id}/agents/auto-send",
+    tag = "admin",
+    params(("org_id" = Uuid, Path)),
+    request_body = PutAutoSend,
+    security(("bearer" = [])),
+    responses(
+        (status = 200, description = "Confirmed or withdrawn (audited in both organisations)", body = AutoSendState),
+        (status = 403, description = "Not permitted", body = ErrorBody),
+        (status = 404, description = "Unknown organisation", body = ErrorBody),
+        (status = 409, description = "The customer has not requested it (auto_send_not_requested)", body = ErrorBody),
+        (status = 401, description = "No valid admin session", body = ErrorBody),
+    )
+)]
+pub async fn admin_put_auto_send(
+    State(state): State<AppState>,
+    AdminPrincipal(p): AdminPrincipal,
+    ApiPath(org_id): ApiPath<Uuid>,
+    ApiJson(body): ApiJson<PutAutoSend>,
+) -> ApiResult<Json<AutoSendState>> {
+    let platform = p.require_platform(Permission::ManageOrganisations)?;
+    let mut tx = staff_org_tx(&state, &p, platform, org_id).await?;
+    let before = auto_send_state(&mut tx, org_id).await?;
+    if body.confirmed && !before.requested {
+        return Err(ApiError::Conflict("auto_send_not_requested"));
+    }
+    if body.confirmed != before.confirmed {
+        sqlx::query(
+            "UPDATE agent_settings SET
+                 auto_send_confirmed_by = CASE WHEN $2 THEN $3::uuid END,
+                 auto_send_confirmed_at = CASE WHEN $2 THEN now() END
+             WHERE org_id = $1",
+        )
+        .bind(org_id)
+        .bind(body.confirmed)
+        .bind(p.user_id)
+        .execute(&mut *tx)
+        .await?;
+        let action = if body.confirmed {
+            "agent.auto_send_confirmed"
+        } else {
+            "agent.auto_send_withdrawn"
+        };
+        for target in [org_id, platform] {
+            Audit {
+                org_id: target,
+                p: &p,
+            }
+            .record(
+                &mut tx,
+                action,
+                "organisation",
+                org_id,
+                json!({ "requested": before.requested, "confirmed": body.confirmed }),
+            )
+            .await?;
+        }
+    }
+    let s = auto_send_state(&mut tx, org_id).await?;
+    tx.commit().await?;
+    Ok(Json(s))
 }
 
 #[derive(Serialize, utoipa::ToSchema)]

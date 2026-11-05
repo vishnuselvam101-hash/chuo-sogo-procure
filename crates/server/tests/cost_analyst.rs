@@ -292,7 +292,7 @@ impl Setup {
                     id.as_str().unwrap()
                 )),
                 token,
-                body,
+                seen(&self.w.app, self.w.org_a, token, id.as_str().unwrap(), body).await,
             )
             .await;
         (r.status, r.body)
@@ -564,10 +564,50 @@ async fn recorded_quotations_are_analysed_and_a_brief_is_saved_only_on_approval(
         .decide(&s.manager, &e2b["id"], json!({ "decision": "approve" }))
         .await;
     assert_eq!(st, StatusCode::FORBIDDEN);
-    let (st, body) = s
-        .decide(&s.operator, &e2b["id"], json!({ "decision": "approve" }))
-        .await;
-    assert_eq!(st, StatusCode::OK, "{body:?}");
+    // Decided in-process (as the API does) to look inside the decision's transaction.
+    {
+        use procure_domain::rbac::{Access, Role};
+        use procure_server::principal::{Membership, Principal};
+        let op_id = s.w.user_id(&s.operator).await;
+        let principal = Principal {
+            user_id: op_id,
+            session_id: Uuid::now_v7(),
+            memberships: vec![Membership {
+                org_id: s.w.platform_org,
+                org_kind: procure_domain::rbac::OrgKind::Platform,
+                role: Role::ProcurementOperator,
+            }],
+            request_id: None,
+        };
+        let actor = procure_server::agents::Actor {
+            principal: &principal,
+            access: Access::Assigned(Role::ProcurementOperator),
+            state: &s.w.app.state,
+        };
+        let mut tx = procure_server::db::tenant_tx(&s.w.app.pool, op_id, s.w.org_a)
+            .await
+            .unwrap();
+        let decided = procure_server::agents::decide(
+            &mut tx,
+            &actor,
+            s.w.org_a,
+            uuid(&e2b["id"]),
+            procure_domain::agents::Decision::Approve,
+            "",
+            serde_json::from_value(e2b["updated_at"].clone()).unwrap(),
+        )
+        .await
+        .unwrap();
+        assert_eq!(decided.status, "approved");
+        // L9 C4: the staff scope the task needed does not outlive the insert.
+        let staff: String =
+            sqlx::query_scalar("SELECT coalesce(current_setting('app.staff', true), '')")
+                .fetch_one(&mut *tx)
+                .await
+                .unwrap();
+        assert_eq!(staff, "");
+        tx.commit().await.unwrap();
+    }
     let tasks: Vec<(String, String, Option<Uuid>)> = {
         let mut tx = s.w.app.pool.begin().await.unwrap();
         for (k, v) in [

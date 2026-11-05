@@ -208,7 +208,7 @@ impl Flow {
                     id.as_str().unwrap()
                 )),
                 token,
-                body,
+                seen(&self.w.app, self.w.org_a, token, id.as_str().unwrap(), body).await,
             )
             .await
     }
@@ -1027,4 +1027,54 @@ async fn scorecards_flag_late_suppliers_for_review_without_touching_the_approval
     // Not proposed again for the same month.
     f.sweep("2026-11-06").await;
     assert!(f.open_exceptions().await.is_empty());
+}
+
+/// L9 C5: scorecard days are the customer's own calendar days (`organisations.timezone`),
+/// not Japan's for everyone.
+#[sqlx::test(migrator = "procure_server::MIGRATOR")]
+async fn scorecards_use_the_organisations_time_zone(pool: PgPool) {
+    let f = Flow::new(pool).await;
+    let mut tx = f.owner.begin().await.unwrap();
+    sqlx::query("SELECT set_config('app.scope', 'platform', true)")
+        .execute(&mut *tx)
+        .await
+        .unwrap();
+    sqlx::query("UPDATE organisations SET timezone = 'America/Los_Angeles' WHERE id = $1")
+        .bind(f.w.org_a)
+        .execute(&mut *tx)
+        .await
+        .unwrap();
+    tx.commit().await.unwrap();
+    let o = f.ordered("PO-TZ", "2026-10-01T00:00:00Z").await;
+    let mut tx = f.owner.begin().await.unwrap();
+    sqlx::query("ALTER TABLE purchase_orders DISABLE TRIGGER purchase_orders_promised_once")
+        .execute(&mut *tx)
+        .await
+        .unwrap();
+    sqlx::query("SELECT set_config('app.org_id', $1, true)")
+        .bind(f.w.org_a.to_string())
+        .execute(&mut *tx)
+        .await
+        .unwrap();
+    sqlx::query("UPDATE purchase_orders SET promised_on = '2026-10-10' WHERE id = $1")
+        .bind(o.order)
+        .execute(&mut *tx)
+        .await
+        .unwrap();
+    sqlx::query("ALTER TABLE purchase_orders ENABLE TRIGGER purchase_orders_promised_once")
+        .execute(&mut *tx)
+        .await
+        .unwrap();
+    tx.commit().await.unwrap();
+    // 13:00 on the 10th in Los Angeles (already the 11th in Tokyo): on time for this customer.
+    f.deliver(&o, "2026-10-10T20:00:00Z").await;
+    let r =
+        f.w.app
+            .get(&f.url("supplier-scorecards?month=2026-10"), &f.manager)
+            .await;
+    assert_eq!(r.status, StatusCode::OK, "{:?}", r.body);
+    let cards = r.body.as_array().unwrap();
+    assert_eq!(cards.len(), 1, "{cards:?}");
+    assert_eq!(cards[0]["deliveries_measured"], 1);
+    assert_eq!(cards[0]["on_time_bps"], 10_000, "{cards:?}");
 }

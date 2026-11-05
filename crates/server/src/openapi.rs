@@ -236,6 +236,8 @@ impl Modify for BearerAuth {
         agents::decide,
         agents::summary,
         agents::staff_exceptions,
+        agents::admin_get_auto_send,
+        agents::admin_put_auto_send,
         matching::get_tolerances,
         matching::put_tolerances,
         matching::extract_invoice,

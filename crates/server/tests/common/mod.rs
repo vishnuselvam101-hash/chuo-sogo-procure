@@ -338,3 +338,51 @@ impl World {
         uuid(&self.app.get("/api/v1/me", token).await.body["user"]["id"])
     }
 }
+
+/// A decide body as the UI sends it: with `expected_updated_at`, the version of the
+/// exception the caller sees now (left out when the caller cannot list it).
+pub async fn seen(app: &App, org: Uuid, token: &str, id: &str, mut body: Value) -> Value {
+    if body.get("expected_updated_at").is_none() {
+        let r = app
+            .get(
+                &format!("/api/v1/orgs/{org}/agents/exceptions?status=all&limit=500"),
+                token,
+            )
+            .await;
+        if let Some(e) = r
+            .body
+            .as_array()
+            .and_then(|a| a.iter().find(|e| e["id"] == id))
+        {
+            body["expected_updated_at"] = e["updated_at"].clone();
+        }
+    }
+    body
+}
+
+/// An admin-console session for `email` (first sign-in: password, enrol TOTP, confirm).
+pub async fn admin_session(app: &App, email: &str) -> String {
+    use procure_server::mfa;
+    let post = |path: &str, body: Value| {
+        let uri = format!("/api/admin/v1{path}");
+        async move { app.call(Method::POST, &uri, None, Some(body)).await }
+    };
+    let r = post(
+        "/auth/login",
+        json!({ "email": email, "password": PASSWORD }),
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::OK, "{:?}", r.body);
+    let token = r.body["token"].as_str().unwrap().to_string();
+    let e = post("/auth/totp/enroll", json!({ "token": token })).await;
+    let secret = mfa::base32_decode(e.body["secret"].as_str().unwrap()).unwrap();
+    let step = chrono::Utc::now().timestamp().div_euclid(mfa::STEP_SECONDS);
+    let code = format!("{:06}", mfa::code_at(&secret, step));
+    let c = post(
+        "/auth/totp/confirm",
+        json!({ "token": token, "code": code }),
+    )
+    .await;
+    assert_eq!(c.status, StatusCode::OK, "{:?}", c.body);
+    c.body["token"].as_str().unwrap().to_string()
+}

@@ -267,6 +267,7 @@ impl Agent for Import {
                                 "blocking": blocking }),
                 exceptions: vec![ex],
                 model_calls: 0,
+                tx: None,
             })
         })
     }

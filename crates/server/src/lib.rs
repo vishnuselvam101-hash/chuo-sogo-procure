@@ -787,6 +787,10 @@ pub fn router(state: AppState) -> Router {
         )
         .route("/orgs/{org_id}/audit", get(api::admin::org_audit))
         .route("/ops/agents/exceptions", get(api::agents::staff_exceptions))
+        .route(
+            "/orgs/{org_id}/agents/auto-send",
+            get(api::agents::admin_get_auto_send).put(api::agents::admin_put_auto_send),
+        )
         .route("/accounts", get(api::admin::list_accounts))
         .route("/accounts/{user_id}", patch(api::admin::update_account))
         .route(

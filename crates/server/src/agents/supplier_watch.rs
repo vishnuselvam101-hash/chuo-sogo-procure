@@ -12,7 +12,7 @@
 use std::collections::{BTreeMap, HashSet};
 use std::time::Duration;
 
-use chrono::{Datelike, NaiveDate, Utc};
+use chrono::{Datelike, NaiveDate};
 use futures_util::future::BoxFuture;
 use procure_domain::agents::Severity;
 use procure_domain::compliance::{self, DocKind, Expiry};
@@ -35,17 +35,20 @@ const EPOCH_CE_DAYS: i64 = 719_163;
 
 pub struct SupplierWatch;
 
-/// The Japan-time calendar date now.
-pub fn jst_today() -> NaiveDate {
-    from_day(compliance::jst_day(Utc::now().timestamp())).unwrap_or_default()
+/// The calendar date now in the organisation's time zone (`organisations.timezone`;
+/// transaction in that organisation's context).
+pub async fn org_today(tx: &mut Tx, org_id: Uuid) -> Result<NaiveDate, sqlx::Error> {
+    sqlx::query_scalar(
+        "SELECT (now() AT TIME ZONE coalesce((SELECT timezone FROM organisations WHERE id = $1),
+                                             'Asia/Tokyo'))::date",
+    )
+    .bind(org_id)
+    .fetch_one(&mut **tx)
+    .await
 }
 
 fn to_day(d: NaiveDate) -> i64 {
     i64::from(d.num_days_from_ce()) - EPOCH_CE_DAYS
-}
-
-fn from_day(day: i64) -> Option<NaiveDate> {
-    NaiveDate::from_num_days_from_ce_opt(i32::try_from(day + EPOCH_CE_DAYS).ok()?)
 }
 
 /// First day of `d`'s month.
@@ -119,8 +122,8 @@ fn count(n: i64) -> u32 {
 
 /// Scorecards of every supplier with activity in the month starting at `month`, from the
 /// records of `org_id` (the transaction is in that organisation's context; RLS limits it to
-/// that tenant). Orders not yet delivered count as late only once `today` (Japan time) is
-/// past their promised date.
+/// that tenant), on the organisation's calendar days (`organisations.timezone`). Orders not
+/// yet delivered count as late only once `today` is past their promised date.
 pub async fn scorecards(
     tx: &mut Tx,
     org_id: Uuid,
@@ -128,6 +131,13 @@ pub async fn scorecards(
     today: NaiveDate,
 ) -> Result<Vec<SupplierScorecard>, sqlx::Error> {
     let end = next_month(month);
+    // Days are the organisation's own calendar days.
+    let tz: String = sqlx::query_scalar(
+        "SELECT coalesce((SELECT timezone FROM organisations WHERE id = $1), 'Asia/Tokyo')",
+    )
+    .bind(org_id)
+    .fetch_one(&mut **tx)
+    .await?;
     let mut inputs: BTreeMap<Uuid, Inputs> = BTreeMap::new();
 
     let rows: Vec<(Uuid, i64, i64)> = sqlx::query_as(
@@ -137,7 +147,7 @@ pub async fn scorecards(
                                     OR (f.first_day IS NULL AND o.promised_on < $4))
          FROM purchase_orders o
          LEFT JOIN LATERAL (
-             SELECT min((d.received_at AT TIME ZONE 'Asia/Tokyo')::date) AS first_day
+             SELECT min((d.received_at AT TIME ZONE $5)::date) AS first_day
              FROM deliveries d WHERE d.order_id = o.id AND d.reversed_at IS NULL) f ON true
          WHERE o.org_id = $1 AND o.promised_on >= $2 AND o.promised_on < $3
          GROUP BY o.supplier_id",
@@ -146,6 +156,7 @@ pub async fn scorecards(
     .bind(month)
     .bind(end)
     .bind(today)
+    .bind(&tz)
     .fetch_all(&mut **tx)
     .await?;
     for (s, on_time, late) in rows {
@@ -182,12 +193,13 @@ pub async fn scorecards(
                  FROM quotations q WHERE q.rfq_recipient_id = r.id)
          FROM rfq_recipients r JOIN rfqs f ON f.id = r.rfq_id
          WHERE r.org_id = $1 AND f.sent_at IS NOT NULL
-           AND (f.sent_at AT TIME ZONE 'Asia/Tokyo')::date >= $2
-           AND (f.sent_at AT TIME ZONE 'Asia/Tokyo')::date < $3",
+           AND (f.sent_at AT TIME ZONE $4)::date >= $2
+           AND (f.sent_at AT TIME ZONE $4)::date < $3",
     )
     .bind(org_id)
     .bind(month)
     .bind(end)
+    .bind(&tz)
     .fetch_all(&mut **tx)
     .await?;
     for (s, answered, hours) in rows {
@@ -205,8 +217,8 @@ pub async fn scorecards(
         "WITH last AS (
              SELECT DISTINCT ON (c.rfq_id) c.results
              FROM comparison_runs c
-             WHERE c.org_id = $1 AND (c.ran_at AT TIME ZONE 'Asia/Tokyo')::date >= $2
-               AND (c.ran_at AT TIME ZONE 'Asia/Tokyo')::date < $3
+             WHERE c.org_id = $1 AND (c.ran_at AT TIME ZONE $4)::date >= $2
+               AND (c.ran_at AT TIME ZONE $4)::date < $3
              ORDER BY c.rfq_id, c.ran_at DESC, c.id DESC)
          SELECT (e ->> 'supplier_id')::uuid, (e ->> 'rank')::bigint,
                 (SELECT count(*) FROM jsonb_array_elements(l.results) x
@@ -217,6 +229,7 @@ pub async fn scorecards(
     .bind(org_id)
     .bind(month)
     .bind(end)
+    .bind(&tz)
     .fetch_all(&mut **tx)
     .await?;
     for (s, rank, of) in rows {
@@ -374,21 +387,22 @@ fn review_exception(
     Some(ex)
 }
 
-/// The day the sweep runs for: today in Japan, or `input.as_of` (`YYYY-MM-DD`) on a run a
-/// person started by hand (to check a past day; it only ever produces proposals).
-fn as_of(run: &AgentRun) -> Result<NaiveDate, AgentError> {
+/// The day the sweep runs for: today in the organisation's time zone, or `input.as_of`
+/// (`YYYY-MM-DD`) on a run a person started by hand (to check a past day; it only ever
+/// produces proposals).
+async fn as_of(tx: &mut Tx, org_id: Uuid, run: &AgentRun) -> Result<NaiveDate, AgentError> {
     match run.input.get("as_of").and_then(Value::as_str) {
         Some(raw) if run.trigger == "manual" => {
             NaiveDate::parse_from_str(raw, "%Y-%m-%d").map_err(|_| AgentError::Fatal("as_of"))
         }
-        _ => Ok(jst_today()),
+        _ => Ok(org_today(tx, org_id).await?),
     }
 }
 
 async fn sweep(cx: &AgentCx, run: &AgentRun) -> Result<Outcome, AgentError> {
-    let today = as_of(run)?;
-    let today_day = to_day(today);
     let mut tx = cx.tx().await?;
+    let today = as_of(&mut tx, cx.org_id, run).await?;
+    let today_day = to_day(today);
     let docs = watched_docs(&mut tx, cx.org_id).await?;
     let mut exceptions: Vec<NewException> = docs
         .iter()
@@ -607,7 +621,7 @@ async fn request_document_update(
     let expires_on = doc
         .expires_on
         .ok_or(ApiError::Conflict("document_has_no_expiry"))?;
-    let expired = expires_on < jst_today();
+    let expired = expires_on < org_today(tx, ex.org_id).await?;
     let (subject, body) = document_request_text(
         ja,
         &doc.supplier_name,
@@ -767,7 +781,6 @@ mod tests {
     fn day_numbers_and_months() {
         let d = NaiveDate::from_ymd_opt(2026, 11, 5).unwrap();
         assert_eq!(to_day(d), compliance::days_from_civil(2026, 11, 5));
-        assert_eq!(from_day(to_day(d)), Some(d));
         assert_eq!(
             month_start(d),
             NaiveDate::from_ymd_opt(2026, 11, 1).unwrap()

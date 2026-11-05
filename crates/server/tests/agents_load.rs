@@ -75,6 +75,7 @@ impl Agent for Probe {
                 output: json!({ "n": run.input["n"].clone() }),
                 exceptions: vec![ex],
                 model_calls: 0,
+                tx: None,
             })
         })
     }

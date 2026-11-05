@@ -629,12 +629,13 @@ pub async fn scorecards(
     ApiQuery(q): ApiQuery<ScorecardQuery>,
 ) -> ApiResult<Json<Vec<SupplierScorecard>>> {
     require_supplier_view(&p, &state, org_id).await?;
-    let today = watch::jst_today();
-    let month = match q.month.as_deref() {
-        None => watch::month_start(today),
-        Some(m) => watch::parse_month(m).ok_or(ApiError::Validation("month"))?,
+    let requested = match q.month.as_deref() {
+        None => None,
+        Some(m) => Some(watch::parse_month(m).ok_or(ApiError::Validation("month"))?),
     };
     let mut tx = db::tenant_tx(&state.pool, p.user_id, org_id).await?;
+    let today = watch::org_today(&mut tx, org_id).await?;
+    let month = requested.unwrap_or_else(|| watch::month_start(today));
     let cards = watch::scorecards(&mut tx, org_id, month, today).await?;
     tx.commit().await?;
     Ok(Json(cards))

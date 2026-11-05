@@ -120,6 +120,7 @@ async fn analyse(cx: &AgentCx, rfq_id: Uuid) -> ApiResult<Outcome> {
         output: json!({ "rfq_id": rfq_id, "quotations": summary, "flagged": exceptions.len() }),
         exceptions,
         model_calls: 0,
+        tx: None,
     })
 }
 
@@ -218,6 +219,12 @@ async fn open_task(
         .take(200)
         .collect(),
     };
+    // The staff scope is on only for this insert (the task is a staff-only row); the
+    // decision's transaction continues with the scope it had.
+    let prev: String =
+        sqlx::query_scalar("SELECT coalesce(current_setting('app.staff', true), '')")
+            .fetch_one(&mut **tx)
+            .await?;
     db::enable_staff_scope(tx).await?;
     let id = Uuid::now_v7();
     sqlx::query(
@@ -232,6 +239,10 @@ async fn open_task(
     .bind(actor.principal.user_id)
     .execute(&mut **tx)
     .await?;
+    sqlx::query("SELECT set_config('app.staff', $1, true)")
+        .bind(&prev)
+        .execute(&mut **tx)
+        .await?;
     Audit {
         org_id: platform,
         p: actor.principal,

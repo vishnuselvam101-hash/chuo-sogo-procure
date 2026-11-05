@@ -9,6 +9,7 @@
 //! English header names, not any particular vendor's product.
 
 use crate::history::{Day, half_width, header_key, is_blank, parse_date};
+use crate::matching::TaxRounding;
 use crate::money::Currency;
 
 /// Data rows one import reads.
@@ -328,8 +329,12 @@ pub struct Profile {
     /// `,`, `.`, ` `, `'` or none; never the decimal separator.
     pub thousands_separator: Option<char>,
     pub encoding: TextEncoding,
-    /// Rate used when the file has no tax-rate column (basis points; 1000 = 10%).
-    pub default_tax_rate_bps: u32,
+    /// Rate used for invoices whose rows carry no tax rate (basis points; 1000 = 10%).
+    /// `None`: no default; an invoice without a rate is refused.
+    pub default_tax_rate_bps: Option<u32>,
+    /// How the customer's suppliers round invoice tax (recorded with each imported invoice
+    /// and used by the three-way match).
+    pub tax_rounding: TaxRounding,
 }
 
 /// Why a profile cannot be saved.
@@ -365,7 +370,8 @@ pub fn valid_profile_name(name: &str) -> bool {
 }
 
 impl Profile {
-    /// Defaults for `kind`: headers detected, dates auto, `1,234.5`, encoding auto, 10% tax.
+    /// Defaults for `kind`: headers detected, dates auto, `1,234.5`, encoding auto, 10% tax
+    /// rounded down (the common Japanese qualified-invoice rule).
     pub fn detect(name: &str, kind: ImportKind) -> Self {
         Profile {
             name: name.into(),
@@ -375,7 +381,8 @@ impl Profile {
             decimal_separator: '.',
             thousands_separator: Some(','),
             encoding: TextEncoding::Auto,
-            default_tax_rate_bps: 1000,
+            default_tax_rate_bps: Some(1000),
+            tax_rounding: TaxRounding::Floor,
         }
     }
 
@@ -404,7 +411,7 @@ impl Profile {
         if !['.', ','].contains(&self.decimal_separator) || !thousands_ok {
             return Err(ProfileError::Separators);
         }
-        if self.default_tax_rate_bps > 10_000 {
+        if self.default_tax_rate_bps.is_some_and(|r| r > 10_000) {
             return Err(ProfileError::TaxRate);
         }
         Ok(())
@@ -695,6 +702,7 @@ pub struct InvoiceRecord {
     pub due_date: Option<Day>,
     pub currency: Currency,
     pub tax_rate_bps: u32,
+    pub tax_rounding: TaxRounding,
     /// Tax as printed on the invoice.
     pub tax_minor: i64,
     pub shipping_minor: i64,
@@ -1283,6 +1291,15 @@ pub fn parse(
                 code: ErrorCode::Required,
             });
         }
+        // No rate in the file and none in the profile: never guessed.
+        let rate = rate.or(profile.default_tax_rate_bps);
+        if profile.kind == ImportKind::Invoice && rate.is_none() {
+            errors.push(RowError {
+                row: rows.first().copied().unwrap_or(0),
+                field: Some(Field::TaxRate),
+                code: ErrorCode::Required,
+            });
+        }
         if !errors.is_empty() {
             parsed.errors.extend(errors);
             continue;
@@ -1317,7 +1334,11 @@ pub fn parse(
                 },
                 due_date: due,
                 currency,
-                tax_rate_bps: rate.unwrap_or(profile.default_tax_rate_bps),
+                tax_rate_bps: match rate {
+                    Some(r) => r,
+                    None => continue,
+                },
+                tax_rounding: profile.tax_rounding,
                 tax_minor: tax.unwrap_or(0),
                 shipping_minor: shipping.unwrap_or(0),
                 lines,
@@ -1510,7 +1531,7 @@ mod tests {
             ProfileError::Separators
         );
         assert_eq!(
-            bad(&|p| p.default_tax_rate_bps = 10_001),
+            bad(&|p| p.default_tax_rate_bps = Some(10_001)),
             ProfileError::TaxRate
         );
         for p in presets() {
@@ -1557,6 +1578,46 @@ mod tests {
             Day::new(2026, 1, 5)
         );
         assert_eq!(parse_day("31/02/2026", DateFormat::Dmy), None);
+    }
+
+    /// L9 C2: an invoice without a rate is refused when the profile has no default rate,
+    /// and the profile's rounding rule is what the record carries.
+    #[test]
+    fn invoice_tax_rate_and_rounding_come_from_the_profile() {
+        let rows: &[&[&str]] = &[
+            &[
+                "請求番号",
+                "発注番号",
+                "請求日",
+                "品番",
+                "数量",
+                "単価",
+                "消費税",
+            ],
+            &["INV-9", "PO-9", "2026/10/20", "6204ZZ", "3", "333", "99"],
+        ];
+        let mut p = preset("generic_ja_invoice").unwrap();
+        p.default_tax_rate_bps = None;
+        let parsed = read(rows, &p);
+        assert!(parsed.records.is_empty());
+        assert_eq!(
+            parsed.errors,
+            vec![RowError {
+                row: 2,
+                field: Some(Field::TaxRate),
+                code: ErrorCode::Required,
+            }]
+        );
+        p.default_tax_rate_bps = Some(800);
+        p.tax_rounding = TaxRounding::HalfUp;
+        let parsed = read(rows, &p);
+        let Record::Invoice(inv) = &parsed.records[0] else {
+            panic!("{:?}", parsed.errors)
+        };
+        assert_eq!(
+            (inv.tax_rate_bps, inv.tax_rounding),
+            (800, TaxRounding::HalfUp)
+        );
     }
 
     #[test]

@@ -27,12 +27,15 @@ struct Flow {
     manager: String,
     supplier: Uuid,
     owner: PgPool,
+    /// Admin-console session of the super admin (enrolled once).
+    staff: std::sync::Mutex<Option<String>>,
 }
 
 struct Ordered {
     request: Uuid,
     order: Uuid,
     items: Vec<Uuid>,
+    rfq: Uuid,
 }
 
 impl Flow {
@@ -73,6 +76,7 @@ impl Flow {
             manager,
             supplier: Uuid::nil(),
             owner,
+            staff: std::sync::Mutex::new(None),
         };
         let r =
             f.w.app
@@ -250,6 +254,7 @@ impl Flow {
             request,
             order,
             items,
+            rfq,
         }
     }
 
@@ -352,6 +357,27 @@ impl Flow {
         assert_eq!(r.status, StatusCode::OK, "{:?}", r.body);
     }
 
+    /// Chuo-Sogo staff confirm (or withdraw) org A's request for automatic supplier mail.
+    async fn staff_confirm(&self, confirmed: bool) -> Resp {
+        let cached = self.staff.lock().unwrap().clone();
+        let session = match cached {
+            Some(s) => s,
+            None => {
+                let s = admin_session(&self.w.app, "root@chuo-sogo.test").await;
+                *self.staff.lock().unwrap() = Some(s.clone());
+                s
+            }
+        };
+        self.w
+            .app
+            .put(
+                &format!("/api/admin/v1/orgs/{}/agents/auto-send", self.w.org_a),
+                &session,
+                json!({ "confirmed": confirmed }),
+            )
+            .await
+    }
+
     /// Runs the sweep now (manual trigger) and anything else queued.
     async fn sweep(&self) {
         let r = self
@@ -408,7 +434,14 @@ impl Flow {
                     ex["id"].as_str().unwrap()
                 )),
                 token,
-                body,
+                seen(
+                    &self.w.app,
+                    self.w.org_a,
+                    token,
+                    ex["id"].as_str().unwrap(),
+                    body,
+                )
+                .await,
             )
             .await
     }
@@ -533,8 +566,8 @@ async fn the_sweep_finds_each_condition_once_per_attempt(pool: PgPool) {
     f.sweep().await;
     assert_eq!(f.exceptions("all").await.len(), 4);
 
-    // A person rejects the acknowledgement follow-up: attempt 1 is never proposed again; the
-    // next attempt waits for the cadence after the decision.
+    // A person rejects the acknowledgement follow-up: that series ends (L9 S1), even long
+    // after the cadence.
     let ack_ex = open
         .iter()
         .find(|e| e["params"]["po_number"] == "PO-ACK")
@@ -559,16 +592,7 @@ async fn the_sweep_finds_each_condition_once_per_attempt(pool: PgPool) {
         1
     );
     f.sweep().await;
-    let again = f.open_for(&ack).await;
-    assert_eq!(again.len(), 1);
-    assert_eq!(again[0]["params"]["attempt"], 2);
-    assert_eq!(again[0]["severity"], "warning");
-    assert!(
-        again[0]["proposed_action"]["draft"]["body"]
-            .as_str()
-            .unwrap()
-            .contains("度々のご連絡")
-    );
+    assert!(f.open_for(&ack).await.is_empty());
     assert!(f.open_for(&fresh).await.is_empty());
 }
 
@@ -727,6 +751,17 @@ async fn live_flow(
     Arc<procure_server::supplier_mail::SupplierMail>,
     Arc<FakeMailbox>,
 ) {
+    live_flow_ai(pool, None).await
+}
+
+async fn live_flow_ai(
+    pool: PgPool,
+    ai: Option<Arc<dyn procure_ai::Provider>>,
+) -> (
+    Flow,
+    Arc<procure_server::supplier_mail::SupplierMail>,
+    Arc<FakeMailbox>,
+) {
     use procure_server::supplier_mail::{ImapConfig, SupplierMail};
     let mailbox = Arc::new(FakeMailbox::default());
     let mail = Arc::new(SupplierMail {
@@ -749,7 +784,13 @@ async fn live_flow(
     });
     let owner = pool.clone();
     let m = mail.clone();
-    let app = App::configured(pool, move |s| s.supplier_mail = Some(m)).await;
+    let app = App::configured(pool, move |s| {
+        s.supplier_mail = Some(m);
+        if let Some(ai) = ai {
+            s.ai = ai;
+        }
+    })
+    .await;
     let f = Flow::with_world(owner, world_with(app).await).await;
     (f, mail, mailbox)
 }
@@ -770,8 +811,10 @@ async fn with_live_mail_reminders_go_out_only_after_a_person_approved_the_first(
         .await);
     assert_eq!(f.chases(&o).await[0].2, "test");
 
-    // Allowed: the next reminder is queued for sending by the sweep itself, no exception.
+    // Allowed by both parties: the next reminder is queued for sending by the sweep itself,
+    // no exception.
     f.enable(true).await;
+    f.ok(f.staff_confirm(true).await);
     f.chased_days_ago(&o, 10).await;
     f.sweep().await;
     assert!(f.open_for(&o).await.is_empty());
@@ -1070,4 +1113,373 @@ async fn settings_permissions_and_tenants(pool: PgPool) {
             .await;
     assert_eq!(r.status, StatusCode::NOT_FOUND);
     assert!(f.chases(&o).await.is_empty());
+}
+
+/// L9 S1: a rejected follow-up is not "history" that lets the next attempt go out by itself.
+/// Reminders go out automatically only after a person approved and sent one of the series;
+/// a rejection ends the series for that order and type.
+#[sqlx::test(migrator = "procure_server::MIGRATOR")]
+async fn a_rejected_follow_up_never_lets_a_reminder_go_out_automatically(pool: PgPool) {
+    let (f, _mail, _) = live_flow(pool).await;
+    f.enable(true).await;
+    f.ok(f.staff_confirm(true).await);
+    let o = f.ordered("PO-REJ", Some(30)).await;
+    f.send_order_email(&o).await;
+    f.order_email_sent_days_ago(&o, 10).await;
+    f.sweep().await;
+    let ex = f.open_for(&o).await.pop().unwrap();
+    assert_eq!(ex["params"]["attempt"], 1);
+    let r = f
+        .decide(&f.operator, &ex, json!({ "decision": "reject" }))
+        .await;
+    assert_eq!(r.status, StatusCode::OK, "{:?}", r.body);
+
+    // Long after the cadence: nothing sent, nothing proposed for this series.
+    f.chased_days_ago(&o, 10).await;
+    f.sweep().await;
+    f.chased_days_ago(&o, 10).await;
+    f.sweep().await;
+    assert!(f.chases(&o).await.is_empty(), "{:?}", f.chases(&o).await);
+    assert!(
+        f.open_for(&o).await.is_empty(),
+        "{:?}",
+        f.open_for(&o).await
+    );
+    assert!(f.audit_actions("order.follow_up_sent").await.is_empty());
+}
+
+/// L9 S5: automatic supplier mail needs both the customer's request and our staff's
+/// confirmation; the customer's admin alone cannot switch it on, and changing the request
+/// clears the confirmation.
+#[sqlx::test(migrator = "procure_server::MIGRATOR")]
+async fn automatic_supplier_mail_needs_staff_confirmation(pool: PgPool) {
+    let (f, _mail, _) = live_flow(pool).await;
+    // Staff cannot confirm what the customer did not request.
+    f.enable(false).await;
+    let r = f.staff_confirm(true).await;
+    assert_eq!(r.status, StatusCode::CONFLICT, "{:?}", r.body);
+    assert_eq!(r.body["error"]["detail"], "auto_send_not_requested");
+
+    let o = f.ordered("PO-2P", Some(30)).await;
+    f.send_order_email(&o).await;
+    f.order_email_sent_days_ago(&o, 10).await;
+    f.sweep().await;
+    let ex = f.open_for(&o).await.pop().unwrap();
+    f.ok(f
+        .decide(&f.operator, &ex, json!({ "decision": "approve" }))
+        .await);
+
+    // The customer's admin requests it: pending, still a proposal for attempt 2.
+    f.enable(true).await;
+    let s = f.w.app.get(&f.url("agents/settings"), &f.w.admin_a).await;
+    assert_eq!(s.body["auto_send_supplier_mail"], true);
+    assert_eq!(s.body["auto_send_confirmed"], false);
+    f.chased_days_ago(&o, 10).await;
+    f.sweep().await;
+    assert_eq!(f.chases(&o).await.len(), 1);
+    let ex2 = f.open_for(&o).await.pop().unwrap();
+    assert_eq!(ex2["params"]["attempt"], 2);
+    f.ok(f
+        .decide(&f.operator, &ex2, json!({ "decision": "approve" }))
+        .await);
+
+    // Staff confirm (audited in the customer's log): attempt 3 goes out by itself.
+    let r = f.staff_confirm(true).await;
+    assert_eq!(r.status, StatusCode::OK, "{:?}", r.body);
+    assert_eq!(r.body["confirmed"], true);
+    assert_eq!(f.audit_actions("agent.auto_send_confirmed").await.len(), 1);
+    let s = f.w.app.get(&f.url("agents/settings"), &f.w.admin_a).await;
+    assert_eq!(s.body["auto_send_confirmed"], true);
+    f.chased_days_ago(&o, 10).await;
+    f.sweep().await;
+    let sent = f.chases(&o).await;
+    assert_eq!(sent.len(), 3);
+    assert_eq!((sent[2].1, sent[2].4), (3, None));
+
+    // Switching the request off and on again needs a new confirmation.
+    f.enable(false).await;
+    f.enable(true).await;
+    let s = f.w.app.get(&f.url("agents/settings"), &f.w.admin_a).await;
+    assert_eq!(s.body["auto_send_confirmed"], false);
+    // A customer session cannot reach the staff route.
+    let r =
+        f.w.app
+            .put(
+                &format!("/api/admin/v1/orgs/{}/agents/auto-send", f.w.org_a),
+                &f.w.admin_a,
+                json!({ "confirmed": true }),
+            )
+            .await;
+    assert!(r.status.is_client_error(), "{:?}", r.body);
+    assert_ne!(r.status, StatusCode::OK);
+}
+
+/// L9 C3: reminders the sweep queues and the run's outcome (exceptions, end of run) commit in
+/// one transaction.
+#[sqlx::test(migrator = "procure_server::MIGRATOR")]
+async fn automatic_reminders_commit_with_the_run(pool: PgPool) {
+    let (f, _mail, _) = live_flow(pool).await;
+    f.enable(true).await;
+    f.ok(f.staff_confirm(true).await);
+    let o = f.ordered("PO-TX", Some(30)).await;
+    let o2 = f.ordered("PO-TX-2", Some(30)).await;
+    for x in [&o, &o2] {
+        f.send_order_email(x).await;
+        f.order_email_sent_days_ago(x, 10).await;
+    }
+    f.sweep().await;
+    let ex = f.open_for(&o).await.pop().unwrap();
+    f.ok(f
+        .decide(&f.operator, &ex, json!({ "decision": "approve" }))
+        .await);
+    f.chased_days_ago(&o, 10).await;
+    f.chased_days_ago(&o2, 10).await;
+    // Leave o2's first proposal open; make a new one due for a third order.
+    let o3 = f.ordered("PO-TX-3", Some(30)).await;
+    f.send_order_email(&o3).await;
+    f.order_email_sent_days_ago(&o3, 10).await;
+    f.sweep().await;
+    assert_eq!(f.chases(&o).await.len(), 2);
+    assert_eq!(f.open_for(&o3).await.len(), 1);
+
+    // The reminder row, the new exception and the finished run share one transaction id.
+    let mut tx = f.owner.begin().await.unwrap();
+    sqlx::query("SELECT set_config('app.org_id', $1, true)")
+        .bind(f.w.org_a.to_string())
+        .execute(&mut *tx)
+        .await
+        .unwrap();
+    let outbox: String = sqlx::query_scalar(
+        "SELECT xmin::text FROM outbox WHERE order_id = $1 AND kind = 'chase' AND chase_attempt = 2",
+    )
+    .bind(o.order)
+    .fetch_one(&mut *tx)
+    .await
+    .unwrap();
+    let exception: String = sqlx::query_scalar(
+        "SELECT xmin::text FROM agent_exceptions WHERE subject_id = $1 AND status = 'open'",
+    )
+    .bind(o3.order)
+    .fetch_one(&mut *tx)
+    .await
+    .unwrap();
+    let run: String = sqlx::query_scalar(
+        "SELECT xmin::text FROM agent_runs WHERE agent = 'chasing' AND status = 'succeeded'
+         ORDER BY finished_at DESC LIMIT 1",
+    )
+    .fetch_one(&mut *tx)
+    .await
+    .unwrap();
+    tx.commit().await.unwrap();
+    assert_eq!(outbox, exception);
+    assert_eq!(outbox, run);
+}
+
+/// A model that is down: every call fails.
+struct DownModel;
+
+impl procure_ai::Provider for DownModel {
+    fn name(&self) -> &str {
+        "down"
+    }
+
+    fn model(&self) -> &str {
+        "down"
+    }
+
+    fn complete<'a>(
+        &'a self,
+        _call: &'a procure_ai::provider::ModelCall,
+    ) -> futures_util::future::BoxFuture<'a, Result<String, procure_ai::AiError>> {
+        Box::pin(async { Err(procure_ai::AiError::Unavailable) })
+    }
+}
+
+/// (status, error_code, model_calls) of the chasing runs that read a reply, oldest first.
+async fn reply_runs(f: &Flow) -> Vec<(String, Option<String>, i64)> {
+    let r =
+        f.w.app
+            .get(&f.url("agents/runs?agent=chasing&limit=500"), &f.w.admin_a)
+            .await;
+    let mut v: Vec<(String, Option<String>, i64)> = r
+        .body
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|x| x["input"]["document_id"].is_string())
+        .map(|x| {
+            (
+                x["status"].as_str().unwrap().to_string(),
+                x["error_code"].as_str().map(str::to_string),
+                x["model_calls"].as_i64().unwrap(),
+            )
+        })
+        .collect();
+    v.reverse();
+    v
+}
+
+/// L9 S3: a flood of supplier replies cannot drain the model budget: at most five readings
+/// per order a day; the rest are refused before any model call.
+#[sqlx::test(migrator = "procure_server::MIGRATOR")]
+async fn a_reply_flood_is_rate_limited_per_order(pool: PgPool) {
+    use procure_server::supplier_mail::poll_inbox;
+    let (f, mail, mailbox) = live_flow(pool).await;
+    f.enable(false).await;
+    let o = f.ordered("PO-FLOOD", Some(30)).await;
+    f.send_order_email(&o).await;
+    let s = order_subject(&f, &o).await;
+    mailbox
+        .messages
+        .lock()
+        .unwrap()
+        .extend((1..=8).map(|i| reply(i, &s, &format!("受領しました ({i})"))));
+    assert_eq!(poll_inbox(&f.w.app.state, &mail).await.unwrap(), 8);
+    while worker::run_next(&f.w.app.state).await.unwrap().is_some() {}
+    let runs = reply_runs(&f).await;
+    assert_eq!(runs.len(), 8, "{runs:?}");
+    let read: Vec<_> = runs.iter().filter(|r| r.0 == "succeeded").collect();
+    let refused: Vec<_> = runs
+        .iter()
+        .filter(|r| r.1.as_deref() == Some("reply_rate_limited"))
+        .collect();
+    assert_eq!((read.len(), refused.len()), (5, 3), "{runs:?}");
+    assert!(refused.iter().all(|r| r.0 == "failed" && r.2 == 0));
+    let s = f.w.app.get(&f.url("agents/summary"), &f.w.admin_a).await;
+    assert_eq!(s.body["model_calls_this_month"], 5);
+}
+
+/// L9 S3: model calls that fail still count against the budget.
+#[sqlx::test(migrator = "procure_server::MIGRATOR")]
+async fn failed_model_calls_count_against_the_budget(pool: PgPool) {
+    use procure_server::supplier_mail::poll_inbox;
+    let (f, mail, mailbox) = live_flow_ai(pool, Some(Arc::new(DownModel))).await;
+    f.enable(false).await;
+    let o = f.ordered("PO-DOWN", Some(30)).await;
+    f.send_order_email(&o).await;
+    let s = order_subject(&f, &o).await;
+    mailbox
+        .messages
+        .lock()
+        .unwrap()
+        .push(reply(1, &s, "受領しました。"));
+    assert_eq!(poll_inbox(&f.w.app.state, &mail).await.unwrap(), 1);
+    while worker::run_next(&f.w.app.state).await.unwrap().is_some() {}
+    let runs = reply_runs(&f).await;
+    assert_eq!(runs.len(), 1);
+    assert_ne!(runs[0].0, "succeeded", "{runs:?}");
+    assert_eq!(runs[0].1.as_deref(), Some("ai_unavailable"));
+    assert!(runs[0].2 >= 1, "{runs:?}");
+    let s = f.w.app.get(&f.url("agents/summary"), &f.w.admin_a).await;
+    assert_eq!(s.body["model_calls_this_month"], runs[0].2);
+}
+
+/// L9 S4: a reply is read only for an order of the supplier who sent it, and a manual run
+/// only takes this organisation's document and order.
+#[sqlx::test(migrator = "procure_server::MIGRATOR")]
+async fn replies_are_read_only_for_the_senders_own_order(pool: PgPool) {
+    use base64::Engine;
+    let mut f = Flow::new(pool).await;
+    f.enable(false).await;
+    let first = f.supplier;
+    let o1 = f.ordered("PO-S1", Some(30)).await;
+    // A second supplier with an order of its own.
+    let r =
+        f.w.app
+            .post(
+                "/api/v1/suppliers",
+                &f.operator,
+                json!({ "name": "Osaka Seiki KK", "country": "jp",
+                    "email": "rfq@osaka-seiki.test", "categories": ["bearings"] }),
+            )
+            .await;
+    assert_eq!(r.status, StatusCode::CREATED, "{:?}", r.body);
+    let second = uuid(&r.body["id"]);
+    f.ok(f
+        .w
+        .app
+        .post(
+            &format!("/api/v1/suppliers/{second}/status"),
+            &f.operator,
+            json!({ "status": "verified" }),
+        )
+        .await);
+    f.ok(f
+        .op(&format!("suppliers/{second}/proposal"), json!({}))
+        .await);
+    f.ok(f
+        .w
+        .app
+        .put(
+            &f.url(&format!("suppliers/{second}/decision")),
+            &f.manager,
+            json!({ "decision": "approved" }),
+        )
+        .await);
+    f.supplier = second;
+    let o2 = f.ordered("PO-S2", Some(30)).await;
+    f.supplier = first;
+
+    // The second supplier's reply, kept on its own RFQ.
+    let eml = "From: sales@osaka-seiki.test\r\nSubject: Re: PO-S2\r\n\
+               Content-Type: text/plain; charset=UTF-8\r\n\r\n受領しました。\r\n";
+    let r = f
+        .op(
+            &format!("rfqs/{}/reply-text", o2.rfq),
+            json!({ "file_name": "reply.eml", "supplier_id": second,
+                    "data_base64": base64::engine::general_purpose::STANDARD.encode(eml) }),
+        )
+        .await;
+    assert_eq!(r.status, StatusCode::OK, "{:?}", r.body);
+    let doc = r.body["document_id"].as_str().unwrap().to_string();
+
+    // Filed for the first supplier's order through the API: refused.
+    let run = |input: Value| {
+        let app = &f.w.app;
+        let url = f.url("agents/chasing/run");
+        let token = f.w.admin_a.clone();
+        async move { app.post(&url, &token, json!({ "input": input })).await }
+    };
+    let r = run(json!({ "document_id": doc, "order_id": o1.order })).await;
+    assert_eq!(r.status, StatusCode::UNPROCESSABLE_ENTITY, "{:?}", r.body);
+    // Ids that are not this organisation's: refused.
+    let r = run(json!({ "document_id": Uuid::now_v7(), "order_id": o2.order })).await;
+    assert_eq!(r.status, StatusCode::UNPROCESSABLE_ENTITY, "{:?}", r.body);
+    let r = run(json!({ "document_id": doc, "order_id": Uuid::now_v7() })).await;
+    assert_eq!(r.status, StatusCode::UNPROCESSABLE_ENTITY, "{:?}", r.body);
+
+    // Queued some other way, the agent refuses it too: nothing read, nothing proposed.
+    {
+        let mut tx = f.w.app.pool.begin().await.unwrap();
+        procure_server::db::set_org(&mut tx, f.w.org_a)
+            .await
+            .unwrap();
+        procure_server::agents::enqueue(
+            &mut tx,
+            f.w.org_a,
+            "chasing",
+            procure_domain::agents::Trigger::Event,
+            None,
+            json!({ "document_id": doc, "order_id": o1.order }),
+            Some("test:mismatch"),
+        )
+        .await
+        .unwrap()
+        .unwrap();
+        tx.commit().await.unwrap();
+    }
+    while worker::run_next(&f.w.app.state).await.unwrap().is_some() {}
+    let runs = reply_runs(&f).await;
+    assert_eq!(runs.len(), 1);
+    assert_eq!(
+        (runs[0].0.as_str(), runs[0].1.as_deref(), runs[0].2),
+        ("failed", Some("supplier_mismatch"), 0)
+    );
+    assert!(f.open_for(&o1).await.is_empty());
+
+    // Its own order: accepted and read.
+    let r = run(json!({ "document_id": doc, "order_id": o2.order })).await;
+    assert_eq!(r.status, StatusCode::ACCEPTED, "{:?}", r.body);
+    f.run_all().await;
+    assert_eq!(f.open_for(&o2).await.len(), 1);
 }

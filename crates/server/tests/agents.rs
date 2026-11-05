@@ -70,6 +70,7 @@ impl Agent for Echo {
                 output: json!({ "echo": run.input.clone() }),
                 exceptions,
                 model_calls: run.input["calls"].as_i64().unwrap_or(0) as i32,
+                tx: None,
             })
         })
     }
@@ -452,10 +453,14 @@ async fn exceptions_are_deduplicated_and_decided_with_audit(pool: PgPool) {
     );
 
     let decide = |id: &Value, body: Value| {
-        let path = url(org, &format!("exceptions/{}/decide", id.as_str().unwrap()));
+        let id = id.as_str().unwrap().to_string();
+        let path = url(org, &format!("exceptions/{id}/decide"));
         let app = &w.app;
         let token = manager.clone();
-        async move { app.post(&path, &token, body).await }
+        async move {
+            let body = seen(app, org, &token, &id, body).await;
+            app.post(&path, &token, body).await
+        }
     };
     // Approve: decided, audited, and the action executed by the agent.
     let r = decide(&a["id"], json!({ "decision": "approve", "note": "ok" })).await;
@@ -540,11 +545,10 @@ async fn actions_need_their_own_permission_and_a_refusal_undoes_the_decision(poo
         org,
         &format!("exceptions/{}/decide", list[0]["id"].as_str().unwrap()),
     );
+    let id = list[0]["id"].as_str().unwrap();
     // A manager may decide, but not perform this action: nothing changes.
-    let r = w
-        .app
-        .post(&path, &manager, json!({ "decision": "approve" }))
-        .await;
+    let body = seen(&w.app, org, &manager, id, json!({ "decision": "approve" })).await;
+    let r = w.app.post(&path, &manager, body).await;
     assert_eq!(r.status, StatusCode::FORBIDDEN);
     let open = w.app.get(&url(org, "exceptions"), admin).await;
     assert_eq!(open.body[0]["status"], "open");
@@ -554,10 +558,8 @@ async fn actions_need_their_own_permission_and_a_refusal_undoes_the_decision(poo
             .is_empty()
     );
     // The organisation's admin may.
-    let r = w
-        .app
-        .post(&path, admin, json!({ "decision": "approve" }))
-        .await;
+    let body = seen(&w.app, org, admin, id, json!({ "decision": "approve" })).await;
+    let r = w.app.post(&path, admin, body).await;
     assert_eq!(r.status, StatusCode::OK, "{:?}", r.body);
     assert_eq!(audit_actions(&w, org, admin, "echo.applied").await.len(), 1);
 }
@@ -701,12 +703,14 @@ async fn assigned_staff_see_and_decide_exceptions_of_their_customers(pool: PgPoo
 
     // They may decide for the assigned customer, but never change its agent settings.
     let id = list[0]["exception"]["id"].as_str().unwrap();
+    let body = json!({ "decision": "approve",
+                       "expected_updated_at": list[0]["exception"]["updated_at"] });
     let r = w
         .app
         .post(
             &url(org, &format!("exceptions/{id}/decide")),
             &operator,
-            json!({ "decision": "approve" }),
+            body,
         )
         .await;
     assert_eq!(r.status, StatusCode::OK, "{:?}", r.body);
@@ -722,32 +726,127 @@ async fn assigned_staff_see_and_decide_exceptions_of_their_customers(pool: PgPoo
     assert_eq!(r.status, StatusCode::FORBIDDEN);
 }
 
-// Admin console session (second factor enrolled on first sign-in).
-async fn admin_session(app: &App, email: &str) -> String {
-    use procure_server::mfa;
-    let post = |path: &str, body: Value| {
-        let uri = format!("/api/admin/v1{path}");
-        async move {
-            app.call(axum::http::Method::POST, &uri, None, Some(body))
-                .await
-        }
-    };
-    let r = post(
-        "/auth/login",
-        json!({ "email": email, "password": PASSWORD }),
+/// L9 S2/C1: a decision holds only for the version of the exception the person saw. An agent
+/// may refresh an open exception (a new proposal) at any time; deciding on an older view is
+/// refused and executes nothing.
+#[sqlx::test(migrator = "procure_server::MIGRATOR")]
+async fn a_decision_on_a_refreshed_exception_is_refused(pool: PgPool) {
+    let w = echo_world(pool).await;
+    let (org, admin) = (w.org_a, w.admin_a.as_str());
+    enable(&w, org, admin, 2000).await;
+    let list = raise(
+        &w,
+        org,
+        admin,
+        json!([{ "key": "v", "n": 1, "action": "note" }]),
     )
     .await;
+    let looked_at = by_key(&list, "v").clone();
+    // The agent refreshes it after the person looked.
+    let list = raise(
+        &w,
+        org,
+        admin,
+        json!([{ "key": "v", "n": 2, "action": "note" }]),
+    )
+    .await;
+    let now = by_key(&list, "v").clone();
+    assert_eq!(now["id"], looked_at["id"]);
+    assert_ne!(now["updated_at"], looked_at["updated_at"]);
+    let path = url(
+        org,
+        &format!("exceptions/{}/decide", now["id"].as_str().unwrap()),
+    );
+
+    // Without the version it saw, a client cannot decide.
+    let r = w
+        .app
+        .post(&path, admin, json!({ "decision": "approve" }))
+        .await;
+    assert_eq!(r.status, StatusCode::UNPROCESSABLE_ENTITY, "{:?}", r.body);
+    // The old version: refused, still open, nothing executed or audited.
+    let r = w
+        .app
+        .post(
+            &path,
+            admin,
+            json!({ "decision": "approve", "expected_updated_at": looked_at["updated_at"] }),
+        )
+        .await;
+    assert_eq!(r.status, StatusCode::CONFLICT, "{:?}", r.body);
+    assert_eq!(r.body["error"]["detail"], "exception_changed");
+    assert!(
+        audit_actions(&w, org, admin, "echo.applied")
+            .await
+            .is_empty()
+    );
+    assert!(
+        audit_actions(&w, org, admin, "agent.exception_decided")
+            .await
+            .is_empty()
+    );
+    // The version on screen now: decided.
+    let r = w
+        .app
+        .post(
+            &path,
+            admin,
+            json!({ "decision": "approve", "expected_updated_at": now["updated_at"] }),
+        )
+        .await;
     assert_eq!(r.status, StatusCode::OK, "{:?}", r.body);
-    let token = r.body["token"].as_str().unwrap().to_string();
-    let e = post("/auth/totp/enroll", json!({ "token": token })).await;
-    let secret = mfa::base32_decode(e.body["secret"].as_str().unwrap()).unwrap();
-    let step = chrono::Utc::now().timestamp().div_euclid(mfa::STEP_SECONDS);
-    let code = format!("{:06}", mfa::code_at(&secret, step));
-    let c = post(
-        "/auth/totp/confirm",
-        json!({ "token": token, "code": code }),
-    )
-    .await;
-    assert_eq!(c.status, StatusCode::OK, "{:?}", c.body);
-    c.body["token"].as_str().unwrap().to_string()
+    assert_eq!(r.body["status"], "approved");
+}
+
+/// L9 S6: the monthly budget counts the runs that *started* this month, in the
+/// organisation's time zone (a run queued last month but run now counts now).
+#[sqlx::test(migrator = "procure_server::MIGRATOR")]
+async fn the_budget_month_is_by_start_in_the_organisations_time_zone(pool: PgPool) {
+    let owner = pool.clone();
+    let w = echo_world(pool).await;
+    let (org, admin) = (w.org_a, w.admin_a.as_str());
+    enable(&w, org, admin, 2000).await;
+    let mut tx = owner.begin().await.unwrap();
+    sqlx::query("SELECT set_config('app.org_id', $1, true)")
+        .bind(org.to_string())
+        .execute(&mut *tx)
+        .await
+        .unwrap();
+    sqlx::query("SELECT set_config('app.scope', 'platform', true)")
+        .execute(&mut *tx)
+        .await
+        .unwrap();
+    sqlx::query("UPDATE organisations SET timezone = 'Pacific/Auckland' WHERE id = $1")
+        .bind(org)
+        .execute(&mut *tx)
+        .await
+        .unwrap();
+    // m = the start of this month in Auckland (hours before the UTC month starts).
+    for (created, started, calls) in [
+        // Queued last month, ran this month: counts.
+        ("m - interval '1 day'", "m + interval '1 minute'", 3),
+        // This month in Auckland, still last month in UTC: counts.
+        ("m + interval '2 minutes'", "m + interval '2 minutes'", 5),
+        // Last month in Auckland: does not.
+        ("m - interval '1 minute'", "m - interval '1 minute'", 7),
+    ] {
+        sqlx::query(&format!(
+            "WITH b AS (SELECT date_trunc('month', now() AT TIME ZONE 'Pacific/Auckland')
+                               AT TIME ZONE 'Pacific/Auckland' AS m)
+             INSERT INTO agent_runs (id, org_id, agent, trigger, status, attempts, created_at,
+                                     started_at, finished_at, model_calls)
+             SELECT $1, $2, 'echo', 'manual', 'succeeded', 1, {created}, {started}, {started}, $3
+             FROM b"
+        ))
+        .bind(Uuid::now_v7())
+        .bind(org)
+        .bind(calls)
+        .execute(&mut *tx)
+        .await
+        .unwrap();
+    }
+    tx.commit().await.unwrap();
+    let s = w.app.get(&url(org, "summary"), admin).await;
+    assert_eq!(s.status, StatusCode::OK, "{:?}", s.body);
+    assert_eq!(s.body["model_calls_this_month"], 8);
 }

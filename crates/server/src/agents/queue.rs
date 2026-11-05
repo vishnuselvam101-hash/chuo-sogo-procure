@@ -237,11 +237,15 @@ pub async fn fail(
     }
 }
 
-/// Model calls the organisation's runs made this calendar month (UTC).
+/// Model calls of the organisation's runs that started this calendar month, in the
+/// organisation's own time zone (a run queued last month but run now counts now).
 pub async fn model_calls_this_month(tx: &mut Tx, org_id: Uuid) -> Result<i64, sqlx::Error> {
     sqlx::query_scalar(
-        "SELECT coalesce(sum(model_calls), 0)::bigint FROM agent_runs
-         WHERE org_id = $1 AND created_at >= date_trunc('month', now())",
+        "WITH z AS (SELECT coalesce((SELECT timezone FROM organisations WHERE id = $1),
+                                    'Asia/Tokyo') AS tz)
+         SELECT coalesce(sum(r.model_calls), 0)::bigint FROM agent_runs r, z
+         WHERE r.org_id = $1
+           AND r.started_at >= date_trunc('month', now() AT TIME ZONE z.tz) AT TIME ZONE z.tz",
     )
     .bind(org_id)
     .fetch_one(&mut **tx)

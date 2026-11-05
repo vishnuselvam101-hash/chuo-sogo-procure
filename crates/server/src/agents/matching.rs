@@ -245,6 +245,7 @@ impl Agent for Matching {
                 output,
                 exceptions,
                 model_calls: 0,
+                tx: None,
             })
         })
     }

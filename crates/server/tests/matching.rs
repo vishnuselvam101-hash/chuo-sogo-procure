@@ -425,7 +425,7 @@ impl Flow {
                     id.as_str().unwrap()
                 )),
                 token,
-                body,
+                seen(&self.w.app, self.w.org_a, token, id.as_str().unwrap(), body).await,
             )
             .await
     }

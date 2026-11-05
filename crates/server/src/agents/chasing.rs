@@ -72,10 +72,12 @@ pub async fn cadence(tx: &mut Tx, org_id: Uuid) -> Result<Cadence, sqlx::Error> 
     }))
 }
 
+/// Automatic supplier mail is two-party: the customer's admin requested it and Chuo-Sogo
+/// staff confirmed that request.
 async fn auto_send(tx: &mut Tx, org_id: Uuid) -> Result<bool, sqlx::Error> {
     sqlx::query_scalar(
-        "SELECT coalesce((SELECT auto_send_supplier_mail FROM agent_settings
-                          WHERE org_id = $1), false)",
+        "SELECT coalesce((SELECT auto_send_supplier_mail AND auto_send_confirmed_at IS NOT NULL
+                          FROM agent_settings WHERE org_id = $1), false)",
     )
     .bind(org_id)
     .fetch_one(&mut **tx)
@@ -103,6 +105,7 @@ struct OrderRow {
     order_sent_at: Option<DateTime<Utc>>,
     last_received_at: Option<DateTime<Utc>>,
     invoiced: bool,
+    supplier_id: Uuid,
     supplier_name: String,
     supplier_country: String,
     rfq_number: String,
@@ -149,7 +152,7 @@ async fn open_orders(tx: &mut Tx, id: Option<Uuid>) -> Result<Vec<OrderRow>, sql
                 (SELECT max(d.received_at) FROM deliveries d
                  WHERE d.order_id = o.id AND d.reversed_at IS NULL) AS last_received_at,
                 EXISTS (SELECT 1 FROM invoices i WHERE i.order_id = o.id) AS invoiced,
-                s.name AS supplier_name, s.country AS supplier_country,
+                s.id AS supplier_id, s.name AS supplier_name, s.country AS supplier_country,
                 f.number AS rfq_number, x.id AS recipient_id
          FROM purchase_orders o
          JOIN procurement_requests r ON r.id = o.request_id
@@ -185,6 +188,9 @@ pub struct Finding {
     pub order_id: Uuid,
     pub chase_type: ChaseType,
     pub due: Due,
+    /// A reminder (attempt 2+) that may go out without a new decision: the previous attempt
+    /// is in the outbox and a person approved and sent a follow-up of this series.
+    pub may_auto_send: bool,
 }
 
 struct Known {
@@ -192,6 +198,20 @@ struct Known {
     /// Orders with a reply waiting for a person: no follow-up meanwhile.
     replied: HashSet<Uuid>,
     exhausted: HashSet<String>,
+    /// Series (order, type) a person rejected a follow-up of: no further follow-ups.
+    stopped: HashSet<(Uuid, ChaseType)>,
+    /// Follow-ups in the outbox (order, type, attempt).
+    sent: HashSet<(Uuid, ChaseType, i32)>,
+    /// Series with a follow-up a person approved (`checked_by` set) and sent.
+    approved: HashSet<(Uuid, ChaseType)>,
+}
+
+impl Known {
+    fn may_auto_send(&self, order: Uuid, t: ChaseType, attempt: i32) -> bool {
+        attempt >= 2
+            && self.approved.contains(&(order, t))
+            && self.sent.contains(&(order, t, attempt - 1))
+    }
 }
 
 fn note(h: &mut History, attempt: i32, at: DateTime<Utc>) {
@@ -203,47 +223,57 @@ fn note(h: &mut History, attempt: i32, at: DateTime<Utc>) {
     }
 }
 
-/// (order, chase type, attempt, still open, decided or raised at)
+/// (order, chase type, attempt, status, decided or raised at)
 type ProposedRow = (
     Option<Uuid>,
     Option<String>,
     Option<i32>,
-    bool,
+    String,
     DateTime<Utc>,
 );
 
 async fn known(tx: &mut Tx) -> Result<Known, sqlx::Error> {
     let mut history: HashMap<(Uuid, ChaseType), History> = HashMap::new();
-    let sent: Vec<(Uuid, String, i32, DateTime<Utc>)> = sqlx::query_as(
-        "SELECT order_id, chase_type, max(chase_attempt), max(created_at) FROM outbox
-         WHERE kind = 'chase' GROUP BY order_id, chase_type",
+    let mut sent = HashSet::new();
+    let mut approved = HashSet::new();
+    let rows: Vec<(Uuid, String, i32, DateTime<Utc>, bool)> = sqlx::query_as(
+        "SELECT order_id, chase_type, chase_attempt, created_at, checked_by IS NOT NULL
+         FROM outbox WHERE kind = 'chase'",
     )
     .fetch_all(&mut **tx)
     .await?;
-    for (order, t, attempt, at) in sent {
+    for (order, t, attempt, at, checked) in rows {
         if let Some(t) = ChaseType::from_code(&t) {
             note(history.entry((order, t)).or_default(), attempt, at);
+            sent.insert((order, t, attempt));
+            if checked {
+                approved.insert((order, t));
+            }
         }
     }
+    let mut stopped = HashSet::new();
     let proposed: Vec<ProposedRow> = sqlx::query_as(
         "SELECT subject_id, params ->> 'chase_type', (params ->> 'attempt')::int,
-                    status = 'open', coalesce(decided_at, created_at)
+                    status, coalesce(decided_at, created_at)
              FROM agent_exceptions WHERE agent = 'chasing' AND kind = 'chase_due'",
     )
     .fetch_all(&mut **tx)
     .await?;
-    for (order, t, attempt, open, at) in proposed {
+    for (order, t, attempt, status, at) in proposed {
         let (Some(order), Some(t), Some(attempt)) =
             (order, t.as_deref().and_then(ChaseType::from_code), attempt)
         else {
             continue;
         };
         let h = history.entry((order, t)).or_default();
-        if open {
-            h.pending = true;
-        } else {
-            // Decided (sent, or rejected for now): the next attempt waits for the cadence.
-            note(h, attempt, at);
+        match status.as_str() {
+            "open" => h.pending = true,
+            // A person said no: the series ends here (a person may still write by hand).
+            "rejected" => {
+                stopped.insert((order, t));
+            }
+            // Sent, or handled elsewhere: the next attempt waits for the cadence.
+            _ => note(h, attempt, at),
         }
     }
     let replied: Vec<Uuid> = sqlx::query_scalar(
@@ -263,6 +293,9 @@ async fn known(tx: &mut Tx) -> Result<Known, sqlx::Error> {
         history,
         replied: replied.into_iter().collect(),
         exhausted: exhausted.into_iter().collect(),
+        stopped,
+        sent,
+        approved,
     })
 }
 
@@ -281,6 +314,9 @@ pub async fn findings(
         }
         let facts = o.facts();
         for t in ChaseType::ALL {
+            if known.stopped.contains(&(o.id, t)) {
+                continue;
+            }
             let h = known.history.get(&(o.id, t)).copied().unwrap_or_default();
             match rules::due(t, &facts, &h, &cadence, now) {
                 Due::No => {}
@@ -289,6 +325,10 @@ pub async fn findings(
                     order_id: o.id,
                     chase_type: t,
                     due,
+                    may_auto_send: match due {
+                        Due::Attempt(n) => known.may_auto_send(o.id, t, n),
+                        _ => false,
+                    },
                 }),
             }
         }
@@ -365,9 +405,10 @@ async fn sweep(cx: &AgentCx, now: DateTime<Utc>) -> Result<Outcome, AgentError> 
             Due::Exhausted => {
                 exceptions.push(exhausted_exception(o, f.chase_type, cadence.max_attempts))
             }
-            // A person approved the first follow-up; with live agent mail allowed, the
-            // reminders after it go out on the cadence.
-            Due::Attempt(n) if n >= 2 && live => {
+            // A person approved and sent a follow-up of this series and the previous attempt
+            // went out; with live agent mail allowed, the reminders after it go out on the
+            // cadence. A rejected follow-up ends the series (no finding at all).
+            Due::Attempt(n) if n >= 2 && live && f.may_auto_send => {
                 let d = o.draft(f.chase_type, n);
                 match queue_chase(
                     &cx.state,
@@ -414,12 +455,14 @@ async fn sweep(cx: &AgentCx, now: DateTime<Utc>) -> Result<Outcome, AgentError> 
             Due::Attempt(n) => exceptions.push(chase_exception(o, f.chase_type, n)),
         }
     }
-    tx.commit().await?;
+    // The worker raises the exceptions and ends the run in this same transaction, so the
+    // reminders queued above exist only if the run's outcome is saved too.
     Ok(Outcome {
         output: json!({ "orders": orders.len(), "proposed": exceptions.len(),
                         "auto_sent": auto_sent }),
         exceptions,
         model_calls: 0,
+        tx: Some(tx),
     })
 }
 
@@ -548,6 +591,36 @@ pub(crate) async fn on_reply_kept(
     .map(|_| ())
 }
 
+/// Checks a manual request to read a reply (`input: {document_id, order_id}`, transaction
+/// in the organisation's context): both exist in this organisation, the order is open and
+/// the document came from the order's supplier.
+pub(crate) async fn check_reply_input(tx: &mut Tx, input: &Value) -> ApiResult<()> {
+    let id = |k: &'static str| {
+        input
+            .get(k)
+            .and_then(Value::as_str)
+            .and_then(|s| Uuid::parse_str(s).ok())
+            .ok_or(ApiError::Validation(k))
+    };
+    let (document_id, order_id) = (id("document_id")?, id("order_id")?);
+    let supplier: Option<Option<Uuid>> =
+        sqlx::query_scalar("SELECT supplier_id FROM supplier_documents WHERE id = $1")
+            .bind(document_id)
+            .fetch_optional(&mut **tx)
+            .await?;
+    let Some(supplier) = supplier else {
+        return Err(ApiError::Validation("document_id"));
+    };
+    let order = open_orders(tx, Some(order_id))
+        .await?
+        .pop()
+        .ok_or(ApiError::Validation("order_id"))?;
+    if supplier != Some(order.supplier_id) {
+        return Err(ApiError::Validation("document_id"));
+    }
+    Ok(())
+}
+
 fn reply_exception(
     o: &OrderRow,
     document_id: Uuid,
@@ -625,6 +698,25 @@ async fn read_reply(cx: &AgentCx, run: &AgentRun) -> Result<Outcome, AgentError>
         tx.commit().await?;
         return Ok(Outcome::new(json!({ "skipped": "order_not_open" })));
     };
+    // Only the order's own supplier can answer for it.
+    if supplier_id != Some(order.supplier_id) {
+        return Err(AgentError::Fatal("supplier_mismatch"));
+    }
+    // A flood of replies cannot drain the model budget: at most a few readings per order
+    // (and so per supplier) a day.
+    let recent: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM agent_runs
+         WHERE agent = 'chasing' AND input ? 'document_id' AND input ->> 'order_id' = $1
+           AND id <> $2 AND started_at > now() - interval '1 day'
+           AND error_code IS DISTINCT FROM 'reply_rate_limited'",
+    )
+    .bind(order_id.to_string())
+    .bind(run.id)
+    .fetch_one(&mut *tx)
+    .await?;
+    if !rules::reply_within_daily_limit(recent) {
+        return Err(AgentError::Fatal("reply_rate_limited"));
+    }
     let ordered: i64 = sqlx::query_scalar(
         "SELECT coalesce(sum(quantity), 0)::bigint FROM order_items WHERE order_id = $1",
     )
@@ -695,6 +787,7 @@ async fn read_reply(cx: &AgentCx, run: &AgentRun) -> Result<Outcome, AgentError>
                         "suggestion_id": suggestion, "flags": r.flags }),
         exceptions: vec![reply_exception(&order, document_id, &r, suggestion)],
         model_calls: 1,
+        tx: None,
     })
 }
 

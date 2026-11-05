@@ -977,8 +977,10 @@ pub(crate) async fn apply_batch(
                     due_date: s.due_date,
                     currency: s.currency.clone(),
                     shipping_minor: s.shipping_minor.unwrap_or(0),
-                    tax_rate_bps: s.tax_rate_bps.unwrap_or(1000),
-                    tax_rounding: "floor".into(),
+                    // Staged from the profile (rate from the file or the profile's default;
+                    // a row without either never reaches this point).
+                    tax_rate_bps: s.tax_rate_bps.ok_or(ApiError::Validation("tax_rate"))?,
+                    tax_rounding: s.tax_rounding.clone().unwrap_or_else(|| "floor".into()),
                     tax_minor: s.tax_minor.ok_or(ApiError::Validation("tax_minor"))?,
                     lines,
                 };

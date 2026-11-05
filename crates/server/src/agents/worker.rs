@@ -94,11 +94,18 @@ async fn execute(state: &AppState, run: &AgentRun) -> Result<RunStatus, sqlx::Er
         Err(_) => Err(AgentError::Retry("timeout")),
     };
     match result {
-        Ok(outcome) => {
+        Ok(mut outcome) => {
             let calls = outcome.model_calls.max(cx.model_calls());
+            let carried = outcome.tx.take();
             let saved: Result<(), sqlx::Error> = async {
-                let mut tx = state.pool.begin().await?;
-                db::set_org(&mut tx, org).await?;
+                let mut tx = match carried {
+                    Some(tx) => tx,
+                    None => {
+                        let mut tx = state.pool.begin().await?;
+                        db::set_org(&mut tx, org).await?;
+                        tx
+                    }
+                };
                 for ex in &outcome.exceptions {
                     exceptions::raise(&mut tx, org, agent.name(), Some(run.id), ex).await?;
                 }
