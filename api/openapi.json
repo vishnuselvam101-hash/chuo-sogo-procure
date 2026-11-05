@@ -16694,6 +16694,104 @@
         ]
       }
     },
+    "/api/v1/orgs/{org_id}/supplier-scorecards": {
+      "get": {
+        "tags": [
+          "suppliers"
+        ],
+        "operationId": "supplier_watch_scorecards",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "month",
+            "in": "query",
+            "description": "`YYYY-MM` (Japan time). Default: the current month.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Scorecards of the suppliers this organisation worked with in the month",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SupplierScorecard"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown or unrelated organisation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid month",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/orgs/{org_id}/suppliers": {
       "get": {
         "tags": [
@@ -16720,6 +16818,94 @@
                   "type": "array",
                   "items": {
                     "$ref": "#/components/schemas/OrgSupplierView"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown or unrelated organisation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/orgs/{org_id}/suppliers/{supplier_id}/compliance-docs": {
+      "get": {
+        "tags": [
+          "suppliers"
+        ],
+        "operationId": "supplier_watch_org_docs",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "supplier_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The supplier's documents shared with this organisation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CustomerComplianceDoc"
                   }
                 }
               }
@@ -17971,6 +18157,470 @@
           },
           "422": {
             "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/suppliers/{supplier_id}/compliance-docs": {
+      "get": {
+        "tags": [
+          "suppliers"
+        ],
+        "operationId": "supplier_watch_list_docs",
+        "parameters": [
+          {
+            "name": "supplier_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Every document of the supplier, retired ones included",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/StaffComplianceDoc"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not internal procurement staff",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown supplier",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "suppliers"
+        ],
+        "operationId": "supplier_watch_create_doc",
+        "parameters": [
+          {
+            "name": "supplier_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ComplianceDocInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Document recorded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not internal procurement staff",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown supplier",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Larger than 10 MB"
+          },
+          "422": {
+            "description": "Invalid kind, registration number, dates or file",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/suppliers/{supplier_id}/compliance-docs/{doc_id}": {
+      "put": {
+        "tags": [
+          "suppliers"
+        ],
+        "operationId": "supplier_watch_update_doc",
+        "parameters": [
+          {
+            "name": "supplier_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "doc_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ComplianceDocUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Updated; a changed reference or date clears the verification",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffComplianceDoc"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not internal procurement staff",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown document",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Retired documents do not change",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid registration number or dates",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/suppliers/{supplier_id}/compliance-docs/{doc_id}/file": {
+      "get": {
+        "tags": [
+          "suppliers"
+        ],
+        "operationId": "supplier_watch_doc_file",
+        "parameters": [
+          {
+            "name": "supplier_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "doc_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "File bytes (application/octet-stream, attachment)"
+          },
+          "400": {
+            "description": "Malformed request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not internal procurement staff",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown document or no file",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/suppliers/{supplier_id}/compliance-docs/{doc_id}/verify": {
+      "post": {
+        "tags": [
+          "suppliers"
+        ],
+        "operationId": "supplier_watch_verify_doc",
+        "parameters": [
+          {
+            "name": "supplier_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "doc_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Marked as checked by the caller",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffComplianceDoc"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not internal procurement staff",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown document",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Retired",
             "content": {
               "application/json": {
                 "schema": {
@@ -19652,6 +20302,99 @@
           }
         }
       },
+      "ComplianceDocInput": {
+        "type": "object",
+        "required": [
+          "kind"
+        ],
+        "properties": {
+          "customer_visible": {
+            "type": "boolean",
+            "description": "Shown to customers that work with this supplier. Default false."
+          },
+          "data_base64": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "expires_on": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date",
+            "description": "Valid through this date (inclusive). Absent: does not expire."
+          },
+          "file_name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Optional file: name and standard base64 content (same types as attachments)."
+          },
+          "issued_on": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "kind": {
+            "type": "string",
+            "description": "`iso9001` | `iso14001` | `iatf16949` | `qualified_invoice_registration` |\n`anti_social_check` | `insurance` | `nda` | `other`"
+          },
+          "notes": {
+            "type": "string",
+            "description": "Internal notes (staff only; never shown to customers)."
+          },
+          "reference": {
+            "type": "string",
+            "description": "Certificate or policy number. For `qualified_invoice_registration`, the registration\nnumber (`T` + 13 digits, check digit verified; spaces, hyphens and full-width\ncharacters are accepted and normalised)."
+          },
+          "title": {
+            "type": "string"
+          }
+        }
+      },
+      "ComplianceDocUpdate": {
+        "type": "object",
+        "required": [
+          "customer_visible"
+        ],
+        "properties": {
+          "customer_visible": {
+            "type": "boolean"
+          },
+          "expires_on": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "issued_on": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "notes": {
+            "type": "string"
+          },
+          "reference": {
+            "type": "string"
+          },
+          "retired": {
+            "type": "boolean",
+            "description": "Retire (superseded or withdrawn): hidden from customers and from the agent."
+          },
+          "title": {
+            "type": "string"
+          }
+        }
+      },
       "ContactBody": {
         "type": "object",
         "required": [
@@ -20135,6 +20878,55 @@
             "type": "integer",
             "format": "int64",
             "description": "Fees not yet on a Chuo-Sogo invoice."
+          }
+        }
+      },
+      "CustomerComplianceDoc": {
+        "type": "object",
+        "description": "What a customer sees: no internal notes, no staff identities, no file.",
+        "required": [
+          "id",
+          "supplier_id",
+          "kind",
+          "reference",
+          "title",
+          "verified"
+        ],
+        "properties": {
+          "expires_on": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "issued_on": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "reference": {
+            "type": "string"
+          },
+          "supplier_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string"
+          },
+          "verified": {
+            "type": "boolean",
+            "description": "Checked by Chuo-Sogo staff."
           }
         }
       },
@@ -25838,6 +26630,113 @@
           }
         }
       },
+      "StaffComplianceDoc": {
+        "type": "object",
+        "description": "Staff view, with internal notes and who verified the document.",
+        "required": [
+          "id",
+          "supplier_id",
+          "kind",
+          "reference",
+          "title",
+          "customer_visible",
+          "notes",
+          "created_by",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "content_type": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "created_by": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "customer_visible": {
+            "type": "boolean"
+          },
+          "expires_on": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "file_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "issued_on": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "string"
+          },
+          "reference": {
+            "type": "string"
+          },
+          "retired_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "size_bytes": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "supplier_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "verified_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "verified_by": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          }
+        }
+      },
       "StaffException": {
         "type": "object",
         "required": [
@@ -25997,6 +26896,96 @@
               "string",
               "null"
             ]
+          }
+        }
+      },
+      "SupplierScorecard": {
+        "type": "object",
+        "description": "One supplier's scorecard for one customer and month.",
+        "required": [
+          "supplier_id",
+          "supplier_name",
+          "month",
+          "deliveries_measured",
+          "invoices",
+          "rfqs_received",
+          "comparisons_ranked"
+        ],
+        "properties": {
+          "comparisons_ranked": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "deliveries_measured": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "discrepancy_bps": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "Invoices of the month with at least one discrepancy.",
+            "minimum": 0
+          },
+          "invoices": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "median_reply_hours": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
+          },
+          "month": {
+            "type": "string",
+            "description": "`YYYY-MM` (Japan time)."
+          },
+          "on_time_bps": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "Orders promised in the month delivered (first delivery) on or before the promised date.",
+            "minimum": 0
+          },
+          "price_score_bps": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "Mean price-rank score in the month's final comparisons (10 000 = always cheapest).",
+            "minimum": 0
+          },
+          "reply_rate_bps": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "RFQs sent in the month that the supplier answered (quotation or decline).",
+            "minimum": 0
+          },
+          "rfqs_received": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "supplier_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "supplier_name": {
+            "type": "string"
           }
         }
       },

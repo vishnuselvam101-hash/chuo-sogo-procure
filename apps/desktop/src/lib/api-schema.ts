@@ -2750,6 +2750,22 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/orgs/{org_id}/supplier-scorecards": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["supplier_watch_scorecards"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/orgs/{org_id}/suppliers": {
     parameters: {
       query?: never;
@@ -2758,6 +2774,22 @@ export interface paths {
       cookie?: never;
     };
     get: operations["list_org_suppliers"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/orgs/{org_id}/suppliers/{supplier_id}/compliance-docs": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["supplier_watch_org_docs"];
     put?: never;
     post?: never;
     delete?: never;
@@ -2952,6 +2984,70 @@ export interface paths {
     get: operations["list_suppliers"];
     put?: never;
     post: operations["create_supplier"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/suppliers/{supplier_id}/compliance-docs": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["supplier_watch_list_docs"];
+    put?: never;
+    post: operations["supplier_watch_create_doc"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/suppliers/{supplier_id}/compliance-docs/{doc_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put: operations["supplier_watch_update_doc"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/suppliers/{supplier_id}/compliance-docs/{doc_id}/file": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["supplier_watch_doc_file"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/suppliers/{supplier_id}/compliance-docs/{doc_id}/verify": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["supplier_watch_verify_doc"];
     delete?: never;
     options?: never;
     head?: never;
@@ -3501,6 +3597,46 @@ export interface components {
       /** Format: uuid */
       rfq_id: string;
     };
+    ComplianceDocInput: {
+      /** @description Shown to customers that work with this supplier. Default false. */
+      customer_visible?: boolean;
+      data_base64?: string | null;
+      /**
+       * Format: date
+       * @description Valid through this date (inclusive). Absent: does not expire.
+       */
+      expires_on?: string | null;
+      /** @description Optional file: name and standard base64 content (same types as attachments). */
+      file_name?: string | null;
+      /** Format: date */
+      issued_on?: string | null;
+      /**
+       * @description `iso9001` | `iso14001` | `iatf16949` | `qualified_invoice_registration` |
+       *     `anti_social_check` | `insurance` | `nda` | `other`
+       */
+      kind: string;
+      /** @description Internal notes (staff only; never shown to customers). */
+      notes?: string;
+      /**
+       * @description Certificate or policy number. For `qualified_invoice_registration`, the registration
+       *     number (`T` + 13 digits, check digit verified; spaces, hyphens and full-width
+       *     characters are accepted and normalised).
+       */
+      reference?: string;
+      title?: string;
+    };
+    ComplianceDocUpdate: {
+      customer_visible: boolean;
+      /** Format: date */
+      expires_on?: string | null;
+      /** Format: date */
+      issued_on?: string | null;
+      notes?: string;
+      reference?: string;
+      /** @description Retire (superseded or withdrawn): hidden from customers and from the agent. */
+      retired?: boolean;
+      title?: string;
+    };
     ContactBody: {
       email?: string | null;
       fax?: string | null;
@@ -3649,6 +3785,22 @@ export interface components {
        * @description Fees not yet on a Chuo-Sogo invoice.
        */
       unbilled_fee_minor: number;
+    };
+    /** @description What a customer sees: no internal notes, no staff identities, no file. */
+    CustomerComplianceDoc: {
+      /** Format: date */
+      expires_on?: string | null;
+      /** Format: uuid */
+      id: string;
+      /** Format: date */
+      issued_on?: string | null;
+      kind: string;
+      reference: string;
+      /** Format: uuid */
+      supplier_id: string;
+      title: string;
+      /** @description Checked by Chuo-Sogo staff. */
+      verified: boolean;
     };
     DecideRequest: {
       /** @description For `edit`: the action as changed (same `type` as the proposal). */
@@ -5601,6 +5753,38 @@ export interface components {
       key: string;
       value: string;
     };
+    /** @description Staff view, with internal notes and who verified the document. */
+    StaffComplianceDoc: {
+      content_type?: string | null;
+      /** Format: date-time */
+      created_at: string;
+      /** Format: uuid */
+      created_by: string;
+      customer_visible: boolean;
+      /** Format: date */
+      expires_on?: string | null;
+      file_name?: string | null;
+      /** Format: uuid */
+      id: string;
+      /** Format: date */
+      issued_on?: string | null;
+      kind: string;
+      notes: string;
+      reference: string;
+      /** Format: date-time */
+      retired_at?: string | null;
+      /** Format: int64 */
+      size_bytes?: number | null;
+      /** Format: uuid */
+      supplier_id: string;
+      title: string;
+      /** Format: date-time */
+      updated_at: string;
+      /** Format: date-time */
+      verified_at?: string | null;
+      /** Format: uuid */
+      verified_by?: string | null;
+    };
     StaffException: {
       exception: components["schemas"]["AgentException"];
       org_name: string;
@@ -5648,6 +5832,44 @@ export interface components {
       /** @description How quote requests go out: `email` (default) or `fax`. */
       rfq_channel?: string | null;
       website?: string | null;
+    };
+    /** @description One supplier's scorecard for one customer and month. */
+    SupplierScorecard: {
+      /** Format: int32 */
+      comparisons_ranked: number;
+      /** Format: int32 */
+      deliveries_measured: number;
+      /**
+       * Format: int32
+       * @description Invoices of the month with at least one discrepancy.
+       */
+      discrepancy_bps?: number | null;
+      /** Format: int32 */
+      invoices: number;
+      /** Format: int32 */
+      median_reply_hours?: number | null;
+      /** @description `YYYY-MM` (Japan time). */
+      month: string;
+      /**
+       * Format: int32
+       * @description Orders promised in the month delivered (first delivery) on or before the promised date.
+       */
+      on_time_bps?: number | null;
+      /**
+       * Format: int32
+       * @description Mean price-rank score in the month's final comparisons (10 000 = always cheapest).
+       */
+      price_score_bps?: number | null;
+      /**
+       * Format: int32
+       * @description RFQs sent in the month that the supplier answered (quotation or decline).
+       */
+      reply_rate_bps?: number | null;
+      /** Format: int32 */
+      rfqs_received: number;
+      /** Format: uuid */
+      supplier_id: string;
+      supplier_name: string;
     };
     SupplierStatusBody: {
       note?: string;
@@ -17754,6 +17976,76 @@ export interface operations {
       };
     };
   };
+  supplier_watch_scorecards: {
+    parameters: {
+      query?: {
+        /** @description `YYYY-MM` (Japan time). Default: the current month. */
+        month?: string;
+      };
+      header?: never;
+      path: {
+        org_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Scorecards of the suppliers this organisation worked with in the month */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SupplierScorecard"][];
+        };
+      };
+      /** @description Malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown or unrelated organisation */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Invalid month */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
   list_org_suppliers: {
     parameters: {
       query?: never;
@@ -17772,6 +18064,65 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["OrgSupplierView"][];
+        };
+      };
+      /** @description Malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown or unrelated organisation */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  supplier_watch_org_docs: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+        supplier_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The supplier's documents shared with this organisation */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CustomerComplianceDoc"][];
         };
       };
       /** @description Malformed request */
@@ -18723,6 +19074,348 @@ export interface operations {
       };
       /** @description Invalid input */
       422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  supplier_watch_list_docs: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        supplier_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Every document of the supplier, retired ones included */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["StaffComplianceDoc"][];
+        };
+      };
+      /** @description Malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not internal procurement staff */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown supplier */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  supplier_watch_create_doc: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        supplier_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ComplianceDocInput"];
+      };
+    };
+    responses: {
+      /** @description Document recorded */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["IdResponse"];
+        };
+      };
+      /** @description Malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not internal procurement staff */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown supplier */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Larger than 10 MB */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Invalid kind, registration number, dates or file */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  supplier_watch_update_doc: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        supplier_id: string;
+        doc_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ComplianceDocUpdate"];
+      };
+    };
+    responses: {
+      /** @description Updated; a changed reference or date clears the verification */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["StaffComplianceDoc"];
+        };
+      };
+      /** @description Malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not internal procurement staff */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown document */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Retired documents do not change */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Invalid registration number or dates */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  supplier_watch_doc_file: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        supplier_id: string;
+        doc_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description File bytes (application/octet-stream, attachment) */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not internal procurement staff */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown document or no file */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  supplier_watch_verify_doc: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        supplier_id: string;
+        doc_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Marked as checked by the caller */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["StaffComplianceDoc"];
+        };
+      };
+      /** @description Malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not internal procurement staff */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown document */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Retired */
+      409: {
         headers: {
           [name: string]: unknown;
         };

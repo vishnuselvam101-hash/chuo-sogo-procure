@@ -163,5 +163,45 @@
       "repeat_days": "Between follow-ups",
       "max_attempts": "Follow-ups at most"
     }
+  },
+  "supplier": {
+    "documentExpiring": "{{supplier_name}}: {{doc_kind}} expires on {{expires_on}}",
+    "documentExpired": "{{supplier_name}}: {{doc_kind}} expired on {{expires_on}}",
+    "scorecardReview": "{{supplier_name}}: scorecard for {{month}} needs a review",
+    "docKind": {
+      "iso9001": "ISO 9001 certificate",
+      "iso14001": "ISO 14001 certificate",
+      "iatf16949": "IATF 16949 certificate",
+      "qualified_invoice_registration": "Qualified invoice issuer registration",
+      "anti_social_check": "Anti-social forces check",
+      "insurance": "Insurance certificate",
+      "nda": "Non-disclosure agreement",
+      "other": "Other document"
+    },
+    "window": {
+      "within_30": "Within 30 days",
+      "within_7": "Within 7 days",
+      "expired": "Expired"
+    },
+    "reason": {
+      "low_on_time": "On-time delivery below 80%",
+      "on_time_dropped": "On-time delivery fell 20 points or more",
+      "high_discrepancy": "More than 20% of invoices had discrepancies",
+      "discrepancy_rose": "Invoice discrepancies rose 20 points or more",
+      "low_reply_rate": "Answered fewer than half of the RFQs",
+      "reply_rate_dropped": "RFQ reply rate fell 20 points or more"
+    },
+    "action": {
+      "request_document_update": "Ask the supplier for the updated document (draft, test mode)",
+      "flag_supplier_review": "Ask Chuo-Sogo staff to review this supplier"
+    },
+    "scorecard": {
+      "onTime": "On-time delivery",
+      "discrepancy": "Invoice discrepancies",
+      "replyRate": "RFQ reply rate",
+      "medianReplyHours": "Median reply time (hours)",
+      "priceScore": "Price competitiveness",
+      "noData": "Not enough data"
+    }
   }
 }

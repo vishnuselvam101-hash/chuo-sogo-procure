@@ -567,6 +567,26 @@ pub fn router(state: AppState) -> Router {
             "/orgs/{org_id}/agents/chasing/settings",
             get(api::chasing::get_settings).put(api::chasing::put_settings),
         )
+        .route(
+            "/suppliers/{supplier_id}/compliance-docs/{doc_id}",
+            put(api::supplier_watch::update_doc),
+        )
+        .route(
+            "/suppliers/{supplier_id}/compliance-docs/{doc_id}/verify",
+            post(api::supplier_watch::verify_doc),
+        )
+        .route(
+            "/suppliers/{supplier_id}/compliance-docs/{doc_id}/file",
+            get(api::supplier_watch::doc_file),
+        )
+        .route(
+            "/orgs/{org_id}/suppliers/{supplier_id}/compliance-docs",
+            get(api::supplier_watch::org_docs),
+        )
+        .route(
+            "/orgs/{org_id}/supplier-scorecards",
+            get(api::supplier_watch::scorecards),
+        )
         .route("/ops/queue", get(api::ops::queue))
         .route("/orgs/{org_id}/tasks", post(api::ops::create_task))
         .route(
@@ -624,6 +644,10 @@ pub fn router(state: AppState) -> Router {
         .route(
             "/orgs/{org_id}/purchase-history/imports",
             get(api::history::list_imports).post(api::history::import),
+        )
+        .route(
+            "/suppliers/{supplier_id}/compliance-docs",
+            get(api::supplier_watch::list_docs).post(api::supplier_watch::create_doc),
         )
         .layer(axum::extract::DefaultBodyLimit::max(
             api::attachments::MAX_UPLOAD_BODY,

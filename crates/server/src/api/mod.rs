@@ -27,4 +27,5 @@ pub mod rfqs;
 pub mod savings;
 pub mod shop;
 pub mod shortlist;
+pub mod supplier_watch;
 pub mod suppliers;

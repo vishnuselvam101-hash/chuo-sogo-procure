@@ -13,6 +13,7 @@ pub mod cost_analyst;
 pub mod exceptions;
 pub mod matching;
 pub mod queue;
+pub mod supplier_watch;
 pub mod worker;
 
 use std::sync::Arc;
@@ -42,6 +43,7 @@ pub fn registry() -> Vec<Arc<dyn Agent>> {
         Arc::new(matching::Matching),
         Arc::new(cost_analyst::CostAnalyst),
         Arc::new(chasing::Chasing),
+        Arc::new(supplier_watch::SupplierWatch),
     ]
 }
 
