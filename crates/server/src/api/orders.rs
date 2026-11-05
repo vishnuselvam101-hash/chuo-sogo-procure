@@ -889,6 +889,9 @@ pub async fn record_invoice(
     if found.is_empty() {
         savings::record_order(&mut tx, &audit, org_id, order_id, p.user_id).await?;
         history_orders::record_order(&mut tx, &audit, org_id, order_id, p.user_id).await?;
+    } else {
+        // The matching agent classifies the discrepancies (only when agents are on).
+        crate::agents::matching::enqueue_for_invoice(&mut tx, org_id, id).await?;
     }
     tx.commit().await?;
     Ok((
@@ -940,54 +943,79 @@ pub async fn resolve_discrepancy(
     }
     let note = common::required(&body.note, 2000, true, "note")?;
     let mut tx = db::tenant_tx(&state.pool, p.user_id, org_id).await?;
+    let audit = Audit { org_id, p: &p };
+    resolve_in_tx(&mut tx, &audit, side, id, &body.resolution, &note).await?;
+    tx.commit().await?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+/// Resolves one open discrepancy in the caller's transaction (tenant context; the caller has
+/// checked ManageInvoices and validated `note`), audits it, closes the matching agent's open
+/// proposal for it, and reconciles the request when none remain open. Shared by the resolve
+/// endpoint and the matching agent's approved `resolve_discrepancy` action.
+pub(crate) async fn resolve_in_tx(
+    tx: &mut db::Tx,
+    audit: &Audit<'_>,
+    side: Side,
+    id: Uuid,
+    resolution: &str,
+    note: &str,
+) -> ApiResult<()> {
+    if !RESOLUTIONS.contains(&resolution) {
+        return Err(ApiError::Validation("resolution"));
+    }
+    let org_id = audit.org_id;
+    let p = audit.p;
     let (invoice_id, request_id, order_id): (Uuid, Uuid, Uuid) = sqlx::query_as(
         "SELECT d.invoice_id, o.request_id, o.id FROM discrepancies d
          JOIN invoices i ON i.id = d.invoice_id JOIN purchase_orders o ON o.id = i.order_id
          WHERE d.id = $1",
     )
     .bind(id)
-    .fetch_optional(&mut *tx)
+    .fetch_optional(&mut **tx)
     .await?
     .ok_or(ApiError::NotFound)?;
-    let req = lock_request(&mut tx, request_id, View::All).await?;
+    let req = lock_request(tx, request_id, View::All).await?;
     let updated = sqlx::query(
         "UPDATE discrepancies SET status = 'resolved', resolution = $2, resolution_note = $3,
                 resolved_by = $4, resolved_at = now()
          WHERE id = $1 AND status = 'open'",
     )
     .bind(id)
-    .bind(&body.resolution)
-    .bind(&note)
+    .bind(resolution)
+    .bind(note)
     .bind(p.user_id)
-    .execute(&mut *tx)
+    .execute(&mut **tx)
     .await?;
     if updated.rows_affected() == 0 {
         return Err(ApiError::Conflict("already_resolved"));
     }
-    let audit = Audit { org_id, p: &p };
     audit
         .record(
-            &mut tx,
+            tx,
             "discrepancy.resolved",
             "discrepancy",
             id,
-            json!({ "invoice": invoice_id, "resolution": body.resolution }),
+            json!({ "invoice": invoice_id, "resolution": resolution }),
         )
+        .await?;
+    // A person resolved it: the agent's proposal for it is no longer needed.
+    crate::agents::resolve_elsewhere(tx, org_id, &crate::agents::matching::discrepancy_key(id))
         .await?;
     let open: i64 = sqlx::query_scalar(
         "SELECT count(*) FROM discrepancies WHERE invoice_id = $1 AND status = 'open'",
     )
     .bind(invoice_id)
-    .fetch_one(&mut *tx)
+    .fetch_one(&mut **tx)
     .await?;
     if open == 0 {
         sqlx::query("UPDATE invoices SET match_status = 'reconciled' WHERE id = $1")
             .bind(invoice_id)
-            .execute(&mut *tx)
+            .execute(&mut **tx)
             .await?;
         transition(
-            &mut tx,
-            &audit,
+            tx,
+            audit,
             &req,
             RequestStatus::Reconciled,
             side,
@@ -995,11 +1023,10 @@ pub async fn resolve_discrepancy(
             json!({ "invoice": invoice_id }),
         )
         .await?;
-        savings::record_order(&mut tx, &audit, org_id, order_id, p.user_id).await?;
-        history_orders::record_order(&mut tx, &audit, org_id, order_id, p.user_id).await?;
+        savings::record_order(tx, audit, org_id, order_id, p.user_id).await?;
+        history_orders::record_order(tx, audit, org_id, order_id, p.user_id).await?;
     }
-    tx.commit().await?;
-    Ok(StatusCode::NO_CONTENT)
+    Ok(())
 }
 
 #[utoipa::path(

@@ -19,5 +19,48 @@
       "failed": "Failed",
       "skipped": "Skipped"
     }
+  },
+  "matching": {
+    "within_tolerance": "Difference within tolerance (invoice {{invoice_number}}): proposed to accept as invoiced",
+    "out_of_tolerance": "Difference over tolerance (invoice {{invoice_number}}): proposed to ask the supplier for a credit note",
+    "needs_review": "Please review the difference on invoice {{invoice_number}}",
+    "kind": {
+      "price_mismatch": "Unit price differs",
+      "quantity_over_ordered": "Billed more than ordered",
+      "quantity_over_received": "Billed more than received",
+      "quantity_under_received": "Billed less than received",
+      "not_invoiced": "Not invoiced",
+      "unknown_item": "Item not on the order",
+      "duplicate_line": "Item billed twice",
+      "shipping_mismatch": "Shipping differs",
+      "tax_mismatch": "Tax differs",
+      "currency_mismatch": "Currency differs",
+      "amount_overflow": "Amount too large"
+    },
+    "action": {
+      "resolve_discrepancy": "Accept and resolve the difference",
+      "request_credit_note": "Ask the supplier for a credit note"
+    },
+    "field": {
+      "expected": "Ordered / received",
+      "actual": "Invoiced",
+      "difference": "Difference",
+      "item": "Item",
+      "invoicedQuantity": "Invoiced quantity"
+    },
+    "tolerances": {
+      "title": "Match tolerances",
+      "priceBps": "Unit price tolerance",
+      "priceLineAbs": "Maximum difference per line",
+      "quantityBps": "Quantity tolerance",
+      "quantityAbs": "Maximum quantity difference",
+      "rounding": "Tax rounding difference",
+      "currency": "Currency of amounts",
+      "exactHint": "With everything at 0, every difference goes to a person"
+    },
+    "extractInvoice": {
+      "title": "Read an invoice",
+      "hint": "Paste the supplier's invoice text to get suggested entries. Always check them before recording."
+    }
   }
 }

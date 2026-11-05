@@ -53,7 +53,7 @@ fn sha256_hex(s: &str) -> String {
 
 /// Removes anything that could open or close a fence (`<untrusted_input>`, `<reference_data>`
 /// in any letter case) from text placed inside one.
-fn defang(text: &str) -> String {
+pub(crate) fn defang(text: &str) -> String {
     let mut out = String::with_capacity(text.len());
     let lower = text.to_ascii_lowercase();
     let mut i = 0;
@@ -139,7 +139,7 @@ fn digits_in(source: &str, number: &str) -> bool {
 
 /// Whether the source text states this exact amount as a standalone number
 /// (e.g. "1,200", "¥1,200", "1200.00" for ¥1,200).
-fn amount_in_source(source: &str, amount: Money) -> bool {
+pub(crate) fn amount_in_source(source: &str, amount: Money) -> bool {
     numeric_words(source).iter().any(|tok| {
         let tok = tok.trim_matches(|c| c == '.' || c == ',');
         // Same amount, allowing extra zero decimals ("1200.00").
@@ -159,7 +159,7 @@ fn amount_in_source(source: &str, amount: Money) -> bool {
 }
 
 /// Whether the source names this currency (ISO code or its usual symbol).
-fn currency_in_source(source: &str, currency: Currency) -> bool {
+pub(crate) fn currency_in_source(source: &str, currency: Currency) -> bool {
     let upper = source.to_ascii_uppercase();
     let symbol = match currency {
         Currency::Jpy => &['¥', '円'][..],

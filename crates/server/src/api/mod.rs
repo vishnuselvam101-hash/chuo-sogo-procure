@@ -13,6 +13,7 @@ pub mod history_orders;
 pub mod listing_ai;
 pub mod listings;
 pub mod mail;
+pub mod matching;
 pub mod ops;
 pub mod order_email;
 pub mod orders;

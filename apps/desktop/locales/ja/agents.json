@@ -19,5 +19,48 @@
       "failed": "失敗",
       "skipped": "スキップ"
     }
+  },
+  "matching": {
+    "within_tolerance": "許容範囲内の差異（請求書 {{invoice_number}}）：請求どおり承認することを提案します",
+    "out_of_tolerance": "許容範囲を超える差異（請求書 {{invoice_number}}）：仕入先へ赤伝（訂正請求書）を依頼することを提案します",
+    "needs_review": "請求書 {{invoice_number}} の差異をご確認ください",
+    "kind": {
+      "price_mismatch": "単価の相違",
+      "quantity_over_ordered": "注文数量を超える請求",
+      "quantity_over_received": "受領数量を超える請求",
+      "quantity_under_received": "受領数量より少ない請求",
+      "not_invoiced": "請求漏れ",
+      "unknown_item": "注文にない品目",
+      "duplicate_line": "同一品目の重複請求",
+      "shipping_mismatch": "送料の相違",
+      "tax_mismatch": "消費税額の相違",
+      "currency_mismatch": "通貨の相違",
+      "amount_overflow": "金額が大きすぎます"
+    },
+    "action": {
+      "resolve_discrepancy": "差異を承認して解消する",
+      "request_credit_note": "仕入先へ赤伝を依頼する"
+    },
+    "field": {
+      "expected": "注文・受領時",
+      "actual": "請求額",
+      "difference": "差額",
+      "item": "品目",
+      "invoicedQuantity": "請求数量"
+    },
+    "tolerances": {
+      "title": "照合の許容範囲",
+      "priceBps": "単価差の許容率",
+      "priceLineAbs": "明細ごとの差額上限",
+      "quantityBps": "数量差の許容率",
+      "quantityAbs": "数量差の上限",
+      "rounding": "消費税の端数差",
+      "currency": "金額の通貨",
+      "exactHint": "すべて0の場合、差異はすべて担当者の確認対象になります"
+    },
+    "extractInvoice": {
+      "title": "請求書の読み取り",
+      "hint": "仕入先の請求書の文面を貼り付けると、入力内容の候補を作成します。必ず内容を確認してから登録してください。"
+    }
   }
 }

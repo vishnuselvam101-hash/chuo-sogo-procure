@@ -19,5 +19,48 @@
       "failed": "विफल",
       "skipped": "छोड़ा गया"
     }
+  },
+  "matching": {
+    "within_tolerance": "सहनसीमा के भीतर अंतर (इनवॉइस {{invoice_number}}): जैसा बिल किया गया वैसा स्वीकार करने का प्रस्ताव",
+    "out_of_tolerance": "सहनसीमा से अधिक अंतर (इनवॉइस {{invoice_number}}): आपूर्तिकर्ता से क्रेडिट नोट माँगने का प्रस्ताव",
+    "needs_review": "कृपया इनवॉइस {{invoice_number}} का अंतर जाँचें",
+    "kind": {
+      "price_mismatch": "इकाई मूल्य अलग है",
+      "quantity_over_ordered": "ऑर्डर से अधिक बिल किया गया",
+      "quantity_over_received": "प्राप्त से अधिक बिल किया गया",
+      "quantity_under_received": "प्राप्त से कम बिल किया गया",
+      "not_invoiced": "बिल नहीं किया गया",
+      "unknown_item": "ऑर्डर में नहीं वाली वस्तु",
+      "duplicate_line": "वस्तु दो बार बिल की गई",
+      "shipping_mismatch": "शिपिंग अलग है",
+      "tax_mismatch": "कर अलग है",
+      "currency_mismatch": "मुद्रा अलग है",
+      "amount_overflow": "राशि बहुत बड़ी है"
+    },
+    "action": {
+      "resolve_discrepancy": "अंतर स्वीकार करके हल करें",
+      "request_credit_note": "आपूर्तिकर्ता से क्रेडिट नोट माँगें"
+    },
+    "field": {
+      "expected": "ऑर्डर / प्राप्त",
+      "actual": "बिल किया गया",
+      "difference": "अंतर",
+      "item": "वस्तु",
+      "invoicedQuantity": "बिल की गई मात्रा"
+    },
+    "tolerances": {
+      "title": "मिलान सहनसीमाएँ",
+      "priceBps": "इकाई मूल्य सहनसीमा",
+      "priceLineAbs": "प्रति पंक्ति अधिकतम अंतर",
+      "quantityBps": "मात्रा सहनसीमा",
+      "quantityAbs": "अधिकतम मात्रा अंतर",
+      "rounding": "कर राउंडिंग अंतर",
+      "currency": "राशियों की मुद्रा",
+      "exactHint": "सब 0 होने पर हर अंतर किसी व्यक्ति के पास जाता है"
+    },
+    "extractInvoice": {
+      "title": "इनवॉइस पढ़ें",
+      "hint": "सुझाई गई प्रविष्टियाँ पाने के लिए आपूर्तिकर्ता का इनवॉइस टेक्स्ट चिपकाएँ। दर्ज करने से पहले हमेशा जाँचें।"
+    }
   }
 }
