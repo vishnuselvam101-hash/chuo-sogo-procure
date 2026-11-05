@@ -1,6 +1,26 @@
 # Changelog
 
-## Unreleased — factory-side model (CEO direction 2026-11-02)
+## 1.1.0 — 2026-11-05
+
+### Procurement agents (migrations 0023–0029, `docs/agents/DESIGN.md`)
+
+Agents propose; a named person approves. AI output is stored only as suggestions, every
+applied action is audited, and the AI provider stays the mock until `PROCURE_AI_REMOTE_APPROVED=yes`.
+
+- **Agent runtime**: per-organisation job queue, schedules, monthly AI budget, and an
+  exception inbox (approve / edit / reject, version-checked).
+- **Matching**: classifies invoice discrepancies with per-organisation tolerances; proposes
+  accepting small ones or requesting a credit note.
+- **Chasing**: chases suppliers for order confirmations and delivery dates, reads supplier replies
+  (prompt-injection checks, per-order rate limit); auto-send only after staff confirmation.
+- **Cost analyst**: should-cost and negotiation briefs, negotiation tasks.
+- **Supplier watch**: expiring supplier documents and supplier review flags.
+- **Import**: CSV/ERP import profiles with tax rounding and default rate settings.
+- **Agent console** in the business app and staff confirmation in the admin console.
+- Security review (L9) findings fixed with regression tests; end-to-end, injection-corpus
+  and worker load tests (`scripts/e2e-agents.sh`).
+
+### Factory-side model (CEO direction 2026-11-02)
 
 - Supplier shortlist for each request (`GET …/requests/{id}/supplier-shortlist`): ranked from the factory's own record and directory categories, about 10 pre-ticked with reasons; the New RFQ form uses it.
 

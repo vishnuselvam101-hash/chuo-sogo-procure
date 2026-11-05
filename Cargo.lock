@@ -3468,7 +3468,7 @@ dependencies = [
 
 [[package]]
 name = "procure-ai"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "chrono",
  "hex",
@@ -3484,7 +3484,7 @@ dependencies = [
 
 [[package]]
 name = "procure-desktop"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "flate2",
  "getrandom 0.3.4",
@@ -3507,14 +3507,14 @@ dependencies = [
 
 [[package]]
 name = "procure-domain"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "chrono",
 ]
 
 [[package]]
 name = "procure-server"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "aes-gcm",
  "argon2",
