@@ -873,12 +873,29 @@ async fn scorecards_flag_late_suppliers_for_review_without_touching_the_approval
         let o = f
             .ordered(&format!("PO-SW-{n}"), "2026-10-01T00:00:00Z")
             .await;
-        f.as_owner(
-            "UPDATE purchase_orders SET promised_on = $2::date WHERE id = $1",
-            o.order,
-            "2026-10-10",
-        )
-        .await;
+        // The order already carries a promised date; the chasing lane's trigger keeps it
+        // write-once, so the test fixture lifts the trigger for its own setup only.
+        let mut tx = f.owner.begin().await.unwrap();
+        sqlx::query("ALTER TABLE purchase_orders DISABLE TRIGGER purchase_orders_promised_once")
+            .execute(&mut *tx)
+            .await
+            .unwrap();
+        sqlx::query("SELECT set_config('app.org_id', $1, true)")
+            .bind(f.w.org_a.to_string())
+            .execute(&mut *tx)
+            .await
+            .unwrap();
+        let n = sqlx::query("UPDATE purchase_orders SET promised_on = '2026-10-10' WHERE id = $1")
+            .bind(o.order)
+            .execute(&mut *tx)
+            .await
+            .unwrap();
+        assert_eq!(n.rows_affected(), 1);
+        sqlx::query("ALTER TABLE purchase_orders ENABLE TRIGGER purchase_orders_promised_once")
+            .execute(&mut *tx)
+            .await
+            .unwrap();
+        tx.commit().await.unwrap();
         orders.push(o);
     }
     // 23:30 on the 10th in Tokyo is on time; 00:30 on the 11th in Tokyo is late although it is
