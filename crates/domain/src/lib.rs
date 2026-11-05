@@ -4,6 +4,7 @@
 pub mod agents;
 pub mod aliases;
 pub mod approval;
+pub mod chasing;
 pub mod comparison;
 pub mod decision;
 pub mod history;

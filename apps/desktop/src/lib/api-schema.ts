@@ -894,6 +894,22 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/orgs/{org_id}/agents/chasing/settings": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["chasing_get_settings"];
+    put: operations["chasing_put_settings"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/orgs/{org_id}/agents/exceptions": {
     parameters: {
       query?: never;
@@ -3140,6 +3156,44 @@ export interface components {
        * @description Ledger rows that used this baseline; a used baseline can no longer be removed.
        */
       used: number;
+    };
+    ChaseCadence: {
+      /**
+       * Format: int32
+       * @description Business days after the order email before asking for an acknowledgement (1–30).
+       */
+      ack_days: number;
+      /**
+       * Format: int32
+       * @description Business days after the order email before asking for a delivery date (1–30).
+       */
+      delivery_date_days: number;
+      /**
+       * Format: int32
+       * @description Business days after everything arrived before asking for the invoice (1–60).
+       */
+      invoice_days: number;
+      /**
+       * Format: int32
+       * @description Follow-ups per order and type before a person takes over (1–10).
+       */
+      max_attempts: number;
+      /**
+       * Format: int32
+       * @description Business days after the expected delivery date before asking where the goods are (1–30).
+       */
+      overdue_days: number;
+      /**
+       * Format: int32
+       * @description Business days between follow-ups (1–30).
+       */
+      repeat_days: number;
+    };
+    ChaseSettings: components["schemas"]["ChaseCadence"] & {
+      /** Format: date-time */
+      updated_at?: string | null;
+      /** Format: uuid */
+      updated_by?: string | null;
     };
     CheckBody: {
       /** @description What was checked or corrected (optional). */
@@ -8492,6 +8546,117 @@ export interface operations {
       };
       /** @description Not internal staff */
       403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  chasing_get_settings: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Follow-up cadence (defaults when never set) */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ChaseSettings"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown or unrelated organisation */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  chasing_put_settings: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ChaseCadence"];
+      };
+    };
+    responses: {
+      /** @description Cadence saved */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ChaseSettings"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown or unrelated organisation */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description A value out of range */
+      422: {
         headers: {
           [name: string]: unknown;
         };

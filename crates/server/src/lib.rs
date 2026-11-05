@@ -527,6 +527,10 @@ pub fn router(state: AppState) -> Router {
             post(api::agents::decide),
         )
         .route("/orgs/{org_id}/agents/summary", get(api::agents::summary))
+        .route(
+            "/orgs/{org_id}/agents/chasing/settings",
+            get(api::chasing::get_settings).put(api::chasing::put_settings),
+        )
         .route("/ops/queue", get(api::ops::queue))
         .route("/orgs/{org_id}/tasks", post(api::ops::create_task))
         .route(

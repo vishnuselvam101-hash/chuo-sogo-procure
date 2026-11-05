@@ -697,6 +697,8 @@ pub(crate) async fn assign_message(
         },
     )
     .await?;
+    // A reply to an order email or follow-up is read by the chasing agent (when agents are on).
+    crate::agents::chasing::on_reply_kept(tx, m.org, id, m.bytes).await?;
     let who = m
         .supplier
         .map_or_else(|| "a supplier".to_string(), |s| s.1.to_string());

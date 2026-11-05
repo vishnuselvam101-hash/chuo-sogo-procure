@@ -19,5 +19,57 @@
       "failed": "தோல்வி",
       "skipped": "தவிர்க்கப்பட்டது"
     }
+  },
+  "chasing": {
+    "due": {
+      "order_ack": "{{po_number}}: {{supplier_name}} ஆர்டரை உறுதிப்படுத்தவில்லை (நினைவூட்டல் {{attempt}})",
+      "delivery_date": "{{po_number}}: {{supplier_name}} டெலிவரி தேதியைத் தரவில்லை (நினைவூட்டல் {{attempt}})",
+      "overdue_delivery": "{{po_number}}: எதிர்பார்த்த டெலிவரி தேதி {{expected_on}} கடந்துவிட்டது (நினைவூட்டல் {{attempt}})",
+      "missing_invoice": "{{po_number}}: டெலிவரி ஆனது, ஆனால் விலைப்பட்டியல் இன்னும் வரவில்லை (நினைவூட்டல் {{attempt}})"
+    },
+    "exhausted": {
+      "order_ack": "{{po_number}}: {{attempts}} நினைவூட்டல்களுக்குப் பிறகும் உறுதிப்படுத்தல் இல்லை; சப்ளையரை அழைக்கவும்",
+      "delivery_date": "{{po_number}}: {{attempts}} நினைவூட்டல்களுக்குப் பிறகும் டெலிவரி தேதி இல்லை; சப்ளையரை அழைக்கவும்",
+      "overdue_delivery": "{{po_number}}: {{attempts}} நினைவூட்டல்களுக்குப் பிறகும் டெலிவரி இல்லை; சப்ளையரை அழைக்கவும்",
+      "missing_invoice": "{{po_number}}: {{attempts}} நினைவூட்டல்களுக்குப் பிறகும் விலைப்பட்டியல் இல்லை; சப்ளையரை அழைக்கவும்"
+    },
+    "reply": {
+      "confirmed": "{{po_number}}: {{supplier_name}} டெலிவரி தேதி {{promised_date}} எனத் தெரிவித்தது",
+      "acknowledged": "{{po_number}}: {{supplier_name}} ஆர்டரை உறுதிப்படுத்தியது",
+      "attention": "{{po_number}}: {{supplier_name}} பதிலை ஒருவர் பார்க்க வேண்டும்",
+      "suspicious": "{{po_number}}: {{supplier_name}} பதிலில் சந்தேகமான அறிவுறுத்தல்கள் உள்ளன; கவனமாகப் படிக்கவும்"
+    },
+    "chaseType": {
+      "order_ack": "உறுதிப்படுத்தல்",
+      "delivery_date": "டெலிவரி தேதி",
+      "overdue_delivery": "தாமதமான டெலிவரி",
+      "missing_invoice": "விலைப்பட்டியல் இல்லை"
+    },
+    "action": {
+      "send_chase": "நினைவூட்டலை அனுப்பு",
+      "record_promised_date": "உறுதிப்படுத்தல் மற்றும் தேதியைப் பதிவு செய்",
+      "confirm_delivery_date": "உறுதியான தேதியைப் பதிவு செய்"
+    },
+    "flags": {
+      "suspicious_instructions": "சந்தேகமான அறிவுறுத்தல்கள்",
+      "date_not_in_source": "பதிலில் இல்லாத தேதி",
+      "date_out_of_range": "வரம்புக்கு வெளியே தேதி",
+      "quantity_not_in_source": "பதிலில் இல்லாத அளவு",
+      "quantity_out_of_range": "வரம்புக்கு வெளியே அளவு"
+    },
+    "ack": {
+      "yes": "உறுதிப்படுத்தப்பட்டது",
+      "no": "மறுக்கப்பட்டது",
+      "unclear": "தெளிவில்லை"
+    },
+    "settings": {
+      "title": "நினைவூட்டல் இடைவெளி (வேலை நாட்கள், ஜப்பான் நேரம்)",
+      "ack_days": "ஆர்டர் மின்னஞ்சலுக்குப் பின், உறுதிப்படுத்தல் கேட்கும் முன்",
+      "delivery_date_days": "ஆர்டர் மின்னஞ்சலுக்குப் பின், டெலிவரி தேதி கேட்கும் முன்",
+      "overdue_days": "எதிர்பார்த்த தேதிக்குப் பின், டெலிவரி பற்றிக் கேட்கும் முன்",
+      "invoice_days": "டெலிவரிக்குப் பின், விலைப்பட்டியல் கேட்கும் முன்",
+      "repeat_days": "நினைவூட்டல்களுக்கு இடையே",
+      "max_attempts": "அதிகபட்ச நினைவூட்டல்கள்"
+    }
   }
 }

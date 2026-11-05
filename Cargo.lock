@@ -3508,6 +3508,9 @@ dependencies = [
 [[package]]
 name = "procure-domain"
 version = "1.0.0"
+dependencies = [
+ "chrono",
+]
 
 [[package]]
 name = "procure-server"

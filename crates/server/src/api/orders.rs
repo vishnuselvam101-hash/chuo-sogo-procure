@@ -391,7 +391,7 @@ pub async fn get_order(
     Ok(Json(detail))
 }
 
-async fn order_request(tx: &mut db::Tx, order_id: Uuid) -> ApiResult<Uuid> {
+pub(crate) async fn order_request(tx: &mut db::Tx, order_id: Uuid) -> ApiResult<Uuid> {
     sqlx::query_scalar("SELECT request_id FROM purchase_orders WHERE id = $1")
         .bind(order_id)
         .fetch_optional(&mut **tx)
@@ -1134,7 +1134,7 @@ const UNKNOWN_LEAD_FOLLOW_UP_DAYS: i64 = 3;
 
 /// Opens (or re-dates) the automatic "check_delivery" task: due at the end of the expected
 /// day, or in a few days to ask the supplier for a date when none is known.
-async fn open_delivery_check(
+pub(crate) async fn open_delivery_check(
     tx: &mut db::Tx,
     org_id: Uuid,
     request_id: Uuid,
@@ -1204,8 +1204,24 @@ pub async fn confirm_delivery_date(
         return Err(ApiError::Validation("confirmed_on"));
     }
     let mut tx = db::tenant_tx(&state.pool, p.user_id, org_id).await?;
-    let request_id = order_request(&mut tx, order_id).await?;
-    let req = lock_request(&mut tx, request_id, View::All).await?;
+    record_confirmed_date(&mut tx, org_id, &p, order_id, body.confirmed_on, &note).await?;
+    tx.commit().await?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+/// Records the delivery date the supplier confirmed (the caller checked the permission and
+/// validated `note`), audits it and moves the delivery check to that day. Also used when a
+/// person applies the chasing agent's reading of a supplier reply. Returns the request id.
+pub(crate) async fn record_confirmed_date(
+    tx: &mut db::Tx,
+    org_id: Uuid,
+    p: &Principal,
+    order_id: Uuid,
+    confirmed_on: NaiveDate,
+    note: &str,
+) -> ApiResult<Uuid> {
+    let request_id = order_request(tx, order_id).await?;
+    let req = lock_request(tx, request_id, View::All).await?;
     if req.status()? != RequestStatus::Ordered {
         return Err(ApiError::Conflict("invalid_transition"));
     }
@@ -1215,21 +1231,20 @@ pub async fn confirm_delivery_date(
          WHERE id = $1",
     )
     .bind(order_id)
-    .bind(body.confirmed_on)
-    .bind(&note)
+    .bind(confirmed_on)
+    .bind(note)
     .bind(p.user_id)
-    .execute(&mut *tx)
+    .execute(&mut **tx)
     .await?;
-    Audit { org_id, p: &p }
+    Audit { org_id, p }
         .record(
-            &mut tx,
+            tx,
             "order.delivery_date_confirmed",
             "purchase_order",
             order_id,
-            json!({ "confirmed_on": body.confirmed_on, "note": note }),
+            json!({ "confirmed_on": confirmed_on, "note": note }),
         )
         .await?;
-    open_delivery_check(&mut tx, org_id, request_id, order_id).await?;
-    tx.commit().await?;
-    Ok(StatusCode::NO_CONTENT)
+    open_delivery_check(tx, org_id, request_id, order_id).await?;
+    Ok(request_id)
 }

@@ -6,6 +6,7 @@ pub mod extract;
 pub mod listing;
 pub mod mock;
 pub mod provider;
+pub mod reply;
 pub mod testing;
 
 pub use provider::{AiError, ModelCall, Provider};

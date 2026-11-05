@@ -19,5 +19,57 @@
       "failed": "失敗",
       "skipped": "スキップ"
     }
+  },
+  "chasing": {
+    "due": {
+      "order_ack": "{{po_number}}：{{supplier_name}} から注文の受領連絡がありません（{{attempt}}回目の確認）",
+      "delivery_date": "{{po_number}}：{{supplier_name}} から納期の回答がありません（{{attempt}}回目の確認）",
+      "overdue_delivery": "{{po_number}}：納品予定日 {{expected_on}} を過ぎています（{{attempt}}回目の確認）",
+      "missing_invoice": "{{po_number}}：納品済みですが請求書が届いていません（{{attempt}}回目の確認）"
+    },
+    "exhausted": {
+      "order_ack": "{{po_number}}：{{attempts}}回確認しても受領連絡がありません。お電話などでご確認ください",
+      "delivery_date": "{{po_number}}：{{attempts}}回確認しても納期の回答がありません。お電話などでご確認ください",
+      "overdue_delivery": "{{po_number}}：{{attempts}}回確認しても納品されていません。お電話などでご確認ください",
+      "missing_invoice": "{{po_number}}：{{attempts}}回確認しても請求書が届いていません。お電話などでご確認ください"
+    },
+    "reply": {
+      "confirmed": "{{po_number}}：{{supplier_name}} が納期 {{promised_date}} を回答しました",
+      "acknowledged": "{{po_number}}：{{supplier_name}} が注文の受領を連絡しました",
+      "attention": "{{po_number}}：{{supplier_name}} からの返信の確認が必要です",
+      "suspicious": "{{po_number}}：{{supplier_name}} からの返信に不審な指示が含まれています。内容を確認してください"
+    },
+    "chaseType": {
+      "order_ack": "受領確認",
+      "delivery_date": "納期確認",
+      "overdue_delivery": "納品遅れ",
+      "missing_invoice": "請求書の催促"
+    },
+    "action": {
+      "send_chase": "確認メールを送る",
+      "record_promised_date": "受領と納期を記録する",
+      "confirm_delivery_date": "確定納期を記録する"
+    },
+    "flags": {
+      "suspicious_instructions": "不審な指示",
+      "date_not_in_source": "本文にない日付",
+      "date_out_of_range": "範囲外の日付",
+      "quantity_not_in_source": "本文にない数量",
+      "quantity_out_of_range": "範囲外の数量"
+    },
+    "ack": {
+      "yes": "受領",
+      "no": "辞退・対応不可",
+      "unclear": "不明"
+    },
+    "settings": {
+      "title": "催促の間隔（営業日、日本時間）",
+      "ack_days": "注文メール後、受領確認まで",
+      "delivery_date_days": "注文メール後、納期確認まで",
+      "overdue_days": "納品予定日後、納品確認まで",
+      "invoice_days": "納品後、請求書の催促まで",
+      "repeat_days": "再度の確認までの間隔",
+      "max_attempts": "確認の最大回数"
+    }
   }
 }

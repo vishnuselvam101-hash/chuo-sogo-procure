@@ -19,5 +19,57 @@
       "failed": "विफल",
       "skipped": "छोड़ा गया"
     }
+  },
+  "chasing": {
+    "due": {
+      "order_ack": "{{po_number}}: {{supplier_name}} ने ऑर्डर की पुष्टि नहीं की (अनुस्मारक {{attempt}})",
+      "delivery_date": "{{po_number}}: {{supplier_name}} ने डिलीवरी तिथि नहीं बताई (अनुस्मारक {{attempt}})",
+      "overdue_delivery": "{{po_number}}: अपेक्षित डिलीवरी तिथि {{expected_on}} बीत चुकी है (अनुस्मारक {{attempt}})",
+      "missing_invoice": "{{po_number}}: डिलीवरी हो गई, पर इनवॉइस अभी नहीं आया (अनुस्मारक {{attempt}})"
+    },
+    "exhausted": {
+      "order_ack": "{{po_number}}: {{attempts}} अनुस्मारकों के बाद भी पुष्टि नहीं; कृपया सप्लायर को फ़ोन करें",
+      "delivery_date": "{{po_number}}: {{attempts}} अनुस्मारकों के बाद भी डिलीवरी तिथि नहीं; कृपया सप्लायर को फ़ोन करें",
+      "overdue_delivery": "{{po_number}}: {{attempts}} अनुस्मारकों के बाद भी डिलीवरी नहीं; कृपया सप्लायर को फ़ोन करें",
+      "missing_invoice": "{{po_number}}: {{attempts}} अनुस्मारकों के बाद भी इनवॉइस नहीं; कृपया सप्लायर को फ़ोन करें"
+    },
+    "reply": {
+      "confirmed": "{{po_number}}: {{supplier_name}} ने डिलीवरी तिथि {{promised_date}} बताई",
+      "acknowledged": "{{po_number}}: {{supplier_name}} ने ऑर्डर की पुष्टि की",
+      "attention": "{{po_number}}: {{supplier_name}} के जवाब को किसी व्यक्ति को देखना होगा",
+      "suspicious": "{{po_number}}: {{supplier_name}} के जवाब में संदिग्ध निर्देश हैं; ध्यान से पढ़ें"
+    },
+    "chaseType": {
+      "order_ack": "पुष्टि",
+      "delivery_date": "डिलीवरी तिथि",
+      "overdue_delivery": "देर से डिलीवरी",
+      "missing_invoice": "इनवॉइस नहीं"
+    },
+    "action": {
+      "send_chase": "अनुस्मारक भेजें",
+      "record_promised_date": "पुष्टि और तिथि दर्ज करें",
+      "confirm_delivery_date": "पक्की तिथि दर्ज करें"
+    },
+    "flags": {
+      "suspicious_instructions": "संदिग्ध निर्देश",
+      "date_not_in_source": "जवाब में न दी गई तिथि",
+      "date_out_of_range": "सीमा से बाहर तिथि",
+      "quantity_not_in_source": "जवाब में न दी गई मात्रा",
+      "quantity_out_of_range": "सीमा से बाहर मात्रा"
+    },
+    "ack": {
+      "yes": "पुष्टि हुई",
+      "no": "अस्वीकार",
+      "unclear": "अस्पष्ट"
+    },
+    "settings": {
+      "title": "अनुस्मारक अंतराल (कार्य दिवस, जापान समय)",
+      "ack_days": "ऑर्डर ईमेल के बाद, पुष्टि माँगने से पहले",
+      "delivery_date_days": "ऑर्डर ईमेल के बाद, डिलीवरी तिथि माँगने से पहले",
+      "overdue_days": "अपेक्षित तिथि के बाद, डिलीवरी पूछने से पहले",
+      "invoice_days": "डिलीवरी के बाद, इनवॉइस माँगने से पहले",
+      "repeat_days": "अनुस्मारकों के बीच",
+      "max_attempts": "अधिकतम अनुस्मारक"
+    }
   }
 }
