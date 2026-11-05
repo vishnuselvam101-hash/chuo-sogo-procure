@@ -527,6 +527,34 @@ pub fn router(state: AppState) -> Router {
             post(api::agents::decide),
         )
         .route("/orgs/{org_id}/agents/summary", get(api::agents::summary))
+        .route(
+            "/orgs/{org_id}/cost/models",
+            get(api::cost::list_models).post(api::cost::create_model),
+        )
+        .route(
+            "/orgs/{org_id}/cost/models/{model_id}",
+            get(api::cost::get_model),
+        )
+        .route(
+            "/orgs/{org_id}/cost/quotations/{quotation_id}/facts",
+            get(api::cost::get_quotation_facts),
+        )
+        .route(
+            "/orgs/{org_id}/cost/briefs",
+            get(api::cost::list_briefs).post(api::cost::create_brief),
+        )
+        .route(
+            "/orgs/{org_id}/cost/briefs/{brief_id}",
+            get(api::cost::get_brief),
+        )
+        .route(
+            "/orgs/{org_id}/cost/briefs/{brief_id}/narrative",
+            post(api::cost::draft_narrative),
+        )
+        .route(
+            "/orgs/{org_id}/cost/briefs/{brief_id}/finalise",
+            post(api::cost::finalise_brief),
+        )
         .route("/ops/queue", get(api::ops::queue))
         .route("/orgs/{org_id}/tasks", post(api::ops::create_task))
         .route(

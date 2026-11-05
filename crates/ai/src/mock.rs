@@ -6,6 +6,7 @@ use serde_json::{Value, json};
 
 use crate::extract::{EXTRACT_ITEMS, EXTRACT_QUOTATION};
 use crate::listing::{EXTRACT_LISTING, TRANSLATE_LISTING};
+use crate::negotiation::{self, NEGOTIATION_BRIEF};
 use crate::provider::{AiError, BoxFuture, ModelCall, Provider};
 
 pub struct MockProvider;
@@ -260,6 +261,7 @@ impl Provider for MockProvider {
                 EXTRACT_QUOTATION => quotation(text),
                 EXTRACT_LISTING => listing(text),
                 TRANSLATE_LISTING => translation(text),
+                NEGOTIATION_BRIEF => negotiation::mock_answer(text),
                 _ => return Err(AiError::Unavailable),
             };
             Ok(value.to_string())

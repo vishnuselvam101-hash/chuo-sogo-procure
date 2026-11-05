@@ -6,6 +6,7 @@ pub mod attachments;
 pub mod auth;
 pub mod billing;
 pub mod common;
+pub mod cost;
 pub mod demo;
 pub mod exports;
 pub mod history;

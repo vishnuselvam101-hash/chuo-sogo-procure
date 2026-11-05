@@ -879,6 +879,17 @@ pub async fn record_quotation(
         "request.quotes_received",
     )
     .await?;
+    // Should-cost and negotiation check of the RFQ's quotations (agents on only).
+    crate::agents::enqueue(
+        &mut tx,
+        org_id,
+        crate::agents::cost_analyst::NAME,
+        procure_domain::agents::Trigger::Event,
+        Some(("rfq", rfq.id)),
+        json!({}),
+        Some(&crate::agents::cost_analyst::run_key(rfq.id)),
+    )
+    .await?;
     tx.commit().await?;
     Ok((
         StatusCode::CREATED,

@@ -19,5 +19,54 @@
       "failed": "失敗",
       "skipped": "スキップ"
     }
+  },
+  "cost": {
+    "negotiationOpportunity": {
+      "title": "{{supplier_name}} の見積に価格交渉の余地があります（{{rfq_number}}）",
+      "body": "{{lines_flagged}} 明細が基準を上回っています。原価試算との差は最大 {{max_should_cost_gap_bps}} bp、過去最安値との差は最大 {{max_history_gap_bps}} bp。改善余地 {{savings_opportunity_minor}} {{currency}}。"
+    },
+    "action": {
+      "save_brief": "交渉資料を保存",
+      "open_negotiation_task": "交渉タスクを作成"
+    },
+    "signal": {
+      "above_should_cost": "原価試算を上回る",
+      "above_historical_low": "過去最安値を上回る"
+    },
+    "briefStatus": {
+      "draft": "下書き",
+      "final": "確定"
+    },
+    "facts": {
+      "quotedTotal": "見積合計（明細）",
+      "historicalLow": "過去最安値",
+      "lastPaid": "前回購入価格",
+      "trend": "価格推移",
+      "shouldCost": "原価試算",
+      "shouldCostGap": "原価試算との差",
+      "historyGap": "過去最安値との差",
+      "competing": "他社見積",
+      "spread": "見積の価格差",
+      "savings": "改善余地",
+      "targetPrice": "目標価格（提案）"
+    },
+    "model": {
+      "material": "材料費",
+      "process": "加工費",
+      "overhead": "間接費",
+      "logistics": "物流費",
+      "margin": "利益",
+      "unitCost": "単位原価",
+      "drivers": "影響の大きい要素",
+      "version": "版"
+    },
+    "narrative": {
+      "draft": "AIで交渉文案を作成",
+      "aiNote": "AIの文案は事実データのみから作成された提案です。内容を確認して確定してください。",
+      "flag": {
+        "number_not_in_facts": "事実データにない数値を含みます",
+        "not_japanese": "日本語以外の文が含まれます"
+      }
+    }
   }
 }

@@ -19,5 +19,54 @@
       "failed": "Failed",
       "skipped": "Skipped"
     }
+  },
+  "cost": {
+    "negotiationOpportunity": {
+      "title": "Room to negotiate on {{supplier_name}}'s quotation ({{rfq_number}})",
+      "body": "{{lines_flagged}} line(s) above the line. Up to {{max_should_cost_gap_bps}} bp above should-cost, up to {{max_history_gap_bps}} bp above the lowest price paid. Possible saving {{savings_opportunity_minor}} {{currency}}."
+    },
+    "action": {
+      "save_brief": "Save negotiation brief",
+      "open_negotiation_task": "Open negotiation task"
+    },
+    "signal": {
+      "above_should_cost": "Above should-cost",
+      "above_historical_low": "Above lowest price paid"
+    },
+    "briefStatus": {
+      "draft": "Draft",
+      "final": "Final"
+    },
+    "facts": {
+      "quotedTotal": "Quoted total (lines)",
+      "historicalLow": "Lowest price paid",
+      "lastPaid": "Last price paid",
+      "trend": "Price trend",
+      "shouldCost": "Should-cost",
+      "shouldCostGap": "Gap to should-cost",
+      "historyGap": "Gap to lowest price paid",
+      "competing": "Other quotations",
+      "spread": "Spread of quotations",
+      "savings": "Possible saving",
+      "targetPrice": "Target price (suggested)"
+    },
+    "model": {
+      "material": "Material",
+      "process": "Processing",
+      "overhead": "Overhead",
+      "logistics": "Logistics",
+      "margin": "Margin",
+      "unitCost": "Unit cost",
+      "drivers": "Biggest cost drivers",
+      "version": "Version"
+    },
+    "narrative": {
+      "draft": "Draft narrative with AI",
+      "aiNote": "The AI draft is a suggestion written from the facts only. Check it before you finalise.",
+      "flag": {
+        "number_not_in_facts": "Contains numbers not in the facts",
+        "not_japanese": "Contains text that is not Japanese"
+      }
+    }
   }
 }

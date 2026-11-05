@@ -6,9 +6,9 @@ use utoipa::openapi::security::{HttpAuthScheme, HttpBuilder, SecurityScheme};
 use utoipa::{Modify, OpenApi};
 
 use crate::api::{
-    admin, agents, ai, approvals, attachments, auth, billing, demo, exports, history, listing_ai,
-    listings, mail, ops, order_email, orders, orgs, products, records, requests, rfqs, savings,
-    shop, shortlist, suppliers,
+    admin, agents, ai, approvals, attachments, auth, billing, cost, demo, exports, history,
+    listing_ai, listings, mail, ops, order_email, orders, orgs, products, records, requests, rfqs,
+    savings, shop, shortlist, suppliers,
 };
 use crate::error::{ErrorBody, ErrorInner};
 
@@ -236,6 +236,15 @@ impl Modify for BearerAuth {
         agents::decide,
         agents::summary,
         agents::staff_exceptions,
+        cost::create_model,
+        cost::list_models,
+        cost::get_model,
+        cost::get_quotation_facts,
+        cost::create_brief,
+        cost::list_briefs,
+        cost::get_brief,
+        cost::draft_narrative,
+        cost::finalise_brief,
     ),
     components(schemas(ErrorBody, ErrorInner)),
     modifiers(&BearerAuth)
