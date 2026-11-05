@@ -6,6 +6,7 @@ pub mod audit;
 pub mod db;
 pub mod error;
 pub mod intake;
+pub mod integrations;
 pub mod invoice_pdf;
 pub mod mailer;
 pub mod media;
@@ -587,6 +588,31 @@ pub fn router(state: AppState) -> Router {
             "/orgs/{org_id}/supplier-scorecards",
             get(api::supplier_watch::scorecards),
         )
+        .route(
+            "/orgs/{org_id}/integrations/profiles",
+            get(api::integrations::list_profiles),
+        )
+        .route(
+            "/orgs/{org_id}/integrations/profiles/{name}",
+            axum::routing::put(api::integrations::put_profile)
+                .delete(api::integrations::delete_profile),
+        )
+        .route(
+            "/orgs/{org_id}/integrations/imports/{batch_id}",
+            get(api::integrations::get_import),
+        )
+        .route(
+            "/orgs/{org_id}/integrations/imports/{batch_id}/apply",
+            post(api::integrations::apply),
+        )
+        .route(
+            "/orgs/{org_id}/integrations/imports/{batch_id}/discard",
+            post(api::integrations::discard),
+        )
+        .route(
+            "/orgs/{org_id}/integrations/exports/agent-results.csv",
+            get(api::integrations::export_agent_results),
+        )
         .route("/ops/queue", get(api::ops::queue))
         .route("/orgs/{org_id}/tasks", post(api::ops::create_task))
         .route(
@@ -648,6 +674,10 @@ pub fn router(state: AppState) -> Router {
         .route(
             "/suppliers/{supplier_id}/compliance-docs",
             get(api::supplier_watch::list_docs).post(api::supplier_watch::create_doc),
+        )
+        .route(
+            "/orgs/{org_id}/integrations/imports",
+            get(api::integrations::list_imports).post(api::integrations::upload),
         )
         .layer(axum::extract::DefaultBodyLimit::max(
             api::attachments::MAX_UPLOAD_BODY,

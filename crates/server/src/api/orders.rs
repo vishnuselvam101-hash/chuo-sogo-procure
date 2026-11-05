@@ -70,10 +70,34 @@ pub async fn record_order(
 ) -> ApiResult<(StatusCode, Json<IdResponse>)> {
     let access = p.require(&state, org_id, Permission::RecordOrders).await?;
     let side = side(access)?;
-    let po_number = common::required(&body.po_number, 100, false, "po_number")?;
-    let notes = common::text(&body.notes, 2000, true, "notes")?;
+    let (po_number, notes) = clean_order(&body)?;
     let mut tx = db::tenant_tx(&state.pool, p.user_id, org_id).await?;
-    let req = lock_request(&mut tx, request_id, View::All).await?;
+    let id = record_order_tx(&mut tx, &p, org_id, side, request_id, &po_number, &notes).await?;
+    tx.commit().await?;
+    Ok((StatusCode::CREATED, Json(IdResponse { id })))
+}
+
+/// The cleaned PO number and notes of an order (as the API checks them).
+pub(crate) fn clean_order(body: &RecordOrderBody) -> ApiResult<(String, String)> {
+    Ok((
+        common::required(&body.po_number, 100, false, "po_number")?,
+        common::text(&body.notes, 2000, true, "notes")?,
+    ))
+}
+
+/// Records the purchase order for the approved recommendation of `request_id`, in the
+/// caller's transaction (in `org_id`'s context), as `p` acting for `side`. Used by the API
+/// and by file imports, so both go through the same checks and audit events.
+pub(crate) async fn record_order_tx(
+    tx: &mut db::Tx,
+    p: &Principal,
+    org_id: Uuid,
+    side: Side,
+    request_id: Uuid,
+    po_number: &str,
+    notes: &str,
+) -> ApiResult<Uuid> {
+    let req = lock_request(tx, request_id, View::All).await?;
     if req.status()? != RequestStatus::Approved {
         return Err(ApiError::Conflict("invalid_transition"));
     }
@@ -83,7 +107,7 @@ pub async fn record_order(
          WHERE request_id = $1 AND status = 'approved' ORDER BY decided_at DESC LIMIT 1",
     )
     .bind(req.id)
-    .fetch_optional(&mut *tx)
+    .fetch_optional(&mut **tx)
     .await?
     .ok_or(ApiError::Conflict("no_approved_recommendation"))?;
     let (supplier_id, currency, shipping): (Uuid, String, i64) = sqlx::query_as(
@@ -91,7 +115,7 @@ pub async fn record_order(
          JOIN rfq_recipients x ON x.id = q.rfq_recipient_id WHERE q.id = $1",
     )
     .bind(quotation_id)
-    .fetch_one(&mut *tx)
+    .fetch_one(&mut **tx)
     .await?;
     // The order must be exactly what was approved: recompute from the quotation lines.
     let (line_count, lines_total): (i64, Option<i64>) = sqlx::query_as(
@@ -99,7 +123,7 @@ pub async fn record_order(
          WHERE quotation_id = $1",
     )
     .bind(quotation_id)
-    .fetch_one(&mut *tx)
+    .fetch_one(&mut **tx)
     .await?;
     if line_count == 0 || lines_total.and_then(|t| t.checked_add(shipping)) != Some(total) {
         return Err(ApiError::Conflict("recommendation_inconsistent"));
@@ -120,14 +144,14 @@ pub async fn record_order(
     .bind(req.id)
     .bind(rec_id)
     .bind(supplier_id)
-    .bind(&po_number)
+    .bind(po_number)
     .bind(&currency)
     .bind(shipping)
     .bind(total)
-    .bind(&notes)
+    .bind(notes)
     .bind(p.user_id)
     .bind(quotation_id)
-    .execute(&mut *tx)
+    .execute(&mut **tx)
     .await?;
     sqlx::query(
         "INSERT INTO order_items (id, org_id, order_id, request_item_id, quantity, unit_price_minor,
@@ -139,11 +163,11 @@ pub async fn record_order(
     .bind(org_id)
     .bind(id)
     .bind(quotation_id)
-    .execute(&mut *tx)
+    .execute(&mut **tx)
     .await?;
     transition(
-        &mut tx,
-        &Audit { org_id, p: &p },
+        tx,
+        &Audit { org_id, p },
         &req,
         RequestStatus::Ordered,
         side,
@@ -152,17 +176,17 @@ pub async fn record_order(
                 "total_minor": total, "currency": currency }),
     )
     .await?;
-    open_delivery_check(&mut tx, org_id, req.id, id).await?;
+    open_delivery_check(tx, org_id, req.id, id).await?;
     // Our staff read the prepared order email and send it to the supplier today.
     let today: NaiveDate = sqlx::query_scalar(
         "SELECT (now() AT TIME ZONE timezone)::date FROM organisations WHERE id = $1",
     )
     .bind(org_id)
-    .fetch_one(&mut *tx)
+    .fetch_one(&mut **tx)
     .await?;
-    let today_end = crate::api::ops::end_of_local_day(&mut tx, org_id, today).await?;
+    let today_end = crate::api::ops::end_of_local_day(tx, org_id, today).await?;
     crate::api::ops::open_auto_task(
-        &mut tx,
+        tx,
         org_id,
         req.id,
         None,
@@ -171,8 +195,7 @@ pub async fn record_order(
         today_end,
     )
     .await?;
-    tx.commit().await?;
-    Ok((StatusCode::CREATED, Json(IdResponse { id })))
+    Ok(id)
 }
 
 #[derive(Serialize, sqlx::FromRow, utoipa::ToSchema)]
@@ -439,6 +462,26 @@ pub async fn record_delivery(
     let (access, view) = request_view(&p, &state, org_id).await?;
     require_perm(access, Permission::ReceiveGoods)?;
     let side = side(access)?;
+    let (note, received_at) = clean_delivery(&body)?;
+    let mut tx = db::tenant_tx(&state.pool, p.user_id, org_id).await?;
+    let id = record_delivery_tx(
+        &mut tx,
+        &p,
+        org_id,
+        side,
+        view,
+        order_id,
+        &body,
+        &note,
+        received_at,
+    )
+    .await?;
+    tx.commit().await?;
+    Ok((StatusCode::CREATED, Json(IdResponse { id })))
+}
+
+/// The cleaned note and receipt time of a delivery (as the API checks them).
+pub(crate) fn clean_delivery(body: &DeliveryInput) -> ApiResult<(String, DateTime<Utc>)> {
     let note = common::text(&body.note, 2000, true, "note")?;
     if body.lines.is_empty()
         || body
@@ -452,9 +495,25 @@ pub async fn record_delivery(
     if received_at > Utc::now() + chrono::Duration::minutes(5) {
         return Err(ApiError::Validation("received_at"));
     }
-    let mut tx = db::tenant_tx(&state.pool, p.user_id, org_id).await?;
-    let request_id = order_request(&mut tx, order_id).await?;
-    let req = lock_request(&mut tx, request_id, view).await?;
+    Ok((note, received_at))
+}
+
+/// Records a receipt against `order_id` in the caller's transaction (in `org_id`'s
+/// context), after [`clean_delivery`]. Used by the API and by file imports.
+#[allow(clippy::too_many_arguments)]
+pub(crate) async fn record_delivery_tx(
+    tx: &mut db::Tx,
+    p: &Principal,
+    org_id: Uuid,
+    side: Side,
+    view: View,
+    order_id: Uuid,
+    body: &DeliveryInput,
+    note: &str,
+    received_at: DateTime<Utc>,
+) -> ApiResult<Uuid> {
+    let request_id = order_request(tx, order_id).await?;
+    let req = lock_request(tx, request_id, view).await?;
     if req.status()? != RequestStatus::Ordered {
         return Err(ApiError::Conflict("not_receiving"));
     }
@@ -465,7 +524,7 @@ pub async fn record_delivery(
          FROM order_items oi WHERE oi.order_id = $1",
     )
     .bind(order_id)
-    .fetch_all(&mut *tx)
+    .fetch_all(&mut **tx)
     .await?;
     for (i, l) in body.lines.iter().enumerate() {
         if body.lines[..i]
@@ -492,9 +551,9 @@ pub async fn record_delivery(
     .bind(org_id)
     .bind(order_id)
     .bind(received_at)
-    .bind(&note)
+    .bind(note)
     .bind(p.user_id)
-    .execute(&mut *tx)
+    .execute(&mut **tx)
     .await?;
     for l in &body.lines {
         sqlx::query(
@@ -506,13 +565,13 @@ pub async fn record_delivery(
         .bind(id)
         .bind(l.order_item_id)
         .bind(i32::try_from(l.quantity).map_err(|_| ApiError::Validation("lines"))?)
-        .execute(&mut *tx)
+        .execute(&mut **tx)
         .await?;
     }
-    let audit = Audit { org_id, p: &p };
+    let audit = Audit { org_id, p };
     audit
         .record(
-            &mut tx,
+            tx,
             "delivery.recorded",
             "delivery",
             id,
@@ -526,11 +585,11 @@ pub async fn record_delivery(
                           WHERE d.order_item_id = oi.id AND dv.reversed_at IS NULL), 0)",
     )
     .bind(order_id)
-    .fetch_one(&mut *tx)
+    .fetch_one(&mut **tx)
     .await?;
     if outstanding == 0 {
         transition(
-            &mut tx,
+            tx,
             &audit,
             &req,
             RequestStatus::Delivered,
@@ -539,10 +598,9 @@ pub async fn record_delivery(
             json!({ "order": order_id }),
         )
         .await?;
-        crate::api::ops::close_auto_tasks(&mut tx, req.id, None, "check_delivery").await?;
+        crate::api::ops::close_auto_tasks(tx, req.id, None, "check_delivery").await?;
     }
-    tx.commit().await?;
-    Ok((StatusCode::CREATED, Json(IdResponse { id })))
+    Ok(id)
 }
 
 #[derive(Deserialize, utoipa::ToSchema)]
@@ -658,6 +716,22 @@ pub async fn record_invoice(
         .require(&state, org_id, Permission::ManageInvoices)
         .await?;
     let side = side(access)?;
+    let clean = clean_invoice(&body)?;
+    let mut tx = db::tenant_tx(&state.pool, p.user_id, org_id).await?;
+    let result = record_invoice_tx(&mut tx, &p, org_id, side, order_id, &body, &clean).await?;
+    tx.commit().await?;
+    Ok((StatusCode::CREATED, Json(result)))
+}
+
+/// An invoice's number, currency and rounding rule after the API's checks.
+pub(crate) struct CleanInvoice {
+    pub number: String,
+    pub currency: procure_domain::money::Currency,
+    pub rounding: TaxRounding,
+}
+
+/// Checks an invoice as the API does before anything is read.
+pub(crate) fn clean_invoice(body: &InvoiceInput) -> ApiResult<CleanInvoice> {
     let number = common::required(
         &body.supplier_invoice_number,
         100,
@@ -685,16 +759,40 @@ pub async fn record_invoice(
     if body.due_date.is_some_and(|d| d < body.invoice_date) {
         return Err(ApiError::Validation("due_date"));
     }
-    let mut tx = db::tenant_tx(&state.pool, p.user_id, org_id).await?;
-    let request_id = order_request(&mut tx, order_id).await?;
-    let req = lock_request(&mut tx, request_id, View::All).await?;
+    Ok(CleanInvoice {
+        number,
+        currency,
+        rounding,
+    })
+}
+
+/// Records and matches (three ways) an invoice for `order_id` in the caller's transaction
+/// (in `org_id`'s context), after [`clean_invoice`]. Used by the API and by file imports,
+/// so an imported invoice gets exactly the same match, discrepancies and audit events.
+pub(crate) async fn record_invoice_tx(
+    tx: &mut db::Tx,
+    p: &Principal,
+    org_id: Uuid,
+    side: Side,
+    order_id: Uuid,
+    body: &InvoiceInput,
+    clean: &CleanInvoice,
+) -> ApiResult<InvoiceResult> {
+    let CleanInvoice {
+        number,
+        currency,
+        rounding,
+    } = clean;
+    let (number, currency, rounding) = (number.clone(), *currency, *rounding);
+    let request_id = order_request(tx, order_id).await?;
+    let req = lock_request(tx, request_id, View::All).await?;
     if req.status()? != RequestStatus::Delivered {
         return Err(ApiError::Conflict("invalid_transition"));
     }
     let (order_currency, order_shipping): (String, i64) =
         sqlx::query_as("SELECT currency, shipping_minor FROM purchase_orders WHERE id = $1")
             .bind(order_id)
-            .fetch_one(&mut *tx)
+            .fetch_one(&mut **tx)
             .await?;
     let order_currency = common::currency(&order_currency)?;
     let rows: Vec<(Uuid, i32, i64, i64)> = sqlx::query_as(
@@ -704,7 +802,7 @@ pub async fn record_invoice(
          FROM order_items oi WHERE oi.order_id = $1",
     )
     .bind(order_id)
-    .fetch_all(&mut *tx)
+    .fetch_all(&mut **tx)
     .await?;
     if body.lines.iter().any(|l| {
         l.order_item_id
@@ -728,7 +826,7 @@ pub async fn record_invoice(
     let supplier_id: Uuid =
         sqlx::query_scalar("SELECT supplier_id FROM purchase_orders WHERE id = $1")
             .bind(order_id)
-            .fetch_one(&mut *tx)
+            .fetch_one(&mut **tx)
             .await?;
     let order_lines = rows
         .iter()
@@ -798,7 +896,7 @@ pub async fn record_invoice(
     .bind(status)
     .bind(p.user_id)
     .bind(supplier_id)
-    .execute(&mut *tx)
+    .execute(&mut **tx)
     .await
     .map_err(|e| match ApiError::from(e) {
         ApiError::Conflict(_) => ApiError::Conflict("invoice_already_recorded"),
@@ -821,7 +919,7 @@ pub async fn record_invoice(
             i32::try_from(l.tax_rate_bps.unwrap_or(body.tax_rate_bps))
                 .map_err(|_| ApiError::Validation("lines"))?,
         )
-        .execute(&mut *tx)
+        .execute(&mut **tx)
         .await?;
     }
     for d in &found {
@@ -839,13 +937,13 @@ pub async fn record_invoice(
         .bind(item)
         .bind(expected)
         .bind(actual)
-        .execute(&mut *tx)
+        .execute(&mut **tx)
         .await?;
     }
-    let audit = Audit { org_id, p: &p };
+    let audit = Audit { org_id, p };
     audit
         .record(
-            &mut tx,
+            tx,
             "invoice.recorded",
             "invoice",
             id,
@@ -855,7 +953,7 @@ pub async fn record_invoice(
         )
         .await?;
     transition(
-        &mut tx,
+        tx,
         &audit,
         &req,
         RequestStatus::Invoiced,
@@ -865,7 +963,7 @@ pub async fn record_invoice(
     )
     .await?;
     // `transition` updated the row; refresh the status before the next step.
-    let req = lock_request(&mut tx, request_id, View::All).await?;
+    let req = lock_request(tx, request_id, View::All).await?;
     let next = if found.is_empty() {
         RequestStatus::Reconciled
     } else {
@@ -877,7 +975,7 @@ pub async fn record_invoice(
         "request.disputed"
     };
     transition(
-        &mut tx,
+        tx,
         &audit,
         &req,
         next,
@@ -892,16 +990,14 @@ pub async fn record_invoice(
     } else {
         // The matching agent classifies the discrepancies (only when agents are on).
         crate::agents::matching::enqueue_for_invoice(&mut tx, org_id, id).await?;
+        savings::record_order(tx, &audit, org_id, order_id, p.user_id).await?;
+        history_orders::record_order(tx, &audit, org_id, order_id, p.user_id).await?;
     }
-    tx.commit().await?;
-    Ok((
-        StatusCode::CREATED,
-        Json(InvoiceResult {
-            id,
-            match_status: status.to_string(),
-            discrepancies: found.len(),
-        }),
-    ))
+    Ok(InvoiceResult {
+        id,
+        match_status: status.to_string(),
+        discrepancies: found.len(),
+    })
 }
 
 #[derive(Deserialize, utoipa::ToSchema)]

@@ -7,8 +7,8 @@ use utoipa::{Modify, OpenApi};
 
 use crate::api::{
     admin, agents, ai, approvals, attachments, auth, billing, chasing, cost, demo, exports,
-    history, listing_ai, listings, mail, matching, ops, order_email, orders, orgs, products,
-    records, requests, rfqs, savings, shop, shortlist, supplier_watch, suppliers,
+    history, integrations, listing_ai, listings, mail, matching, ops, order_email, orders, orgs,
+    products, records, requests, rfqs, savings, shop, shortlist, supplier_watch, suppliers,
 };
 use crate::error::{ErrorBody, ErrorInner};
 
@@ -257,6 +257,15 @@ impl Modify for BearerAuth {
         supplier_watch::doc_file,
         supplier_watch::org_docs,
         supplier_watch::scorecards,
+        integrations::list_profiles,
+        integrations::put_profile,
+        integrations::delete_profile,
+        integrations::upload,
+        integrations::list_imports,
+        integrations::get_import,
+        integrations::apply,
+        integrations::discard,
+        integrations::export_agent_results,
     ),
     components(schemas(ErrorBody, ErrorInner)),
     modifiers(&BearerAuth)

@@ -7,6 +7,7 @@ pub mod approval;
 pub mod chasing;
 pub mod comparison;
 pub mod compliance;
+pub mod connector;
 pub mod decision;
 pub mod history;
 pub mod invoicing;

@@ -203,5 +203,82 @@
       "priceScore": "価格競争力",
       "noData": "データ不足"
     }
+  },
+  "integrations": {
+    "import_ready": "ファイル {{file_name}} の取込準備ができました（{{records}} 件）",
+    "import_blocked": "ファイル {{file_name}} はこのままでは取り込めません（問題 {{blocking}} 件）",
+    "applyImport": "ファイルを取り込む",
+    "kind": {
+      "po": "発注",
+      "receipt": "納品・検収",
+      "invoice": "仕入先請求書"
+    },
+    "batchStatus": {
+      "previewed": "取込待ち",
+      "applied": "取込済み",
+      "failed": "取込なし"
+    },
+    "failure": {
+      "nothing_to_import": "読み取れるデータがありません",
+      "discarded": "破棄済み"
+    },
+    "finding": {
+      "unknown_request": "依頼番号が見つかりません",
+      "unknown_po": "発注番号が見つかりません",
+      "duplicate": "登録済みです",
+      "not_ready": "発注がまだこの段階にありません",
+      "unknown_item": "発注にない明細です",
+      "over_received": "発注数を超えています",
+      "amount_mismatch": "金額が発注と異なります"
+    },
+    "rowError": {
+      "required": "値がありません",
+      "date_invalid": "日付を読み取れません",
+      "number_invalid": "数値を読み取れません",
+      "quantity_invalid": "数量が正しくありません",
+      "amount_invalid": "金額が正しくありません",
+      "amount_mismatch": "単価×数量が金額と一致しません",
+      "currency_invalid": "通貨が不明です",
+      "tax_rate_invalid": "税率が正しくありません",
+      "text_too_long": "文字数が多すぎます",
+      "inconsistent": "同じ伝票の他の行と異なります",
+      "duplicate_line": "行番号が重複しています",
+      "too_many_lines": "1伝票の明細が多すぎます",
+      "too_many_records": "1ファイルの伝票が多すぎます",
+      "too_many_rows": "ファイルの行数が多すぎます",
+      "item_missing": "品目（行番号・品番・品名）がありません"
+    },
+    "field": {
+      "po_number": "発注番号",
+      "request_number": "依頼番号",
+      "order_date": "発注日",
+      "received_date": "納品日",
+      "invoice_number": "請求番号",
+      "invoice_date": "請求日",
+      "due_date": "支払期日",
+      "line_no": "行番号",
+      "mpn": "品番",
+      "description": "品名",
+      "quantity": "数量",
+      "unit_price": "単価",
+      "line_amount": "金額",
+      "currency": "通貨",
+      "tax_rate": "税率",
+      "tax_amount": "消費税",
+      "shipping": "送料",
+      "note": "備考"
+    },
+    "error": {
+      "duplicate_file": "このファイルは取込済みです",
+      "header_not_found": "必要な列の見出し行がありません",
+      "encoding": "選択した文字コードではありません",
+      "unsupported": "CSV・TSV・Excel（.xlsx）のみ取り込めます",
+      "file_size": "ファイルが空か、10MBを超えています",
+      "profile_kind": "別の種類のデータ用の設定です",
+      "import_unknown_request": "ファイル内の依頼番号が見つかりません",
+      "import_unknown_po": "ファイル内の発注番号が見つかりません",
+      "import_unknown_item": "ファイル内の明細が発注にありません",
+      "import_not_previewed": "このファイルは取込済みか破棄済みです"
+    }
   }
 }

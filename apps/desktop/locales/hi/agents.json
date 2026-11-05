@@ -203,5 +203,82 @@
       "priceScore": "मूल्य प्रतिस्पर्धा",
       "noData": "पर्याप्त डेटा नहीं"
     }
+  },
+  "integrations": {
+    "import_ready": "फ़ाइल {{file_name}} आयात के लिए तैयार है ({{records}} रिकॉर्ड)",
+    "import_blocked": "फ़ाइल {{file_name}} को ऐसे ही आयात नहीं किया जा सकता ({{blocking}} समस्याएँ)",
+    "applyImport": "फ़ाइल आयात करें",
+    "kind": {
+      "po": "क्रय आदेश",
+      "receipt": "माल प्राप्ति",
+      "invoice": "आपूर्तिकर्ता चालान"
+    },
+    "batchStatus": {
+      "previewed": "लागू होने की प्रतीक्षा में",
+      "applied": "लागू किया गया",
+      "failed": "आयात नहीं हुआ"
+    },
+    "failure": {
+      "nothing_to_import": "फ़ाइल में पढ़ने योग्य कोई रिकॉर्ड नहीं",
+      "discarded": "रद्द किया गया"
+    },
+    "finding": {
+      "unknown_request": "अज्ञात अनुरोध संख्या",
+      "unknown_po": "अज्ञात PO संख्या",
+      "duplicate": "पहले से दर्ज",
+      "not_ready": "आदेश अभी इस चरण पर नहीं है",
+      "unknown_item": "पंक्ति आदेश में नहीं है",
+      "over_received": "आदेश से अधिक",
+      "amount_mismatch": "राशि आदेश से भिन्न है"
+    },
+    "rowError": {
+      "required": "मान नहीं है",
+      "date_invalid": "तारीख पढ़ी नहीं जा सकी",
+      "number_invalid": "संख्या पढ़ी नहीं जा सकी",
+      "quantity_invalid": "अमान्य मात्रा",
+      "amount_invalid": "अमान्य राशि",
+      "amount_mismatch": "इकाई मूल्य × मात्रा राशि के बराबर नहीं",
+      "currency_invalid": "अज्ञात मुद्रा",
+      "tax_rate_invalid": "अमान्य कर दर",
+      "text_too_long": "पाठ बहुत लंबा है",
+      "inconsistent": "उसी रिकॉर्ड की अन्य पंक्तियों से भिन्न",
+      "duplicate_line": "पंक्ति संख्या दोहराई गई",
+      "too_many_lines": "एक रिकॉर्ड में बहुत अधिक पंक्तियाँ",
+      "too_many_records": "एक फ़ाइल में बहुत अधिक रिकॉर्ड",
+      "too_many_rows": "फ़ाइल में बहुत अधिक पंक्तियाँ",
+      "item_missing": "कोई वस्तु नहीं (पंक्ति संख्या, पार्ट नंबर या नाम)"
+    },
+    "field": {
+      "po_number": "PO संख्या",
+      "request_number": "अनुरोध संख्या",
+      "order_date": "आदेश तिथि",
+      "received_date": "प्राप्ति तिथि",
+      "invoice_number": "चालान संख्या",
+      "invoice_date": "चालान तिथि",
+      "due_date": "देय तिथि",
+      "line_no": "पंक्ति",
+      "mpn": "पार्ट नंबर",
+      "description": "वस्तु का नाम",
+      "quantity": "मात्रा",
+      "unit_price": "इकाई मूल्य",
+      "line_amount": "राशि",
+      "currency": "मुद्रा",
+      "tax_rate": "कर दर",
+      "tax_amount": "कर",
+      "shipping": "शिपिंग",
+      "note": "टिप्पणी"
+    },
+    "error": {
+      "duplicate_file": "यह फ़ाइल पहले ही आयात की जा चुकी है",
+      "header_not_found": "आवश्यक स्तंभों वाली शीर्षक पंक्ति नहीं मिली",
+      "encoding": "फ़ाइल चुनी गई कैरेक्टर एन्कोडिंग में नहीं है",
+      "unsupported": "केवल CSV, TSV या Excel (.xlsx) फ़ाइलें",
+      "file_size": "फ़ाइल खाली है या 10 MB से बड़ी है",
+      "profile_kind": "यह प्रोफ़ाइल किसी अन्य प्रकार के रिकॉर्ड के लिए है",
+      "import_unknown_request": "फ़ाइल में एक अनुरोध संख्या अज्ञात है",
+      "import_unknown_po": "फ़ाइल में एक PO संख्या अज्ञात है",
+      "import_unknown_item": "फ़ाइल की एक पंक्ति उसके आदेश में नहीं है",
+      "import_not_previewed": "यह फ़ाइल पहले ही लागू या रद्द की जा चुकी है"
+    }
   }
 }

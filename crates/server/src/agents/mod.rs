@@ -11,6 +11,7 @@
 pub mod chasing;
 pub mod cost_analyst;
 pub mod exceptions;
+pub mod import;
 pub mod matching;
 pub mod queue;
 pub mod supplier_watch;
@@ -44,6 +45,7 @@ pub fn registry() -> Vec<Arc<dyn Agent>> {
         Arc::new(cost_analyst::CostAnalyst),
         Arc::new(chasing::Chasing),
         Arc::new(supplier_watch::SupplierWatch),
+        Arc::new(import::Import),
     ]
 }
 

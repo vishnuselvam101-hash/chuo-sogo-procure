@@ -12,6 +12,7 @@ pub mod demo;
 pub mod exports;
 pub mod history;
 pub mod history_orders;
+pub mod integrations;
 pub mod listing_ai;
 pub mod listings;
 pub mod mail;

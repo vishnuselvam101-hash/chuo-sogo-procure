@@ -1470,6 +1470,118 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/orgs/{org_id}/integrations/exports/agent-results.csv": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["integrations_export_agent_results"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/orgs/{org_id}/integrations/imports": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["integrations_list_imports"];
+    put?: never;
+    post: operations["integrations_upload"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/orgs/{org_id}/integrations/imports/{batch_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["integrations_get_import"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/orgs/{org_id}/integrations/imports/{batch_id}/apply": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["integrations_apply"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/orgs/{org_id}/integrations/imports/{batch_id}/discard": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["integrations_discard"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/orgs/{org_id}/integrations/profiles": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["integrations_list_profiles"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/orgs/{org_id}/integrations/profiles/{name}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put: operations["integrations_put_profile"];
+    post?: never;
+    delete: operations["integrations_delete_profile"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/orgs/{org_id}/item-aliases": {
     parameters: {
       query?: never;
@@ -3304,6 +3416,21 @@ export interface components {
       id: string;
       note: string;
     };
+    AppliedRecord: {
+      /** Format: uuid */
+      entity_id: string;
+      /** @description `purchase_order` | `delivery` | `invoice` */
+      entity_type: string;
+      /** @description Invoices: `matched` or `disputed` (the same three-way match as manual entry). */
+      match_status?: string | null;
+      po_number: string;
+      /** Format: int32 */
+      seq: number;
+    };
+    ApplyResult: {
+      applied: components["schemas"]["AppliedRecord"][];
+      batch: components["schemas"]["ImportBatchView"];
+    };
     AssignBody: {
       /** Format: uuid */
       org_id: string;
@@ -3503,6 +3630,16 @@ export interface components {
       /** @description 6-digit code from the authenticator app. */
       code: string;
       token: string;
+    };
+    ColumnMap: {
+      /**
+       * @description A field code (`po_number`, `request_number`, `order_date`, `received_date`,
+       *     `invoice_number`, `invoice_date`, `due_date`, `line_no`, `mpn`, `description`,
+       *     `quantity`, `unit_price`, `line_amount`, `currency`, `tax_rate`, `tax_amount`,
+       *     `shipping`, `note`).
+       */
+      field: string;
+      source: string;
     };
     CommentInput: {
       body: string;
@@ -4106,6 +4243,38 @@ export interface components {
       /** Format: uuid */
       id: string;
     };
+    ImportBatchView: {
+      /** Format: date-time */
+      created_at: string;
+      /** Format: uuid */
+      created_by: string;
+      currency: string;
+      /** Format: int32 */
+      data_rows: number;
+      /** Format: date-time */
+      decided_at?: string | null;
+      /** Format: uuid */
+      decided_by?: string | null;
+      /** Format: int32 */
+      error_rows: number;
+      errors: components["schemas"]["RowErrorView"][];
+      /** @description Why it failed: `nothing_to_import` or `discarded`. */
+      failure_code?: string | null;
+      file_name: string;
+      file_sha256: string;
+      /** Format: uuid */
+      id: string;
+      kind: string;
+      /** @description Field code of each column (`null` = ignored). */
+      mapping: (string | null)[];
+      profile: string;
+      /** Format: int32 */
+      records: number;
+      /** @description Staged records (an upload's preview shows the first 100). */
+      staged: components["schemas"]["Staged"][];
+      /** @description `previewed` | `applied` | `failed` */
+      status: string;
+    };
     ImportBody: {
       /** @description Currency for rows without one; the organisation's usual currency, default `JPY`. */
       currency?: string | null;
@@ -4141,6 +4310,19 @@ export interface components {
       created: components["schemas"]["Created"][];
       lines: number;
       skipped: components["schemas"]["SkippedRow"][];
+    };
+    ImportUpload: {
+      config?: null | components["schemas"]["ProfileConfig"];
+      /** @description For records without a currency column (default JPY). */
+      currency?: string | null;
+      /** @description File content, standard base64 (at most 10 MB). */
+      data_base64: string;
+      /** @description `.csv`, `.tsv`, `.txt` (UTF-8 or Shift_JIS) or `.xlsx`. */
+      file_name: string;
+      /** @description `po` | `receipt` | `invoice` */
+      kind: string;
+      /** @description A built-in preset or a saved profile (default: headers detected). */
+      profile?: string | null;
     };
     ImportView: {
       file_name: string;
@@ -5132,6 +5314,34 @@ export interface components {
       /** Format: date-time */
       verified_at?: string | null;
     };
+    /** @description A profile as stored and sent over the API. */
+    ProfileConfig: {
+      /** @description Source column header → field code. Columns not listed are recognised by header. */
+      columns?: components["schemas"]["ColumnMap"][];
+      /** @description `auto` (default) | `ymd` | `dmy` | `mdy` */
+      date_format?: string;
+      /** @description `.` (default) or `,` */
+      decimal_separator?: string;
+      /**
+       * Format: int32
+       * @description When the file has no tax-rate column (basis points; default 1000 = 10%).
+       */
+      default_tax_rate_bps?: number;
+      /** @description `auto` (default: UTF-8, else Shift_JIS) | `utf-8` | `shift_jis` */
+      encoding?: string;
+      /** @description `po` | `receipt` | `invoice` */
+      kind: string;
+      /** @description `,` (default), `.`, ` `, `'` or empty for none */
+      thousands_separator?: string;
+    };
+    ProfileView: {
+      /** @description Built-in generic preset (read-only). */
+      builtin: boolean;
+      config: components["schemas"]["ProfileConfig"];
+      name: string;
+      /** Format: date-time */
+      updated_at?: string | null;
+    };
     PutAgentSettings: {
       /**
        * @description Supplier mail from approved actions is sent only when this is on and the server's
@@ -5518,7 +5728,8 @@ export interface components {
     };
     RowErrorView: {
       code: string;
-      /** @description 1-based row number in the file, as the spreadsheet shows it. */
+      field?: string | null;
+      /** @description File row, 1-based as a spreadsheet numbers it (0 = the whole file). */
       row: number;
     };
     RunRequest: {
@@ -5788,6 +5999,45 @@ export interface components {
     StaffException: {
       exception: components["schemas"]["AgentException"];
       org_name: string;
+    };
+    /** @description One record as staged in `import_rows.record`. */
+    Staged: {
+      currency: string;
+      /**
+       * Format: date
+       * @description Order, receipt or invoice date.
+       */
+      date?: string | null;
+      /** Format: date */
+      due_date?: string | null;
+      /** @description Invoices: the supplier's invoice number. */
+      invoice_number?: string;
+      /** @description `po` | `receipt` | `invoice` */
+      kind: string;
+      lines: components["schemas"]["StagedLine"][];
+      note?: string;
+      po_number: string;
+      /** @description Purchase orders: the platform request (`PR-…`) the factory's PO is for. */
+      request_number?: string;
+      rows: number[];
+      /** Format: int64 */
+      shipping_minor?: number | null;
+      /** Format: int64 */
+      tax_minor?: number | null;
+      /** Format: int32 */
+      tax_rate_bps?: number | null;
+    };
+    StagedLine: {
+      description: string;
+      /** Format: int32 */
+      line_no?: number | null;
+      mpn: string;
+      /** Format: int32 */
+      quantity?: number | null;
+      /** Format: int32 */
+      row: number;
+      /** Format: int64 */
+      unit_price_minor?: number | null;
     };
     SubmitBody: {
       /** @description Required when answering a clarification question. */
@@ -11709,6 +11959,564 @@ export interface operations {
       };
       /** @description Invalid month */
       422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  integrations_export_agent_results: {
+    parameters: {
+      query?: {
+        agent?: string;
+        /** @description `open` | `approved` | `edited` | `rejected` | `resolved_elsewhere` (default: all) */
+        status?: string;
+      };
+      header?: never;
+      path: {
+        org_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Agent exceptions with their decisions as CSV (text/csv, UTF-8 with BOM; formula-like cells quoted) */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Invalid status */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown or unrelated organisation */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  integrations_list_imports: {
+    parameters: {
+      query?: {
+        /** @description `po` | `receipt` | `invoice` */
+        kind?: string;
+        /** @description At most 200 (default 50), newest first. */
+        limit?: number;
+      };
+      header?: never;
+      path: {
+        org_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Batches, newest first (without staged records) */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ImportBatchView"][];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown or unrelated organisation */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Invalid kind */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  integrations_upload: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ImportUpload"];
+      };
+    };
+    responses: {
+      /** @description File read into a batch (preview); nothing else changed. Rows that could not be read are listed */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ImportBatchView"];
+        };
+      };
+      /** @description Malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted for this kind of record */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown or unrelated organisation */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description The same file was already imported (duplicate_file) */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unsupported, empty or oversized file, wrong encoding, no header, or invalid profile */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  integrations_get_import: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+        batch_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The batch with every staged record */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ImportBatchView"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown organisation or batch */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  integrations_apply: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+        batch_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Every record written through the manual-entry path, all or nothing */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ApplyResult"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted for this kind of record */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown organisation or batch */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Already applied or failed, or a record's order is not in the right state */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description A record refers to an unknown request, order or item, or is invalid */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  integrations_discard: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+        batch_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Batch discarded (failed); the same file may be uploaded again */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ImportBatchView"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown organisation or batch */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Already applied or failed */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  integrations_list_profiles: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Built-in presets, then the organisation's saved profiles */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProfileView"][];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown or unrelated organisation */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  integrations_put_profile: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+        name: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ProfileConfig"];
+      };
+    };
+    responses: {
+      /** @description Profile saved */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProfileView"];
+        };
+      };
+      /** @description Malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted for this kind of record */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown or unrelated organisation */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description The name of a built-in preset (preset_name) */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Invalid profile */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  integrations_delete_profile: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+        name: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Profile removed (past batches keep the settings they used) */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown organisation or profile */
+      404: {
         headers: {
           [name: string]: unknown;
         };
