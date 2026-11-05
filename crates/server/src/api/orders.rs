@@ -985,11 +985,11 @@ pub(crate) async fn record_invoice_tx(
     )
     .await?;
     if found.is_empty() {
-        savings::record_order(&mut tx, &audit, org_id, order_id, p.user_id).await?;
-        history_orders::record_order(&mut tx, &audit, org_id, order_id, p.user_id).await?;
+        savings::record_order(tx, &audit, org_id, order_id, p.user_id).await?;
+        history_orders::record_order(tx, &audit, org_id, order_id, p.user_id).await?;
     } else {
         // The matching agent classifies the discrepancies (only when agents are on).
-        crate::agents::matching::enqueue_for_invoice(&mut tx, org_id, id).await?;
+        crate::agents::matching::enqueue_for_invoice(tx, org_id, id).await?;
         savings::record_order(tx, &audit, org_id, order_id, p.user_id).await?;
         history_orders::record_order(tx, &audit, org_id, order_id, p.user_id).await?;
     }
