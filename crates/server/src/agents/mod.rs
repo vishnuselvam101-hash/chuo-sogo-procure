@@ -10,6 +10,7 @@
 
 pub mod exceptions;
 pub mod queue;
+pub mod supplier_watch;
 pub mod worker;
 
 use std::sync::Arc;
@@ -35,7 +36,7 @@ pub use queue::{AgentRun, enqueue};
 /// `Arc::new(matching::Matching),`. Test agents are never listed here; tests put their own
 /// registry into `AppState::agents`.
 pub fn registry() -> Vec<Arc<dyn Agent>> {
-    vec![]
+    vec![Arc::new(supplier_watch::SupplierWatch)]
 }
 
 /// The agent called `name` in this server's registry.

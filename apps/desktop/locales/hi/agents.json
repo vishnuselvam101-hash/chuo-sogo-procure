@@ -19,5 +19,45 @@
       "failed": "विफल",
       "skipped": "छोड़ा गया"
     }
+  },
+  "supplier": {
+    "documentExpiring": "{{supplier_name}}: {{doc_kind}} की समाप्ति {{expires_on}} को है",
+    "documentExpired": "{{supplier_name}}: {{doc_kind}} {{expires_on}} को समाप्त हो गया",
+    "scorecardReview": "{{supplier_name}}: {{month}} के स्कोरकार्ड की समीक्षा आवश्यक है",
+    "docKind": {
+      "iso9001": "ISO 9001 प्रमाणपत्र",
+      "iso14001": "ISO 14001 प्रमाणपत्र",
+      "iatf16949": "IATF 16949 प्रमाणपत्र",
+      "qualified_invoice_registration": "योग्य चालान जारीकर्ता पंजीकरण",
+      "anti_social_check": "असामाजिक तत्वों की जाँच",
+      "insurance": "बीमा प्रमाणपत्र",
+      "nda": "गोपनीयता समझौता",
+      "other": "अन्य दस्तावेज़"
+    },
+    "window": {
+      "within_30": "30 दिनों के भीतर",
+      "within_7": "7 दिनों के भीतर",
+      "expired": "समाप्त"
+    },
+    "reason": {
+      "low_on_time": "समय पर डिलीवरी 80% से कम",
+      "on_time_dropped": "समय पर डिलीवरी 20 अंक या अधिक गिरी",
+      "high_discrepancy": "20% से अधिक चालानों में अंतर",
+      "discrepancy_rose": "चालान अंतर 20 अंक या अधिक बढ़ा",
+      "low_reply_rate": "आधे से कम RFQ का उत्तर दिया",
+      "reply_rate_dropped": "RFQ उत्तर दर 20 अंक या अधिक गिरी"
+    },
+    "action": {
+      "request_document_update": "आपूर्तिकर्ता से अद्यतन दस्तावेज़ माँगें (ड्राफ़्ट, परीक्षण मोड)",
+      "flag_supplier_review": "Chuo-Sogo स्टाफ़ से इस आपूर्तिकर्ता की समीक्षा करवाएँ"
+    },
+    "scorecard": {
+      "onTime": "समय पर डिलीवरी",
+      "discrepancy": "चालान अंतर",
+      "replyRate": "RFQ उत्तर दर",
+      "medianReplyHours": "उत्तर का मध्य समय (घंटे)",
+      "priceScore": "मूल्य प्रतिस्पर्धा",
+      "noData": "पर्याप्त डेटा नहीं"
+    }
   }
 }

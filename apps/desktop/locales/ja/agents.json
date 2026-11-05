@@ -19,5 +19,45 @@
       "failed": "失敗",
       "skipped": "スキップ"
     }
+  },
+  "supplier": {
+    "documentExpiring": "{{supplier_name}}：{{doc_kind}}の有効期限は{{expires_on}}です",
+    "documentExpired": "{{supplier_name}}：{{doc_kind}}の有効期限（{{expires_on}}）が切れています",
+    "scorecardReview": "{{supplier_name}}：{{month}}の評価が基準を下回りました。見直しをご検討ください",
+    "docKind": {
+      "iso9001": "ISO 9001 認証書",
+      "iso14001": "ISO 14001 認証書",
+      "iatf16949": "IATF 16949 認証書",
+      "qualified_invoice_registration": "適格請求書発行事業者登録",
+      "anti_social_check": "反社チェック",
+      "insurance": "保険証券",
+      "nda": "秘密保持契約書",
+      "other": "その他の書類"
+    },
+    "window": {
+      "within_30": "30日以内",
+      "within_7": "7日以内",
+      "expired": "期限切れ"
+    },
+    "reason": {
+      "low_on_time": "納期遵守率が80%未満",
+      "on_time_dropped": "納期遵守率が前月より20ポイント以上低下",
+      "high_discrepancy": "請求書の20%超に差異",
+      "discrepancy_rose": "請求書の差異率が前月より20ポイント以上上昇",
+      "low_reply_rate": "見積依頼への回答が半数未満",
+      "reply_rate_dropped": "見積回答率が前月より20ポイント以上低下"
+    },
+    "action": {
+      "request_document_update": "仕入先に更新版の提出を依頼する（下書き・テストモード）",
+      "flag_supplier_review": "中央綜合の担当者に仕入先の見直しを依頼する"
+    },
+    "scorecard": {
+      "onTime": "納期遵守率",
+      "discrepancy": "請求書の差異率",
+      "replyRate": "見積回答率",
+      "medianReplyHours": "回答までの時間（中央値・時間）",
+      "priceScore": "価格競争力",
+      "noData": "データ不足"
+    }
   }
 }
