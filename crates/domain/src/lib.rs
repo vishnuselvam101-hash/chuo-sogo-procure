@@ -18,4 +18,5 @@ pub mod request_import;
 pub mod savings;
 pub mod shop;
 pub mod shortlist;
+pub mod should_cost;
 pub mod workflow;

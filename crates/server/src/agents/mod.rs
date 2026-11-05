@@ -8,6 +8,7 @@
 //! - [`exceptions`]: `agent_exceptions`, the inbox (raise with dedupe, decide).
 //! - [`worker`]: the background loop that claims and runs queued work and schedules sweeps.
 
+pub mod cost_analyst;
 pub mod exceptions;
 pub mod matching;
 pub mod queue;
@@ -36,7 +37,10 @@ pub use queue::{AgentRun, enqueue};
 /// `Arc::new(matching::Matching),`. Test agents are never listed here; tests put their own
 /// registry into `AppState::agents`.
 pub fn registry() -> Vec<Arc<dyn Agent>> {
-    vec![Arc::new(matching::Matching)]
+    vec![
+        Arc::new(matching::Matching),
+        Arc::new(cost_analyst::CostAnalyst),
+    ]
 }
 
 /// The agent called `name` in this server's registry.

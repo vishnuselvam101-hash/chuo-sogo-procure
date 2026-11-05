@@ -1278,6 +1278,118 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/orgs/{org_id}/cost/briefs": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["cost_list_briefs"];
+    put?: never;
+    post: operations["cost_create_brief"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/orgs/{org_id}/cost/briefs/{brief_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["cost_get_brief"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/orgs/{org_id}/cost/briefs/{brief_id}/finalise": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["cost_finalise_brief"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/orgs/{org_id}/cost/briefs/{brief_id}/narrative": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["cost_draft_narrative"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/orgs/{org_id}/cost/models": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["cost_list_models"];
+    put?: never;
+    post: operations["cost_create_model"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/orgs/{org_id}/cost/models/{model_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["cost_get_model"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/orgs/{org_id}/cost/quotations/{quotation_id}/facts": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["cost_quotation_facts"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/orgs/{org_id}/deliveries/{delivery_id}/reverse": {
     parameters: {
       query?: never;
@@ -3173,6 +3285,59 @@ export interface components {
        */
       used: number;
     };
+    BreakdownView: {
+      lines: components["schemas"]["CostLineView"][];
+      /** Format: int64 */
+      logistics_milli: number;
+      /** Format: int64 */
+      margin_milli: number;
+      /** Format: int64 */
+      material_milli: number;
+      /** Format: int64 */
+      overhead_milli: number;
+      /** Format: int64 */
+      process_milli: number;
+      /** Format: int64 */
+      total_milli: number;
+      /** Format: int64 */
+      unit_cost_minor: number;
+    };
+    BriefView: {
+      arguments: string[];
+      /** Format: date-time */
+      created_at: string;
+      /** Format: uuid */
+      created_by: string;
+      currency: string;
+      /** Format: uuid */
+      exception_id?: string | null;
+      facts: components["schemas"]["QuotationFacts"];
+      /** Format: date-time */
+      finalised_at?: string | null;
+      /** Format: uuid */
+      finalised_by?: string | null;
+      /** Format: uuid */
+      id: string;
+      /** Format: uuid */
+      quotation_id: string;
+      /** Format: int64 */
+      quoted_total_minor: number;
+      /** Format: uuid */
+      request_id: string;
+      /** Format: uuid */
+      rfq_id: string;
+      /** @description `draft` | `final` */
+      status: string;
+      /** Format: uuid */
+      suggestion_id?: string | null;
+      summary: string;
+      /** Format: uuid */
+      supplier_id: string;
+      /** Format: int64 */
+      target_price_minor?: number | null;
+      /** Format: date-time */
+      updated_at: string;
+    };
     CheckBody: {
       /** @description What was checked or corrected (optional). */
       note?: string;
@@ -3288,10 +3453,53 @@ export interface components {
       /** @description `email` or `fax`. */
       rfq_channel: string;
     };
+    CostLineView: {
+      /** @description `material` | `process` */
+      kind: string;
+      /** Format: int64 */
+      milli: number;
+      name: string;
+    };
+    CostModelInput: {
+      currency: string;
+      description?: string;
+      inputs: components["schemas"]["ModelInputs"];
+      /**
+       * @description The item, as in a request line: part number, else description (matched like the
+       *     purchase records).
+       */
+      mpn?: string;
+      name?: string;
+      notes?: string;
+    };
+    CostModelView: {
+      breakdown: components["schemas"]["BreakdownView"];
+      /** Format: date-time */
+      created_at: string;
+      /** Format: uuid */
+      created_by: string;
+      currency: string;
+      /** @description Inputs that drive the unit cost most, largest first. */
+      drivers: components["schemas"]["DriverView"][];
+      /** Format: uuid */
+      id: string;
+      inputs: components["schemas"]["ModelInputs"];
+      item_key: string;
+      name: string;
+      notes: string;
+      /** Format: int64 */
+      unit_cost_milli: number;
+      /** Format: int32 */
+      version: number;
+    };
     CountBy: {
       /** Format: int64 */
       count: number;
       key: string;
+    };
+    CreateBriefInput: {
+      /** Format: uuid */
+      quotation_id: string;
     };
     CreateOrgRequest: {
       admin_email: string;
@@ -3528,6 +3736,18 @@ export interface components {
       /** @description A quotation was recorded from it. */
       used: boolean;
     };
+    DriverView: {
+      /** Format: int64 */
+      delta_bps: number;
+      /**
+       * Format: int64
+       * @description Unit cost increase when this input rises by 10 % (thousandths of a minor unit).
+       */
+      delta_milli: number;
+      /** @description e.g. `material.0.unit_price`, `process.1.cycle`, `overhead`, `logistics`, `margin`. */
+      input: string;
+      name: string;
+    };
     EnrollRequest: {
       token: string;
     };
@@ -3607,6 +3827,17 @@ export interface components {
       language?: string | null;
       /** Format: uuid */
       listing_id?: string | null;
+    };
+    FinaliseBriefInput: {
+      arguments?: string[];
+      summary: string;
+      /**
+       * Format: int64
+       * @description For the quoted lines' total, minor units; never above it.
+       */
+      target_price_minor?: number | null;
+      /** @description The text was taken from the brief's AI narrative (marks it accepted, else rejected). */
+      used_suggestion?: boolean;
     };
     FixedBaselines: {
       /** @description Items whose baseline was fixed now. */
@@ -3939,6 +4170,58 @@ export interface components {
       verified_manufacturer?: string | null;
       verified_mpn?: string | null;
     };
+    LineFactsView: {
+      /** @description The supplier offered a different product: no signals are raised for it. */
+      alternative: boolean;
+      /** Format: int64 */
+      best_reference_milli?: number | null;
+      /** Format: int64 */
+      competing_high_minor?: number | null;
+      /** Format: int64 */
+      competing_low_minor?: number | null;
+      /** @description Current quotations for this line in this currency (this one included). */
+      competing_quotes: number;
+      /** Format: uuid */
+      cost_model_id?: string | null;
+      /** Format: int32 */
+      cost_model_version?: number | null;
+      description: string;
+      /** Format: int64 */
+      historical_low_milli?: number | null;
+      /**
+       * Format: int64
+       * @description Quoted unit price against the lowest price paid, basis points.
+       */
+      history_gap_bps?: number | null;
+      item_key?: string | null;
+      /** Format: int64 */
+      last_paid_milli?: number | null;
+      /** Format: int32 */
+      line_no: number;
+      /** @description The factory's own purchases of the item in this currency (alias groups included). */
+      purchases: number;
+      /** Format: int32 */
+      quantity: number;
+      /** Format: int64 */
+      quoted_unit_minor: number;
+      /** Format: uuid */
+      request_item_id: string;
+      /** Format: int64 */
+      savings_opportunity_minor: number;
+      /** Format: int64 */
+      should_cost_gap_bps?: number | null;
+      /** Format: int64 */
+      should_cost_milli?: number | null;
+      /** @description `above_should_cost`, `above_historical_low`. */
+      signals: string[];
+      /** Format: int64 */
+      spread_bps?: number | null;
+      /**
+       * Format: int64
+       * @description Latest price paid against the earliest, basis points.
+       */
+      trend_bps?: number | null;
+    };
     LineInput: {
       description: string;
       /** Format: int32 */
@@ -4117,6 +4400,26 @@ export interface components {
       /** Format: uuid */
       updated_by?: string | null;
     };
+    MaterialInput: {
+      name: string;
+      /**
+       * Format: int64
+       * @description Thousandths of the unit per piece (250 = 0.25 kg).
+       */
+      quantity_milli: number;
+      /**
+       * Format: int32
+       * @description Material lost in production, basis points (1000 = 10 %).
+       */
+      scrap_bps?: number;
+      /** @description Unit the quantity and price refer to (`kg`, `g`, `m`, `pcs`, ...), for people. */
+      unit?: string;
+      /**
+       * Format: int64
+       * @description Price per whole unit, minor currency units.
+       */
+      unit_price_minor: number;
+    };
     MeResponse: {
       invitations: components["schemas"]["InvitationView"][];
       memberships: components["schemas"]["MembershipView"][];
@@ -4178,6 +4481,31 @@ export interface components {
       /** Format: int32 */
       weight: number;
     };
+    /** @description The inputs of a cost model (stored as given, after validation). */
+    ModelInputs: {
+      /**
+       * Format: int64
+       * @description Transport and packing per lot, minor currency units.
+       */
+      logistics_minor_per_lot?: number;
+      /**
+       * Format: int32
+       * @description Pieces per production lot (set-up and logistics are spread over it).
+       */
+      lot_size: number;
+      /**
+       * Format: int32
+       * @description On everything above, basis points.
+       */
+      margin_bps?: number;
+      materials?: components["schemas"]["MaterialInput"][];
+      /**
+       * Format: int32
+       * @description On material + processes, basis points.
+       */
+      overhead_bps?: number;
+      processes?: components["schemas"]["ProcessInput"][];
+    };
     MyData: {
       /** Format: date-time */
       created_at: string;
@@ -4187,6 +4515,11 @@ export interface components {
       orders: components["schemas"]["ShopOrderDetail"][];
       /** @description What happens to this data when the account is closed. */
       retention: string;
+    };
+    NarrativeView: {
+      brief: components["schemas"]["BriefView"];
+      /** @description `pending` (linked to the brief) or `failed` (with `error_code`). */
+      suggestion: components["schemas"]["SuggestionView"];
     };
     OpportunityItem: {
       currency: string;
@@ -4536,6 +4869,24 @@ export interface components {
       purchases: number;
       suppliers: number;
     };
+    ProcessInput: {
+      /**
+       * Format: int64
+       * @description Machine time per piece, milliseconds.
+       */
+      cycle_ms: number;
+      name: string;
+      /**
+       * Format: int64
+       * @description Machine and operator rate per hour, minor currency units.
+       */
+      rate_minor_per_hour: number;
+      /**
+       * Format: int32
+       * @description Set-up once per lot, minutes.
+       */
+      setup_minutes?: number;
+    };
     ProductDetail: {
       evidence: components["schemas"]["EvidenceView"][];
       product: components["schemas"]["ProductView"];
@@ -4595,6 +4946,35 @@ export interface components {
       org_name: string;
       /** @description The customer's timezone, for showing due times as the customer counts them. */
       org_timezone: string;
+    };
+    /** @description Deterministic facts about one supplier's quotation (reference only). */
+    QuotationFacts: {
+      currency: string;
+      lines: components["schemas"]["LineFactsView"][];
+      /** Format: uuid */
+      quotation_id: string;
+      /**
+       * Format: int64
+       * @description Σ unit price × quantity of the quoted lines (shipping excluded).
+       */
+      quoted_total_minor: number;
+      /** Format: uuid */
+      request_id: string;
+      /** Format: uuid */
+      rfq_id: string;
+      rfq_number: string;
+      /** Format: int64 */
+      savings_opportunity_minor: number;
+      /** Format: int64 */
+      shipping_minor: number;
+      /** @description Signals of any line. */
+      signals: string[];
+      /** @description The quotation was replaced by a later one from the same supplier. */
+      superseded: boolean;
+      /** Format: uuid */
+      supplier_id: string;
+      supplier_name: string;
+      thresholds: components["schemas"]["ThresholdsView"];
     };
     QuotationInput: {
       /**
@@ -5304,6 +5684,15 @@ export interface components {
       request_number?: string | null;
       status: string;
       title: string;
+    };
+    ThresholdsView: {
+      /**
+       * Format: int64
+       * @description The organisation's price alert line when set, else the default.
+       */
+      history_bps: number;
+      /** Format: int64 */
+      should_cost_bps: number;
     };
     TierView: {
       /** Format: int32 */
@@ -10094,6 +10483,570 @@ export interface operations {
         };
       };
       /** @description Unknown comparison */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  cost_list_briefs: {
+    parameters: {
+      query?: {
+        rfq_id?: string;
+        /** @description `draft` | `final` */
+        status?: string;
+      };
+      header?: never;
+      path: {
+        org_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Briefs, newest first (at most 200) */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["BriefView"][];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown or unrelated organisation */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown status */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  cost_create_brief: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateBriefInput"];
+      };
+    };
+    responses: {
+      /** @description Draft brief with the quotation's facts (the supplier's existing draft is refreshed) */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["BriefView"];
+        };
+      };
+      /** @description Malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown quotation */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description The quotation was replaced by a later one */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  cost_get_brief: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+        brief_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description One brief */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["BriefView"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown brief */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  cost_finalise_brief: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+        brief_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["FinaliseBriefInput"];
+      };
+    };
+    responses: {
+      /** @description Brief final (it never changes again) */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["BriefView"];
+        };
+      };
+      /** @description Malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown brief */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Already final */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Invalid text or a target above the quoted total */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  cost_draft_narrative: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+        brief_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description AI narrative drafted from the brief's facts only (a suggestion; a person finalises the brief) */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NarrativeView"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown brief */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Brief is final, or AI is off for the organisation */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description AI rate limit reached */
+      429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  cost_list_models: {
+    parameters: {
+      query?: {
+        /** @description Every version of this item (newest first); without it, the latest version of each item. */
+        item_key?: string;
+      };
+      header?: never;
+      path: {
+        org_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Cost models */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CostModelView"][];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown or unrelated organisation */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  cost_create_model: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CostModelInput"];
+      };
+    };
+    responses: {
+      /** @description New version of the item's cost model, with its build-up */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CostModelView"];
+        };
+      };
+      /** @description Malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown or unrelated organisation */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Another version was saved at the same time */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Invalid input (the detail names the field) */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  cost_get_model: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+        model_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description One version of a cost model, with build-up and drivers */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CostModelView"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown model */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  cost_quotation_facts: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+        quotation_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The quotation against the should-cost, the lowest price paid and the other quotes */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["QuotationFacts"];
+        };
+      };
+      /** @description No valid session */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not permitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Unknown quotation */
       404: {
         headers: {
           [name: string]: unknown;

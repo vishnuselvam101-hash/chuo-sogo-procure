@@ -62,5 +62,54 @@
       "title": "इनवॉइस पढ़ें",
       "hint": "सुझाई गई प्रविष्टियाँ पाने के लिए आपूर्तिकर्ता का इनवॉइस टेक्स्ट चिपकाएँ। दर्ज करने से पहले हमेशा जाँचें।"
     }
+  },
+  "cost": {
+    "negotiationOpportunity": {
+      "title": "{{supplier_name}} के कोटेशन पर मोलभाव की गुंजाइश है ({{rfq_number}})",
+      "body": "{{lines_flagged}} पंक्तियाँ सीमा से ऊपर हैं। अनुमानित लागत से अधिकतम {{max_should_cost_gap_bps}} bp, पहले चुकाई गई न्यूनतम कीमत से अधिकतम {{max_history_gap_bps}} bp ऊपर। संभावित बचत {{savings_opportunity_minor}} {{currency}}।"
+    },
+    "action": {
+      "save_brief": "मोलभाव नोट सहेजें",
+      "open_negotiation_task": "मोलभाव कार्य खोलें"
+    },
+    "signal": {
+      "above_should_cost": "अनुमानित लागत से ऊपर",
+      "above_historical_low": "पहले की न्यूनतम कीमत से ऊपर"
+    },
+    "briefStatus": {
+      "draft": "मसौदा",
+      "final": "अंतिम"
+    },
+    "facts": {
+      "quotedTotal": "कोटेशन कुल (पंक्तियाँ)",
+      "historicalLow": "पहले चुकाई गई न्यूनतम कीमत",
+      "lastPaid": "पिछली चुकाई गई कीमत",
+      "trend": "कीमत का रुझान",
+      "shouldCost": "अनुमानित लागत",
+      "shouldCostGap": "अनुमानित लागत से अंतर",
+      "historyGap": "न्यूनतम कीमत से अंतर",
+      "competing": "अन्य कोटेशन",
+      "spread": "कोटेशन में अंतर",
+      "savings": "संभावित बचत",
+      "targetPrice": "लक्ष्य कीमत (सुझाव)"
+    },
+    "model": {
+      "material": "सामग्री",
+      "process": "प्रसंस्करण",
+      "overhead": "ओवरहेड",
+      "logistics": "परिवहन",
+      "margin": "मार्जिन",
+      "unitCost": "इकाई लागत",
+      "drivers": "लागत के मुख्य कारक",
+      "version": "संस्करण"
+    },
+    "narrative": {
+      "draft": "AI से मसौदा बनाएँ",
+      "aiNote": "AI मसौदा केवल तथ्यों से लिखा गया सुझाव है। अंतिम करने से पहले जाँचें।",
+      "flag": {
+        "number_not_in_facts": "तथ्यों में न मौजूद संख्याएँ हैं",
+        "not_japanese": "जापानी के अलावा अन्य भाषा का पाठ है"
+      }
+    }
   }
 }

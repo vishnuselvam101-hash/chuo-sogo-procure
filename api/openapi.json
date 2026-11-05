@@ -6434,6 +6434,814 @@
         ]
       }
     },
+    "/api/v1/orgs/{org_id}/cost/briefs": {
+      "get": {
+        "tags": [
+          "cost"
+        ],
+        "operationId": "cost_list_briefs",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "rfq_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "description": "`draft` | `final`",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Briefs, newest first (at most 200)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BriefView"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown or unrelated organisation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unknown status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "cost"
+        ],
+        "operationId": "cost_create_brief",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateBriefInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Draft brief with the quotation's facts (the supplier's existing draft is refreshed)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BriefView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown quotation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The quotation was replaced by a later one",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/orgs/{org_id}/cost/briefs/{brief_id}": {
+      "get": {
+        "tags": [
+          "cost"
+        ],
+        "operationId": "cost_get_brief",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "brief_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One brief",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BriefView"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown brief",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/orgs/{org_id}/cost/briefs/{brief_id}/finalise": {
+      "post": {
+        "tags": [
+          "cost"
+        ],
+        "operationId": "cost_finalise_brief",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "brief_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FinaliseBriefInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Brief final (it never changes again)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BriefView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown brief",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Already final",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid text or a target above the quoted total",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/orgs/{org_id}/cost/briefs/{brief_id}/narrative": {
+      "post": {
+        "tags": [
+          "cost"
+        ],
+        "operationId": "cost_draft_narrative",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "brief_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "AI narrative drafted from the brief's facts only (a suggestion; a person finalises the brief)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NarrativeView"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown brief",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Brief is final, or AI is off for the organisation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "AI rate limit reached",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/orgs/{org_id}/cost/models": {
+      "get": {
+        "tags": [
+          "cost"
+        ],
+        "operationId": "cost_list_models",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "item_key",
+            "in": "query",
+            "description": "Every version of this item (newest first); without it, the latest version of each item.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cost models",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CostModelView"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown or unrelated organisation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "cost"
+        ],
+        "operationId": "cost_create_model",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CostModelInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "New version of the item's cost model, with its build-up",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CostModelView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown or unrelated organisation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Another version was saved at the same time",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input (the detail names the field)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/orgs/{org_id}/cost/models/{model_id}": {
+      "get": {
+        "tags": [
+          "cost"
+        ],
+        "operationId": "cost_get_model",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "model_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One version of a cost model, with build-up and drivers",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CostModelView"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/orgs/{org_id}/cost/quotations/{quotation_id}/facts": {
+      "get": {
+        "tags": [
+          "cost"
+        ],
+        "operationId": "cost_quotation_facts",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "quotation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The quotation against the should-cost, the lowest price paid and the other quotes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuotationFacts"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown quotation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/orgs/{org_id}/deliveries/{delivery_id}/reverse": {
       "post": {
         "tags": [
@@ -18149,6 +18957,166 @@
           }
         }
       },
+      "BreakdownView": {
+        "type": "object",
+        "required": [
+          "material_milli",
+          "process_milli",
+          "overhead_milli",
+          "logistics_milli",
+          "margin_milli",
+          "total_milli",
+          "unit_cost_minor",
+          "lines"
+        ],
+        "properties": {
+          "lines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CostLineView"
+            }
+          },
+          "logistics_milli": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "margin_milli": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "material_milli": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "overhead_milli": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "process_milli": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "total_milli": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "unit_cost_minor": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "BriefView": {
+        "type": "object",
+        "required": [
+          "id",
+          "request_id",
+          "rfq_id",
+          "supplier_id",
+          "quotation_id",
+          "currency",
+          "facts",
+          "quoted_total_minor",
+          "summary",
+          "arguments",
+          "status",
+          "created_by",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "arguments": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "created_by": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "exception_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "facts": {
+            "$ref": "#/components/schemas/QuotationFacts"
+          },
+          "finalised_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "finalised_by": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "quotation_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "quoted_total_minor": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "request_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "rfq_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "description": "`draft` | `final`"
+          },
+          "suggestion_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "supplier_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "target_price_minor": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
       "CheckBody": {
         "type": "object",
         "properties": {
@@ -18489,6 +19457,120 @@
           }
         }
       },
+      "CostLineView": {
+        "type": "object",
+        "required": [
+          "kind",
+          "name",
+          "milli"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "description": "`material` | `process`"
+          },
+          "milli": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
+      "CostModelInput": {
+        "type": "object",
+        "required": [
+          "currency",
+          "inputs"
+        ],
+        "properties": {
+          "currency": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "inputs": {
+            "$ref": "#/components/schemas/ModelInputs"
+          },
+          "mpn": {
+            "type": "string",
+            "description": "The item, as in a request line: part number, else description (matched like the\npurchase records)."
+          },
+          "name": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CostModelView": {
+        "type": "object",
+        "required": [
+          "id",
+          "item_key",
+          "version",
+          "name",
+          "currency",
+          "inputs",
+          "unit_cost_milli",
+          "notes",
+          "created_by",
+          "created_at",
+          "breakdown",
+          "drivers"
+        ],
+        "properties": {
+          "breakdown": {
+            "$ref": "#/components/schemas/BreakdownView"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "created_by": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "drivers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DriverView"
+            },
+            "description": "Inputs that drive the unit cost most, largest first."
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "inputs": {
+            "$ref": "#/components/schemas/ModelInputs"
+          },
+          "item_key": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "string"
+          },
+          "unit_cost_milli": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
       "CountBy": {
         "type": "object",
         "required": [
@@ -18504,6 +19586,19 @@
             "type": "string"
           }
         }
+      },
+      "CreateBriefInput": {
+        "type": "object",
+        "required": [
+          "quotation_id"
+        ],
+        "properties": {
+          "quotation_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "additionalProperties": false
       },
       "CreateOrgRequest": {
         "type": "object",
@@ -19230,6 +20325,33 @@
           }
         }
       },
+      "DriverView": {
+        "type": "object",
+        "required": [
+          "input",
+          "name",
+          "delta_milli",
+          "delta_bps"
+        ],
+        "properties": {
+          "delta_bps": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "delta_milli": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Unit cost increase when this input rises by 10 % (thousandths of a minor unit)."
+          },
+          "input": {
+            "type": "string",
+            "description": "e.g. `material.0.unit_price`, `process.1.cycle`, `overhead`, `logistics`, `margin`."
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
       "EnrollRequest": {
         "type": "object",
         "required": [
@@ -19487,6 +20609,36 @@
             "format": "uuid"
           }
         }
+      },
+      "FinaliseBriefInput": {
+        "type": "object",
+        "required": [
+          "summary"
+        ],
+        "properties": {
+          "arguments": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "summary": {
+            "type": "string"
+          },
+          "target_price_minor": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "For the quoted lines' total, minor units; never above it."
+          },
+          "used_suggestion": {
+            "type": "boolean",
+            "description": "The text was taken from the brief's AI narrative (marks it accepted, else rejected)."
+          }
+        },
+        "additionalProperties": false
       },
       "FixedBaselines": {
         "type": "object",
@@ -20448,6 +21600,160 @@
           }
         }
       },
+      "LineFactsView": {
+        "type": "object",
+        "required": [
+          "request_item_id",
+          "line_no",
+          "description",
+          "quantity",
+          "quoted_unit_minor",
+          "alternative",
+          "purchases",
+          "competing_quotes",
+          "savings_opportunity_minor",
+          "signals"
+        ],
+        "properties": {
+          "alternative": {
+            "type": "boolean",
+            "description": "The supplier offered a different product: no signals are raised for it."
+          },
+          "best_reference_milli": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "competing_high_minor": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "competing_low_minor": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "competing_quotes": {
+            "type": "integer",
+            "description": "Current quotations for this line in this currency (this one included).",
+            "minimum": 0
+          },
+          "cost_model_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "cost_model_version": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          },
+          "description": {
+            "type": "string"
+          },
+          "historical_low_milli": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "history_gap_bps": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Quoted unit price against the lowest price paid, basis points."
+          },
+          "item_key": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "last_paid_milli": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "line_no": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "purchases": {
+            "type": "integer",
+            "description": "The factory's own purchases of the item in this currency (alias groups included).",
+            "minimum": 0
+          },
+          "quantity": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "quoted_unit_minor": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "request_item_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "savings_opportunity_minor": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "should_cost_gap_bps": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "should_cost_milli": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "signals": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "`above_should_cost`, `above_historical_low`."
+          },
+          "spread_bps": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "trend_bps": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Latest price paid against the earliest, basis points."
+          }
+        }
+      },
       "LineInput": {
         "type": "object",
         "required": [
@@ -20929,6 +22235,40 @@
           }
         ]
       },
+      "MaterialInput": {
+        "type": "object",
+        "required": [
+          "name",
+          "quantity_milli",
+          "unit_price_minor"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "quantity_milli": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Thousandths of the unit per piece (250 = 0.25 kg)."
+          },
+          "scrap_bps": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Material lost in production, basis points (1000 = 10 %).",
+            "minimum": 0
+          },
+          "unit": {
+            "type": "string",
+            "description": "Unit the quantity and price refer to (`kg`, `g`, `m`, `pcs`, ...), for people."
+          },
+          "unit_price_minor": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Price per whole unit, minor currency units."
+          }
+        },
+        "additionalProperties": false
+      },
       "MeResponse": {
         "type": "object",
         "required": [
@@ -21126,6 +22466,51 @@
           }
         }
       },
+      "ModelInputs": {
+        "type": "object",
+        "description": "The inputs of a cost model (stored as given, after validation).",
+        "required": [
+          "lot_size"
+        ],
+        "properties": {
+          "logistics_minor_per_lot": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Transport and packing per lot, minor currency units."
+          },
+          "lot_size": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Pieces per production lot (set-up and logistics are spread over it).",
+            "minimum": 0
+          },
+          "margin_bps": {
+            "type": "integer",
+            "format": "int32",
+            "description": "On everything above, basis points.",
+            "minimum": 0
+          },
+          "materials": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MaterialInput"
+            }
+          },
+          "overhead_bps": {
+            "type": "integer",
+            "format": "int32",
+            "description": "On material + processes, basis points.",
+            "minimum": 0
+          },
+          "processes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProcessInput"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
       "MyData": {
         "type": "object",
         "required": [
@@ -21161,6 +22546,22 @@
           "retention": {
             "type": "string",
             "description": "What happens to this data when the account is closed."
+          }
+        }
+      },
+      "NarrativeView": {
+        "type": "object",
+        "required": [
+          "brief",
+          "suggestion"
+        ],
+        "properties": {
+          "brief": {
+            "$ref": "#/components/schemas/BriefView"
+          },
+          "suggestion": {
+            "$ref": "#/components/schemas/SuggestionView",
+            "description": "`pending` (linked to the brief) or `failed` (with `error_code`)."
           }
         }
       },
@@ -22187,6 +23588,36 @@
           }
         }
       },
+      "ProcessInput": {
+        "type": "object",
+        "required": [
+          "name",
+          "cycle_ms",
+          "rate_minor_per_hour"
+        ],
+        "properties": {
+          "cycle_ms": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Machine time per piece, milliseconds."
+          },
+          "name": {
+            "type": "string"
+          },
+          "rate_minor_per_hour": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Machine and operator rate per hour, minor currency units."
+          },
+          "setup_minutes": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Set-up once per lot, minutes.",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
       "ProductDetail": {
         "type": "object",
         "required": [
@@ -22383,6 +23814,86 @@
             }
           }
         ]
+      },
+      "QuotationFacts": {
+        "type": "object",
+        "description": "Deterministic facts about one supplier's quotation (reference only).",
+        "required": [
+          "quotation_id",
+          "rfq_id",
+          "request_id",
+          "supplier_id",
+          "rfq_number",
+          "supplier_name",
+          "currency",
+          "superseded",
+          "quoted_total_minor",
+          "shipping_minor",
+          "savings_opportunity_minor",
+          "thresholds",
+          "signals",
+          "lines"
+        ],
+        "properties": {
+          "currency": {
+            "type": "string"
+          },
+          "lines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LineFactsView"
+            }
+          },
+          "quotation_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "quoted_total_minor": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Σ unit price × quantity of the quoted lines (shipping excluded)."
+          },
+          "request_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "rfq_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "rfq_number": {
+            "type": "string"
+          },
+          "savings_opportunity_minor": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "shipping_minor": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "signals": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Signals of any line."
+          },
+          "superseded": {
+            "type": "boolean",
+            "description": "The quotation was replaced by a later one from the same supplier."
+          },
+          "supplier_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "supplier_name": {
+            "type": "string"
+          },
+          "thresholds": {
+            "$ref": "#/components/schemas/ThresholdsView"
+          }
+        }
       },
       "QuotationInput": {
         "type": "object",
@@ -24567,6 +26078,24 @@
           },
           "title": {
             "type": "string"
+          }
+        }
+      },
+      "ThresholdsView": {
+        "type": "object",
+        "required": [
+          "should_cost_bps",
+          "history_bps"
+        ],
+        "properties": {
+          "history_bps": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The organisation's price alert line when set, else the default."
+          },
+          "should_cost_bps": {
+            "type": "integer",
+            "format": "int64"
           }
         }
       },
