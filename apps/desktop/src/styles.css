@@ -2518,3 +2518,42 @@ button.mode-option:hover {
   max-width: 56rem;
   margin: 0 auto;
 }
+
+/* ---- Agent layer: severities, run and exception states ---- */
+.badge-sev-critical,
+.badge-run-failed,
+.badge-ex-rejected,
+.badge-batch-failed {
+  background: var(--error-bg);
+  color: var(--error);
+}
+
+.badge-sev-warning,
+.badge-ex-open,
+.badge-batch-previewed,
+.badge-brief-draft {
+  background: var(--warn-bg);
+  color: var(--warn);
+}
+
+.badge-sev-info,
+.badge-run-queued,
+.badge-run-running {
+  background: var(--info-bg);
+  color: var(--info);
+}
+
+.badge-run-succeeded,
+.badge-ex-approved,
+.badge-ex-edited,
+.badge-batch-applied,
+.badge-brief-final {
+  background: var(--ok-bg);
+  color: var(--ok);
+}
+
+/* The open exception: the decision area stands apart from the list above it. */
+.drawer {
+  border-left: 4px solid var(--brand);
+  margin-top: var(--sp-4);
+}

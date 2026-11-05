@@ -24,6 +24,8 @@ export const PERM = {
   manageBilling: "manage_billing",
   moderateListings: "moderate_listings",
   manageShop: "manage_shop",
+  /** Procurement staff (admin and operator) hold this; they work inside assigned customers. */
+  manageSuppliers: "manage_suppliers",
 } as const;
 
 /** Chuo-Sogo works in Japan time; staff-wide views use it. */

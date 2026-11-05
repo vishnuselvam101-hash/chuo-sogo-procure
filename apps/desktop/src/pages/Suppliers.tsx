@@ -5,6 +5,7 @@ import { useAction } from "../lib/useAction";
 import { useApi } from "../lib/useApi";
 import { EmptyState, ErrorText, Loading, PageHeader, StatusBadge } from "../components/ui";
 import { P } from "../lib/perm";
+import { OrgSupplierDocs, Scorecards, StaffSupplierDocs, seesSupplierWatch } from "./SupplierCompliance";
 
 const SUPPLIER_STATUSES = ["discovered", "contacted", "under_review", "verified", "inactive"];
 
@@ -27,6 +28,7 @@ function Directory({ active }: { active: MembershipView }) {
   );
   const action = useAction();
   const canEdit = active.permissions.includes(P.manageSuppliers);
+  const [docsOf, setDocsOf] = useState<string | null>(null);
   const [form, setForm] = useState({
     name: "",
     country: "JP",
@@ -177,6 +179,7 @@ function Directory({ active }: { active: MembershipView }) {
               <th>{t("procurement:supplier.categories")}</th>
               <th>{t("procurement:supplier.notes")}</th>
               <th>{t("procurement:request.status")}</th>
+              {canEdit && <th />}
             </tr>
           </thead>
           <tbody>
@@ -212,11 +215,19 @@ function Directory({ active }: { active: MembershipView }) {
                     <StatusBadge status={s.status} />
                   )}
                 </td>
+                {canEdit && (
+                  <td className="row-actions">
+                    <button type="button" onClick={() => setDocsOf(docsOf === s.id ? null : s.id)}>
+                      {t("agents:ui.supplier.docs")}
+                    </button>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
         </table>
       )}
+      {canEdit && docsOf && <StaffSupplierDocs key={docsOf} supplierId={docsOf} />}
     </section>
   );
 }
@@ -229,6 +240,8 @@ function OrgSuppliers({ active }: { active: MembershipView }) {
   const [reason, setReason] = useState("");
   const canDecide = active.permissions.includes(P.approveSuppliers);
   const canPropose = active.access === "assigned" && active.permissions.includes(P.manageRfqs);
+  const watch = seesSupplierWatch(active);
+  const [docsOf, setDocsOf] = useState<string | null>(null);
 
   async function decide(id: string, decision: "approved" | "rejected") {
     if (await action.run("PUT", `${base}/${id}/decision`, { decision, reason })) {
@@ -279,6 +292,14 @@ function OrgSuppliers({ active }: { active: MembershipView }) {
                   {s.reason && <div className="muted small">{s.reason}</div>}
                 </td>
                 <td className="row-actions">
+                  {watch && (
+                    <button
+                      type="button"
+                      onClick={() => setDocsOf(docsOf === s.supplier_id ? null : s.supplier_id)}
+                    >
+                      {t("agents:ui.supplier.docs")}
+                    </button>
+                  )}
                   {canDecide && s.decision !== "approved" && (
                     <button
                       type="button"
@@ -304,6 +325,8 @@ function OrgSuppliers({ active }: { active: MembershipView }) {
           </tbody>
         </table>
       )}
+      {watch && docsOf && <OrgSupplierDocs key={docsOf} active={active} supplierId={docsOf} />}
+      {watch && <Scorecards active={active} />}
     </section>
   );
 }

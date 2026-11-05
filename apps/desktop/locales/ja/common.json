@@ -27,7 +27,11 @@
     "history": "購買履歴",
     "savings": "削減実績",
     "records": "取引記録",
-    "mailInbox": "受信箱"
+    "mailInbox": "受信箱",
+    "agents": "エージェント",
+    "exceptions": "例外対応",
+    "cost": "原価・交渉",
+    "integrations": "データ取込"
   },
   "workspace": {
     "customer": "顧客ワークスペース",

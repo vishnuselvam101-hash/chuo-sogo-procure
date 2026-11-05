@@ -27,7 +27,11 @@
     "history": "Purchase history",
     "savings": "Savings",
     "records": "Records",
-    "mailInbox": "Mail inbox"
+    "mailInbox": "Mail inbox",
+    "agents": "Agent console",
+    "exceptions": "Exception inbox",
+    "cost": "Cost & negotiation",
+    "integrations": "Data import"
   },
   "workspace": {
     "customer": "Customer workspace",

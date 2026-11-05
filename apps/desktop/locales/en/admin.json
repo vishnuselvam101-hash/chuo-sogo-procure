@@ -21,7 +21,8 @@
     "settings": "Settings",
     "billing": "Billing",
     "listings": "Listings",
-    "shop": "Shop"
+    "shop": "Shop",
+    "agents": "Agent exceptions"
   },
   "health": {
     "server": "Server version",
